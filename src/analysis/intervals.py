@@ -48,8 +48,10 @@ def compute_interval_freqs(s: stream.base.Score, interval_freqs: dict[list[str],
 def analyze_corpus(corpus_path: str) -> dict[list[str], float]:
     interval_freqs = {}
 
+    print(corpus_path)
     for filename in os.listdir(corpus_path):
         f = os.path.join(corpus_path, filename)
+        print('<==', filename)
         if os.path.isfile(f):
             s = converter.parse(f)
             compute_interval_freqs(s, interval_freqs)
@@ -61,6 +63,14 @@ def analyze_corpus(corpus_path: str) -> dict[list[str], float]:
     
     return interval_freqs
 
+def pretty(freqs, nb=15):
+    freqs_sorted = sorted(list(freqs.items()), key=lambda f:-f[1])
+    s = ''
+    for (data, freq) in freqs_sorted[:nb]:
+        s += f'{freq:.3f} {data}\n'
+
+    return s
+
 dir_path = os.path.join(os.path.dirname(__file__), '../../data/the-scared-harp')
 freqs = analyze_corpus(dir_path)
-print(freqs)
+print(pretty(freqs))
