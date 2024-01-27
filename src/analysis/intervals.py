@@ -61,6 +61,6 @@ def analyze_corpus(corpus_path: str) -> dict[list[str], float]:
     
     return interval_freqs
 
-dir_path = os.path.join(os.path.dirname(__file__), 'the-scared-harp')
+dir_path = os.path.join(os.path.dirname(__file__), '../../data/the-scared-harp')
 freqs = analyze_corpus(dir_path)
 print(freqs)
