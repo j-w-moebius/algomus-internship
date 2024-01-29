@@ -21,6 +21,7 @@
 
 
 import ur
+import gabuzomeu
 from rich import print
 
 
@@ -172,4 +173,9 @@ m0 = sh['melB'].gen(d0)
 sh.score()
 print(sh)
 
-sh.export(sh['struct'].structure, ['mel', 'melB'], ['func'])
+sh.export(
+    gabuzomeu.sentence(),
+    sh['struct'].structure,
+    ['mel', 'melB'],
+    ['func']
+    )

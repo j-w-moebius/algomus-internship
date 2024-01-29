@@ -6,11 +6,11 @@ import datetime
 
 TINY = "tinyNotation: 4/4 "
 
-def export(melodies, annotations):
+def export(title, melodies, annotations):
 
     score = m21.stream.Score()
     score.insert(0, m21.metadata.Metadata())
-    score.metadata.title = "Generation"
+    score.metadata.title = title
     score.metadata.composer = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
     n = 0
