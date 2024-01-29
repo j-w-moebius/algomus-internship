@@ -23,6 +23,7 @@ from typing import Any
 from tools import *
 from collections import defaultdict
 from rich import print
+import export
 
 ALL = '0'
 
@@ -107,6 +108,13 @@ class Gen(object):
     def item(self, gens_in=None, struct=None) -> Item:
         return Item(42)
 
+    def len_to_gen(self, n=10, gens_in=None, struct=None):
+        if gens_in:
+            s0 = gens_in[struct if struct else ALL]
+            if s0:
+                n = len(s0[0])
+        return n
+
     def one(self, gens_in=None, struct=None) -> Data:
         item = self.item(gens_in, struct)
         return Data(item=item, struct=struct)
@@ -155,9 +163,8 @@ class Gen(object):
 
     def set_structure(self):
         for (s, mod) in self.structurers:
-            mod.structure = s.gens[ALL][0].one
-            print(f'{mod} <<< {s.gens[ALL][0].one}')
-
+            s.structure = s.gens[ALL][0].one
+            mod.structure = s.structure
     def str_score(self, s):
         return f'{s:0.3f}'
 
@@ -242,11 +249,7 @@ class ItemChoice(Gen):
 class ItemSequence(Gen):
 
     def item(self, gens_in=None, struct=None):
-        n = 10
-        if gens_in:
-            s0 = gens_in[struct]
-            if s0:
-                n = len(s0[0])
+        n = self.len_to_gen(gens_in=gens_in, struct=struct)
         seq = []
         for i in range(n):
             seq += [pwchoice(self.ITEMS)]
@@ -257,7 +260,7 @@ class ItemMarkov(Gen):
     def item(self, gens_in=None, struct=None):
 
         i = 0
-        n_min = 10
+        n_min = self.len_to_gen(gens_in=gens_in, struct=struct)
         state = pwchoice(self.INITIAL)
         emits = []
 
@@ -315,3 +318,11 @@ class Model(And):
 
     def structurer(self, struct, mod):
         self.structurers += [(self[struct], self[mod])]
+
+    def export(self, structure, mods):
+        print('Exporting...', ' '.join(mods))
+        zz = []
+        for mod in mods:
+            notes = sum([self[mod].gens[struct][0].one + [' r  '] for struct in structure], [])
+            zz += [(mod, notes)]
+        export.export(zz)

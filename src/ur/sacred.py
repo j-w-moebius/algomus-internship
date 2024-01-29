@@ -143,3 +143,5 @@ m0 = sh['melB'].gen(d0)
 
 sh.score()
 print(sh)
+
+sh.export(sh['struct'].structure, ['mel', 'melB'])
