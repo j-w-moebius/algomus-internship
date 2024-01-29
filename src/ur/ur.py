@@ -19,35 +19,72 @@
 #  You should have received a copy of the GNU General Public License
 #  along with "Ur". If not, see <http://www.gnu.org/licenses/>
 
+from typing import Any
 from tools import *
 from collections import defaultdict
 from rich import print
 
 ALL = '0'
 
-class Data(object):
-    def __init__(self, data, context=None):
-        self.data = data
+class Item(object):
+    '''
+    One generation item
+    '''
+    def __init__(self, one, context=None):
+        self.one = one
         self.context = context
 
     def __len__(self):
-        return len(self.data)
+        return len(self.one)
 
     def __repr__(self):
         s = ''
         if self.context:
             s += f'<{self.context}>'
-        if type(self.data) == type([]):
-            s += '[%s]' % ' '.join(map(str, self.data))
+        if type(self.one) == type([]):
+            s += '[%s]' % ' '.join(map(str, self.one))
         else:
-            s += str(self.data)
+            s += str(self.one)
 
         return s
+
+class Data(object):
+    '''
+    A collection of generation items, indexed by structure
+    '''
+
+    def __init__(self, item: Item = None, struct=None, data=None):
+        self.data = data if data is not None else defaultdict(list)
+        if item:
+            self.data[struct if struct else ALL] = [ item ]
+        self.context = ''
+
+    def __getitem__(self, struct: str) -> Item:
+        return self.data[struct]
+
+    def __setitem__(self, struct: str, one: Item):
+        self.data[struct] = one
+
+    def update(self, other):
+        self.data.update(other.data)
+
+    def str(self, indent=''):
+        s = ''
+        for k in sorted(self.data.keys()):
+            ind2 = indent + '>%s ' % k + self.context
+            if len(self.data[k]) <= 1:
+                s += ind2 + str(self.data[k]) + '\n'
+            else:
+                s += ellipsis_str(self.data[k], lines=True, indent=ind2)
+        return s
+
+    def __repr__(self):
+        return self.str()
 
 class Gen(object):
 
     def __init__(self, name = None, mods = None):
-        self.gens = defaultdict(list)
+        self.gens = Data()
         self.mods = mods if mods else []
         self.scorers = []
         self.structurers = []
@@ -57,7 +94,7 @@ class Gen(object):
         pass
 
     def reset(self):
-        self.gens = defaultdict(list)
+        self.gens = Data()
         for m in self.mods:
             m.reset()
             
@@ -67,29 +104,47 @@ class Gen(object):
             for mm in m:
                 yield mm
 
-    def iter_gens(self):
-        for s in self.structure:
-            for g in self.gens[s]:
-                yield g
+    def item(self, gens_in=None, struct=None) -> Item:
+        return Item(42)
 
-    def one(self, gens_in=None):
-        return Data(42)
+    def one(self, gens_in=None, struct=None) -> Data:
+        item = self.item(gens_in, struct)
+        return Data(item=item, struct=struct)
 
-    def one_filtered(self, gens_in, n=50):
+    def one_filtered(self, gens_in, struct, n=50) -> Data:
         if not self.filter:
-            return self.one(gens_in)
-        props = [self.one(gens_in) for i in range(n)]
-        sp = [(self.filter(p), p) for p in props]
+            one = self.one(gens_in, struct)
+            return one
+
+        sp = []
+        for i in range(n):
+            one = self.one(gens_in, struct)
+            score = self.filter.score_item(gens_in[struct][0], one[struct][0])
+            sp += [ (score, one) ]
+        average = sum(map (lambda x:x[0], sp)) / len(sp)
         sp.sort(key = lambda x:x[0])
         one = sp[-1][1]
-        one.context += '=' + str(sp[-1][0])
+        print(f'struct {struct}, nb {n}, avg {average}, best {sp[-1][0]}')
+        one.context += f'={sp[-1][0]:.3f}'
+        one[struct][0].context += '=' + f'={sp[-1][0]:.3f}'
         return one
 
-    def gen(self, gens_in=None):
-        for struct in self.structure:
-            one = self.one_filtered(gens_in)
-            self.gens[struct] += [one]
-        return one
+    def gen(self, gens_in=None) -> Data:
+        new = Data()
+
+        structures = set(self.structure)
+        if gens_in:
+            structures = structures.union(set(gens_in.data.keys()))
+        if len(structures) >= 2 and ALL in structures:
+            structures.remove(ALL)
+
+        for struct in structures:
+            one = self.one_filtered(gens_in if gens_in else None, struct)
+            for struct_child in one.data.keys():
+                struct_dest = struct_child if struct_child != ALL else struct
+                self.gens[struct_dest] += one[struct_child]
+                new[struct_dest] += one[struct_child]
+        return new
 
     def generate(self, n=20):
         for i in range(n):
@@ -100,14 +155,21 @@ class Gen(object):
 
     def set_structure(self):
         for (s, mod) in self.structurers:
-            mod.structure = s.gens[ALL][0].data
-            print(f'{mod} <<< {s.gens[ALL][0].data}')
+            mod.structure = s.gens[ALL][0].one
+            print(f'{mod} <<< {s.gens[ALL][0].one}')
+
+    def str_score(self, s):
+        return f'{s:0.3f}'
 
     def score(self):
         for s in self.scorers:
-            print('Scoring', s)
-            for (d1, d2) in zip(s.mod1.iter_gens(), s.mod2.iter_gens    ()):
-                print("  ", s.score(d1.data, d2.data), d1, d2)
+            structures = set(s.mod1.gens.data.keys()).intersection(set(s.mod2.gens.data.keys()))
+            print('Scoring', s, structures)
+            for struct in structures:
+                for (d1, d2) in zip(s.mod1.gens[struct], s.mod2.gens[struct]):
+                    ss = s.score_item(d1, d2)
+                    d2.context += ',' + self.str_score(ss)
+                    print("  ", ss, d1, d2)
 
     def learn(self):
         raise NotImplemented
@@ -129,12 +191,7 @@ class Gen(object):
         s = ind
         s += f'<{self.id()}>\n'
         if self.gens:
-            for k in self.gens.keys():
-                ind2 = ind + '>%s ' % k
-                if len(self.gens[k]) <= 1:
-                    s += ind2 + str(self.gens[k]) + '\n'
-                else:
-                    s += ellipsis_str(self.gens[k], lines=True, indent=ind2)
+            s += self.gens.str(ind)
             s += '\n'
         for m in self.mods:
             if indent < 6:
@@ -156,11 +213,11 @@ class Or(Gen):
     #    super().__init__()
     #    self.mods = mods
 
-    def one(self, gens_in=None):
+    def one(self, gens_in=None, struct=None):
         m = pwchoice(self.mods)
-        g = m.gen(gens_in)
-        g.context = self.id() + '/' + g.context
-        return g
+        gs = m.gen(gens_in)
+        gs.context = self.id() + '/' + gs.context
+        return gs
 
 
 class And(Gen):
@@ -169,27 +226,35 @@ class And(Gen):
     #    super().__init__()
     #    self.mods = mods
 
-    def one(self, gens_in=None):
-        return Data([m.gen(gens_in) for m in self.mods])
+    def one(self, gens_in=None, struct=None):
+        d = Data()
+        for m in self.mods:
+            d.update(m.gen(gens_in))
+        return d
 
+### Item generators
 
-class Items(Gen):
+class ItemChoice(Gen):
 
-    def one(self, gens_in=None):
-        return Data(pwchoice(self.ITEMS))
+    def item(self, gens_in=None, struct=None):
+        return Item(pwchoice(self.CHOICES))
 
-class Sequence(Gen):
+class ItemSequence(Gen):
 
-    def one(self, gens_in=None):
-        n = 10 if not gens_in else len(gens_in)
+    def item(self, gens_in=None, struct=None):
+        n = 10
+        if gens_in:
+            s0 = gens_in[struct]
+            if s0:
+                n = len(s0[0])
         seq = []
         for i in range(n):
             seq += [pwchoice(self.ITEMS)]
-        return Data(seq, self.id() + ':' + str(n))
+        return Item(seq, self.id() + ':' + str(n))
 
-class Markov(Gen):
+class ItemMarkov(Gen):
 
-    def one(self, gens_in=None):
+    def item(self, gens_in=None, struct=None):
 
         i = 0
         n_min = 10
@@ -202,11 +267,11 @@ class Markov(Gen):
             state = pwchoice(self.TRANSITIONS[state])
             i += 1
 
-        return Data(emits, self.id() + ':' + str(i))
+        return Item(emits, self.id() + ':' + str(i))
 
+### Scores
 
-
-class scorer(object):
+class Scorer(object):
 
     def __init__(self, mod1, mod2):
         self.mod1 = mod1
@@ -215,15 +280,26 @@ class scorer(object):
     def __str__(self):
         return f'<<{self.mod1.id()} // {self.mod2.id()}>>'
 
-class seqScorer(scorer):
+    def score(self, gens1: Data, gens2: Data):
+        print(gens1, gens2)
+        for struct in set(gens1.data.keys()).union(set(gens2.data.keys())):
+            print(struct)
+            self.score_item(gens1[struct], gens2[struct])
 
-    def score(self, d1, d2, verbose=False):
-        scores = [self.score_one(e1, e2) for (e1, e2) in zip(d1, d2)]
+    def score_item(self, gen1, gen2):
+        raise NotImplemented
+
+class ScorerSequence(Scorer):
+
+    def score_item(self, gen1: Item, gen2: Item, verbose=False):
+        scores = [self.score_element(e1, e2) for (e1, e2) in zip(gen1.one, gen2.one)]
         if verbose:
             print(scores)
-        return sum(scores)
+        return sum(scores)/len(scores)
 
-class model(And):
+### Model
+
+class Model(And):
 
     def __getitem__(self, name):
         for m in self:

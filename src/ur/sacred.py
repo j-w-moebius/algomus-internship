@@ -24,10 +24,10 @@ import ur
 from rich import print
 
 
-class Structure(ur.Items):
-    ITEMS = ['AABC', 'ABA']
+class Structure(ur.ItemChoice):
+    CHOICES = ['AABC', 'ABA']
 
-class FuncMajor(ur.Markov):
+class FuncMajor(ur.ItemMarkov):
 
     SOURCE = '(Kelley 2016)'
 
@@ -48,7 +48,7 @@ class FuncMajor(ur.Markov):
     }
 
 
-class FuncMinor(ur.Markov):
+class FuncMinor(ur.ItemMarkov):
 
     SOURCE = '(Kelley 2016)'
 
@@ -69,10 +69,10 @@ class FuncMinor(ur.Markov):
     }
 
 
-class Melody(ur.Sequence):
+class Melody(ur.ItemSequence):
     ITEMS = 'cdefgab'
 
-class ScoreHarmMelody(ur.seqScorer):
+class ScorerHarmMelody(ur.ScorerSequence):
 
     CHORDS = {
         'I': 'ceg',
@@ -92,7 +92,7 @@ class ScoreHarmMelody(ur.seqScorer):
         'VII': 'gcb',
     }
 
-    def score_one(self, harm, mel):
+    def score_element(self, harm, mel):
         # print (mel, harm, self.CHORDS[harm])
         if mel in self.CHORDS[harm]:
             return 1.0
@@ -102,7 +102,7 @@ class ScoreHarmMelody(ur.seqScorer):
 
 
 print('[yellow]### Init')
-sh = ur.model()
+sh = ur.Model()
 
 sh.add(Structure('struct'))
 sh.add(ur.Or('func', [FuncMajor('Major'),
@@ -111,32 +111,35 @@ sh.structurer('struct', 'Major')
 sh.structurer('struct', 'minor')
 
 sh.add(Melody('mel'))
-sh.scorer(ScoreHarmMelody, 'func', 'mel')
+sh.scorer(ScorerHarmMelody, 'func', 'mel')
 
 sh.add(Melody('melB'))
-sh.scorer(ScoreHarmMelody, 'func', 'melB')
+sh.scorer(ScorerHarmMelody, 'func', 'melB')
 
 print(sh)
+
+# -------------------------------------------------------
 
 print('[yellow]### Gen 1, independent')
 sh.generate()
 sh.score()
 print(sh)
 
+# -------------------------------------------------------
 
 print('[yellow]### Gen 2')
 sh.reset()
 sh['struct'].gen()
-# sh.set_structure()
+sh.set_structure()
 
 d0 = sh['func'].gen()
-print(d0)
+print("d0", d0)
 
-sh['mel'].set_filter(lambda x: sh.scorers[0].score(d0.data, x.data))
+sh['mel'].set_filter(sh.scorers[0])
 m0 = sh['mel'].gen(d0)
 
-sh['melB'].set_filter(lambda x: sh.scorers[0].score(d0.data, x.data))
+# sh['melB'].set_filter(sh.scorers[0])
 m0 = sh['melB'].gen(d0)
 
-sh.scorers[0].score(d0.data, m0.data, verbose=True)
+sh.score()
 print(sh)
