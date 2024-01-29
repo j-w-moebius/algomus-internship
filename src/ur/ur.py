@@ -193,6 +193,10 @@ class Gen(object):
     def id(self):
         return f'{self.__class__.__name__}-{self.name}'
 
+    def export(self, structure):
+        items = sum([self.gens[struct][0].one + [' r  '] for struct in structure], [])
+        return items
+
     def str(self, indent=0):
         ind = '    ' * indent
         s = ind
@@ -319,10 +323,8 @@ class Model(And):
     def structurer(self, struct, mod):
         self.structurers += [(self[struct], self[mod])]
 
-    def export(self, structure, mods):
-        print('Exporting...', ' '.join(mods))
-        zz = []
-        for mod in mods:
-            notes = sum([self[mod].gens[struct][0].one + [' r  '] for struct in structure], [])
-            zz += [(mod, notes)]
-        export.export(zz)
+    def export(self, structure, mods_melodies, mods_annots):
+        print('Exporting...')
+        melodies = [(mod, self[mod].export(structure)) for mod in mods_melodies]
+        annots   = [(mod, self[mod].export(structure)) for mod in mods_annots]
+        export.export(melodies, annots)

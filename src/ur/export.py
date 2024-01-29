@@ -6,7 +6,7 @@ import datetime
 
 TINY = "tinyNotation: 4/4 "
 
-def export(melodies):
+def export(melodies, annotations):
 
     score = m21.stream.Score()
     score.insert(0, m21.metadata.Metadata())
@@ -16,7 +16,7 @@ def export(melodies):
     n = 0
     for (name, mel) in melodies:
         n += 1
-        data = ' '.join([f'{note:2s}' for note in mel])
+        data = ''.join([f'{note:3s}' for note in mel])
         print(f'🎵 {name:5s}', data)
         part = m21.stream.Part()
         part = m21.converter.parse(TINY + data)
@@ -25,13 +25,22 @@ def export(melodies):
                 part.measure(1).remove(cl)
             part.measure(1).insert(0, m21.clef.BassClef())
             part = part.transpose(-12)
-            # part.show('txt')
-
-        part = m21.stream.tools.removeDuplicates(part)
-        score.append(part)
         # part.show('txt')
-        # print()
+        score.append(part)
 
+    for (name, lyr) in annotations:
+        part = m21.stream.Part()
+        part.insert(0, m21.clef.PercussionClef())
+        part.insert(0, m21.layout.StaffLayout(staffLines=1))
+        data = ''.join([f'{note:3s}' for note in lyr])
+        print(f'🏷️ {name:5s}', data)
+
+        for (i, ly) in enumerate(lyr):
+            if ly == ' r  ':
+                continue
+            ew = m21.expressions.TextExpression(ly)
+            part.insert(i, ew)
+        score.append(part)
 
     # score.show('txt')
     f = 'score.mxl'
