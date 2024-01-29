@@ -1,7 +1,7 @@
 from music21 import *
 import os
 
-# run this script to analyze interval frequencies in "The Scared Harp" collection
+# run this script to analyze vertical interval frequencies in "The Scared Harp" collection
 
 # takes score s as input and make it contribute to a dictionary of absolute interval frequencies, interval_freqs 
 def compute_interval_freqs(s: stream.base.Score, interval_freqs: dict[list[str], int]):
