@@ -69,8 +69,34 @@ class FuncMinor(ur.ItemMarkov):
     }
 
 
-class Melody(ur.ItemSequence):
+class Melody0(ur.ItemSequence):
     ITEMS = 'cdefgab'
+
+class Melody1(ur.ItemMarkov):
+
+    SOURCE = ''
+
+    STATES = ['c', 'd', 'e', 'f', 'g', 'a', 'b', "c'", "d'"]
+    INITIAL = ['c', 'e', 'g']
+    FINAL = STATES
+
+    TRANSITIONS = {
+        'c':  {                       'c': 0.20, 'd': 0.30, 'g': 0.10 },
+        'd':  {            'c': 0.30, 'd': 0.20, 'e': 0.10, 'g': 0.10,  "c'": 0.10 },
+        'e':  { 'c': 0.10, 'd': 0.30, 'e': 0.20, 'f': 0.30, 'g': 0.10,  "b": 0.10  },
+        'f':  { 'd': 0.10, 'e': 0.30, 'f': 0.20, 'g': 0.30, "c'": 0.10, "d'": 0.10},
+        'g':  { 'c': 0.10, 'f': 0.30, 'g': 0.20, 'a': 0.30, 'c': 0.10,  "d'": 0.10 },
+        'a':  { 'f': 0.10, 'g': 0.30, 'a': 0.20, 'b': 0.30, "d'": 0.10 },
+        'b':  { 'g': 0.10, 'a': 0.30, 'b': 0.20, "c'": 0.30, "d'": 0.10 },
+        "c'": { 'a': 0.10, 'b': 0.30, "c'": 0.20, "d'": 0.30,  },
+        "d'": { 'b': 0.10, "c'": 0.30, "d'": 0.20,  },
+    }
+
+    EMISSIONS = {
+        x: {x: 1.00} for x in STATES
+    }
+
+
 
 class ScorerHarmMelody(ur.ScorerSequence):
 
@@ -83,7 +109,7 @@ class ScorerHarmMelody(ur.ScorerSequence):
         'vi': 'ace',
         'vii': 'bdf',
 
-        'i': 'ac',
+        'i': 'ae',
         'iim': 'bdf',
         'III': 'ceg',
         'iv': 'dfa',
@@ -110,10 +136,10 @@ sh.add(ur.Or('func', [FuncMajor('Major'),
 sh.structurer('struct', 'Major')
 sh.structurer('struct', 'minor')
 
-sh.add(Melody('mel'))
+sh.add(Melody1('mel'))
 sh.scorer(ScorerHarmMelody, 'func', 'mel')
 
-sh.add(Melody('melB'))
+sh.add(Melody0('melB'))
 sh.scorer(ScorerHarmMelody, 'func', 'melB')
 
 print(sh)
@@ -138,7 +164,7 @@ print("d0", d0)
 sh['mel'].set_filter(sh.scorers[0])
 m0 = sh['mel'].gen(d0)
 
-# sh['melB'].set_filter(sh.scorers[0])
+sh['melB'].set_filter(sh.scorers[0])
 m0 = sh['melB'].gen(d0)
 
 sh.score()
