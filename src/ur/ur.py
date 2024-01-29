@@ -119,7 +119,7 @@ class Gen(object):
         item = self.item(gens_in, struct)
         return Data(item=item, struct=struct)
 
-    def one_filtered(self, gens_in, struct, n=50) -> Data:
+    def one_filtered(self, gens_in, struct, n=500) -> Data:
         if not self.filter:
             one = self.one(gens_in, struct)
             return one

@@ -31,17 +31,19 @@ class FuncMajor(ur.ItemMarkov):
 
     SOURCE = '(Kelley 2016)'
 
-    STATES = ['T', 'S', 'D']
-    INITIAL = ['T']
+    STATES = ['i', 'T', 'S', 'D']
+    INITIAL = ['i']
     FINAL = ['T']
 
     TRANSITIONS = {
+        'i': { 'T': 0.72, 'S': 0.09, 'D': 0.18 },
         'T': { 'T': 0.72, 'S': 0.09, 'D': 0.18 },
         'S': { 'T': 0.53, 'S': 0.18, 'D': 0.28 },
         'D': { 'T': 0.67, 'S': 0.09, 'D': 0.25 },
     }
 
     EMISSIONS = {
+        'i': {'I': 1.00},
         'T': {'vi': 0.22, 'I': 0.78},
         'S': {'ii': 0.54, 'IV': 0.46},
         'D': {'iii': 0.21, 'V': 0.72, 'vii': 0.07},
