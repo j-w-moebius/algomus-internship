@@ -72,6 +72,13 @@ class FuncMinor(ur.ItemMarkov):
     }
 
 
+class Rhythm(ur.ItemSequence):
+    ITEMS = [
+                ('4', 0.7),
+                ('8 8', 0.25),
+                ('4. 8', 0.05),
+            ]
+
 class Melody0(ur.ItemSequence):
     ITEMS = 'cdefgab'
 
@@ -174,6 +181,8 @@ scoreT = sh.scorer(ScorerHarmMelody, 'func', 'mel')
 sh.add(Melody1('melB'))
 scoreB = sh.scorer(ScorerHarmMelodyRoot, 'func', 'melB')
 
+sh.add(Rhythm('rhy'))
+
 print(sh)
 
 # -------------------------------------------------------
@@ -199,19 +208,16 @@ m0 = sh['mel'].gen(d0)
 sh['melB'].set_filter(scoreB)
 m0 = sh['melB'].gen(d0)
 
+sh['rhy'].gen(d0)
+
 sh.score()
 print(sh)
 
-rhythms = {
-            'A': [2, 5],
-            'B': [1, 5],
-            'C': [3, 4],
-        }
 
 sh.export(
     gabuzomeu.sentence(),
     sh['struct'].structure,
-    rhythms,
+    sh['rhy'],
     ['mel', 'melB'],
     ['func']
     )

@@ -197,16 +197,16 @@ class Gen(object):
         out = []
         for struct in structure:
             items = self.gens[struct][0].one
-            rhy = rhythms[struct] if rhythms else [ 2, 6 ]
+            rhy = rhythms.gens[struct][0].one if rhythms else None
             for i, item in enumerate(items):
                 if not rhythms:
                     out += [ item ]
                     continue
-                if i in rhy:
-                    out += [ f' {item}8 {item}8 ']
-                    continue
-                out += [ f' {item}4 ' ]
-            out += [ ' r  ']
+                s = ''
+                for rh in rhy[i].split(' '):
+                    s += f' {item}{rh} '
+                out += [ s ]
+            out += [ ' r4  ']
         return out
 
     def str(self, indent=0):
