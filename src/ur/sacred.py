@@ -128,6 +128,11 @@ class ScorerHarmMelody(ur.ScorerSequence):
         else:
             return 0.0
 
+    def score_first_last_element(self, harm, mel):
+        if mel in self.CHORDS[harm]:
+            return 1.0
+        else:
+            return -20
 
 
 class ScorerHarmMelodyRoot(ScorerHarmMelody):
@@ -146,6 +151,12 @@ class ScorerHarmMelodyRoot(ScorerHarmMelody):
             return self.SCORES[i]
         else:
             return self.SCORES[None]
+
+    def score_first_last_element(self, harm, mel):
+        if mel == self.CHORDS[harm][0]:
+            return 0.0
+        else:
+            return -20.0
 
 
 print('[yellow]### Init')
