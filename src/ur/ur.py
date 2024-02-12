@@ -263,12 +263,20 @@ class ItemChoice(Gen):
         return Item(pwchoice(self.CHOICES))
 
 class ItemSequence(Gen):
+    
+    def items(self, i, n):
+        if i == n-1:
+            try:
+                return self.ITEMS_LAST
+            except AttributeError:
+                pass
+        return self.ITEMS
 
     def item(self, gens_in=None, struct=None):
         n = self.len_to_gen(gens_in=gens_in, struct=struct)
         seq = []
         for i in range(n):
-            seq += [pwchoice(self.ITEMS)]
+            seq += [pwchoice(self.items(i, n))]
         return Item(seq, self.id() + ':' + str(n))
 
 class ItemMarkov(Gen):

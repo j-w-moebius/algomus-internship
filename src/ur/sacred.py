@@ -73,6 +73,10 @@ class FuncMinor(ur.ItemMarkov):
 
 
 class Rhythm(ur.ItemSequence):
+    ITEMS_LAST = [
+        # ('2', 0.5),  # Annotations !
+        ('4', 0.5),
+    ]
     ITEMS = [
                 ('4', 0.7),
                 ('8 8', 0.25),

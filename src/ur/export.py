@@ -36,7 +36,7 @@ def export(title, melodies, annotations):
         print(f'🏷️ {name:5s}', data)
 
         for (i, ly) in enumerate(lyr):
-            if ly == ' r  ':
+            if 'r' in ly:
                 continue
             ew = m21.expressions.TextExpression(ly)
             part.insert(i, ew)
