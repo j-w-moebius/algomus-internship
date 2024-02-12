@@ -109,7 +109,7 @@ class Gen(object):
     def item(self, gens_in=None, struct=None) -> Item:
         return Item(42)
 
-    def len_to_gen(self, n=10, gens_in=None, struct=None):
+    def len_to_gen(self, n=8, gens_in=None, struct=None):
         if gens_in:
             s0 = gens_in[struct if struct else ALL]
             if s0:
@@ -205,7 +205,7 @@ class Gen(object):
                     continue
                 if annotation:
                     out += [ item ]
-                    if rhy[i] in ['2', '4. 8']:
+                    if rhy[i].strip() in ['2', '4. 8']:
                         out += [ '' ]
                     continue
 
