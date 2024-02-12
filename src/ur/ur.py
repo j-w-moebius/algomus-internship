@@ -299,10 +299,13 @@ class ItemMarkov(Gen):
         state = pwchoice(self.INITIAL)
         emits = []
 
+        emit = pwchoice(self.EMISSIONS[state])
+        emits += [emit]
+        i += 1
         while i < n_min or state not in self.FINAL:
+            state = pwchoice(self.TRANSITIONS[state])
             emit = pwchoice(self.EMISSIONS[state])
             emits += [emit]
-            state = pwchoice(self.TRANSITIONS[state])
             i += 1
 
         return Item(emits, self.id() + ':' + str(i))
