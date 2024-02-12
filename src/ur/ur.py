@@ -193,9 +193,21 @@ class Gen(object):
     def id(self):
         return f'{self.__class__.__name__}-{self.name}'
 
-    def export(self, structure):
-        items = sum([self.gens[struct][0].one + [' r  '] for struct in structure], [])
-        return items
+    def export(self, structure, rhythms=None):
+        out = []
+        for struct in structure:
+            items = self.gens[struct][0].one
+            rhy = rhythms[struct] if rhythms else [ 2, 6 ]
+            for i, item in enumerate(items):
+                if not rhythms:
+                    out += [ item ]
+                    continue
+                if i in rhy:
+                    out += [ f' {item}8 {item}8 ']
+                    continue
+                out += [ f' {item}4 ' ]
+            out += [ ' r  ']
+        return out
 
     def str(self, indent=0):
         ind = '    ' * indent
@@ -332,8 +344,8 @@ class Model(And):
     def structurer(self, struct, mod):
         self.structurers += [(self[struct], self[mod])]
 
-    def export(self, title, structure, mods_melodies, mods_annots):
+    def export(self, title, structure, rhythms, mods_melodies, mods_annots):
         print('Exporting...')
-        melodies = [(mod, self[mod].export(structure)) for mod in mods_melodies]
+        melodies = [(mod, self[mod].export(structure, rhythms)) for mod in mods_melodies]
         annots   = [(mod, self[mod].export(structure)) for mod in mods_annots]
         export.export(title, melodies, annots)

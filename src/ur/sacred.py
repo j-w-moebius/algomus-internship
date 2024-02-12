@@ -202,9 +202,16 @@ m0 = sh['melB'].gen(d0)
 sh.score()
 print(sh)
 
+rhythms = {
+            'A': [2, 5],
+            'B': [1, 5],
+            'C': [3, 4],
+        }
+
 sh.export(
     gabuzomeu.sentence(),
     sh['struct'].structure,
+    rhythms,
     ['mel', 'melB'],
     ['func']
     )
