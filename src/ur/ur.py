@@ -23,6 +23,7 @@ from typing import Any
 from tools import *
 from collections import defaultdict
 from rich import print
+import nonchord
 import export
 
 ALL = '0'
@@ -203,7 +204,11 @@ class Gen(object):
                     out += [ item ]
                     continue
                 s = ''
-                for rh in rhy[i].split(' '):
+                for j, rh in enumerate(rhy[i].split(' ')):
+                    if j == 1:
+                        if i < len(items)-1:
+                            item = nonchord.note_nonchord(item, items[i+1])
+
                     s += f' {item}{rh} '
                 out += [ s ]
             out += [ ' r4  ']
