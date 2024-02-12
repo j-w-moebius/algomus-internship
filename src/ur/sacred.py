@@ -130,6 +130,24 @@ class ScorerHarmMelody(ur.ScorerSequence):
 
 
 
+class ScorerHarmMelodyRoot(ScorerHarmMelody):
+
+    SCORES = {
+        None: 0.0,
+        0: 1.0,
+        1: 0.5,
+        2: 0.2,
+    }
+
+    '''Favors 5, '''
+    def score_element(self, harm, mel):
+        if mel in self.CHORDS[harm]:
+            i = self.CHORDS[harm].index(mel)
+            return self.SCORES[i]
+        else:
+            return self.SCORES[None]
+
+
 print('[yellow]### Init')
 sh = ur.Model()
 
@@ -140,10 +158,10 @@ sh.structurer('struct', 'Major')
 sh.structurer('struct', 'minor')
 
 sh.add(Melody1('mel'))
-sh.scorer(ScorerHarmMelody, 'func', 'mel')
+scoreT = sh.scorer(ScorerHarmMelody, 'func', 'mel')
 
-sh.add(Melody0('melB'))
-sh.scorer(ScorerHarmMelody, 'func', 'melB')
+sh.add(Melody1('melB'))
+scoreB = sh.scorer(ScorerHarmMelodyRoot, 'func', 'melB')
 
 print(sh)
 
@@ -164,10 +182,10 @@ sh.set_structure()
 d0 = sh['func'].gen()
 print("d0", d0)
 
-sh['mel'].set_filter(sh.scorers[0])
+sh['mel'].set_filter(scoreT)
 m0 = sh['mel'].gen(d0)
 
-sh['melB'].set_filter(sh.scorers[0])
+sh['melB'].set_filter(scoreB)
 m0 = sh['melB'].gen(d0)
 
 sh.score()

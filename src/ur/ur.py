@@ -318,7 +318,9 @@ class Model(And):
         self.mods += [mod]
 
     def scorer(self, scorer, mod1, mod2):
-        self.scorers += [scorer(self[mod1], self[mod2])]
+        sco = scorer(self[mod1], self[mod2])
+        self.scorers += [sco]
+        return sco
 
     def structurer(self, struct, mod):
         self.structurers += [(self[struct], self[mod])]
