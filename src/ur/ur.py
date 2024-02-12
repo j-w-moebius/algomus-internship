@@ -194,7 +194,7 @@ class Gen(object):
     def id(self):
         return f'{self.__class__.__name__}-{self.name}'
 
-    def export(self, structure, rhythms=None):
+    def export(self, structure, rhythms=None, annotation=False):
         out = []
         for struct in structure:
             items = self.gens[struct][0].one
@@ -203,6 +203,12 @@ class Gen(object):
                 if not rhythms:
                     out += [ item ]
                     continue
+                if annotation:
+                    out += [ item ]
+                    if rhy[i] in ['2', '4. 8']:
+                        out += [ '' ]
+                    continue
+
                 s = ''
                 for j, rh in enumerate(rhy[i].split(' ')):
                     if j == 1:
@@ -360,5 +366,5 @@ class Model(And):
     def export(self, title, structure, rhythms, mods_melodies, mods_annots):
         print('Exporting...')
         melodies = [(mod, self[mod].export(structure, rhythms)) for mod in mods_melodies]
-        annots   = [(mod, self[mod].export(structure)) for mod in mods_annots]
+        annots   = [(mod, self[mod].export(structure, rhythms, annotation=True)) for mod in mods_annots]
         export.export(title, melodies, annots)
