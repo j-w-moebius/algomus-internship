@@ -149,7 +149,7 @@ class ScorerHarmMelody(ur.ScorerSequence):
 class ScorerHarmMelodyRoot(ScorerHarmMelody):
 
     SCORES = {
-        None: 0.0,
+        None: -5.0,
         0: 1.0,
         1: 0.5,
         2: 0.2,
