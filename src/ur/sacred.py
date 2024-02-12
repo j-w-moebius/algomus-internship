@@ -91,7 +91,7 @@ class Melody1(ur.ItemMarkov):
     SOURCE = ''
 
     STATES = ['c', 'd', 'e', 'f', 'g', 'a', 'b', "c'", "d'"]
-    INITIAL = ['c', 'e', 'g']
+    INITIAL = ['c', 'e', 'g', 'a']
     FINAL = STATES
 
     TRANSITIONS = {
