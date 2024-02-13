@@ -119,7 +119,7 @@ class ScorerHarmMelody(ur.ScorerSequence):
         'ii': 'dfa',
         'iii': 'egb',
         'IV': 'fac',
-        'V': 'gbc',
+        'V': 'gd',
         'vi': 'ace',
         'vii': 'bdf',
 
@@ -127,9 +127,9 @@ class ScorerHarmMelody(ur.ScorerSequence):
         'iim': 'bdf',
         'III': 'ceg',
         'iv': 'dfa',
-        'v': 'eb',
+        'v': 'egb',
         'VI': 'fac',
-        'VII': 'gcb',
+        'VII': 'gd',
     }
 
     def score_element(self, harm, mel):
