@@ -209,8 +209,18 @@ class Gen(object):
                         out += [ '' ]
                     continue
 
+                rhy_i = rhy[i]
+
+                # Some passing notes between thirds
+                if rhy_i == '4' and i < len(items)-1:
+                    if nonchord.interval_third(item, items[i+1]):
+                        if random.choice([True, False]):
+                            rhy_i = '8 8'
+
                 s = ''
-                for j, rh in enumerate(rhy[i].split(' ')):
+
+                # Follow common rhythm
+                for j, rh in enumerate(rhy_i.split(' ')):
                     if j == 1:
                         if i < len(items)-1:
                             item = nonchord.note_nonchord(item, items[i+1])
