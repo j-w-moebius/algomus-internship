@@ -17,6 +17,7 @@ def export(title, melodies, annotations):
     for (name, mel) in melodies:
         n += 1
         data = ''.join([f'{note:3s}' for note in mel])
+        data = data.replace("a,", "A").replace("b,", "B")
         print(f'🎵 {name:5s}', data)
         part = m21.stream.Part()
         part = m21.converter.parse(TINY + data)

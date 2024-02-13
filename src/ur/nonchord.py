@@ -1,7 +1,7 @@
 
 import random
 
-NOTES = ['c', 'd', 'e', 'f', 'g', 'a', 'b', "c'", "d'", "e'", "g'"]
+NOTES = ["a,", 'b,', 'c', 'd', 'e', 'f', 'g', 'a', 'b', "c'", "d'", "e'", "g'"]
 
 def note_index(n):
     if n not in NOTES:
