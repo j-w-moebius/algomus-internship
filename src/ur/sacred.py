@@ -22,6 +22,7 @@
 
 import ur
 import gabuzomeu
+import random
 from rich import print
 
 
@@ -86,12 +87,12 @@ class Rhythm(ur.ItemSequence):
 class Melody0(ur.ItemSequence):
     ITEMS = 'cdefgab'
 
-class Melody1(ur.ItemMarkov):
+class MelodyMajor(ur.ItemMarkov):
 
     SOURCE = ''
 
     STATES = ['c', 'd', 'e', 'f', 'g', 'a', 'b', "c'", "d'"]
-    INITIAL = ['c', 'e', 'g', 'a']
+    INITIAL = ['c', 'e', 'g']
     FINAL = STATES
 
     TRANSITIONS = {
@@ -106,6 +107,29 @@ class Melody1(ur.ItemMarkov):
         "d'": { 'a': 0.10, "c'": 0.30, "d'": 0.20,  },
     }
 
+    EMISSIONS = {
+        x: {x: 1.00} for x in STATES
+    }
+
+class MelodyMinor(ur.ItemMarkov):
+
+    SOURCE = ''
+
+    STATES = ['c', 'd', 'e', 'f', 'g', 'a', 'b', "c'", "d'"]
+    INITIAL = ['c', 'e', 'a']
+    FINAL = STATES
+
+    TRANSITIONS = {
+        'c':  {                       'c': 0.20, 'd': 0.30 },
+        'd':  {            'c': 0.10, 'd': 0.10, 'e': 0.30, 'g': 0.10,  'a': 0.20 },
+        'e':  { 'c': 0.10, 'd': 0.30, 'e': 0.20, 'f': 0.10, 'g': 0.30,  "a": 0.20  },
+        'f':  { 'c': 0.00, 'd': 0.00, 'e': 0.30, 'f': 0.00, 'g': 0.30, "c'": 0.00 },
+        'g':  {            'e': 0.30, 'f': 0.10, 'g': 0.20, 'a': 0.30, "b": 0.30   },
+        'a':  { 'e': 0.30, 'f': 0.00, 'g': 0.30, 'a': 0.20, 'b': 0.30, 'c': 0.10  },
+        'b':  { 'g': 0.30, 'a': 0.30, 'b': 0.30, "c'": 0.10  },
+        "c'": { 'g': 0.30, 'a': 0.30, 'b': 0.30, "c'": 0.10, "d'": 0.10  },
+        "d'": { 'a': 0.10, 'b': 0.20, "c'": 0.30, "d'": 0.10,  },
+    }
     EMISSIONS = {
         x: {x: 1.00} for x in STATES
     }
@@ -174,15 +198,26 @@ print('[yellow]### Init')
 sh = ur.Model()
 
 sh.add(Structure('struct'))
-sh.add(ur.Or('func', [FuncMajor('Major'),
-                      FuncMinor('minor')]))
-sh.structurer('struct', 'Major')
-sh.structurer('struct', 'minor')
 
-sh.add(Melody1('mel'))
+mode = random.choice(['Major', 'minor'])
+
+# sh.add(ur.Or('func', [FuncMajor('Major'),
+#                       FuncMinor('minor')]))
+
+if mode == 'Major':
+    Func = FuncMajor
+    Melody = MelodyMajor
+else:
+    Func = FuncMinor
+    Melody = MelodyMinor
+    
+sh.add(Func('func'))
+sh.structurer('struct', 'func')
+
+sh.add(Melody('mel'))
 scoreT = sh.scorer(ScorerHarmMelody, 'func', 'mel')
 
-sh.add(Melody1('melB'))
+sh.add(Melody('melB'))
 scoreB = sh.scorer(ScorerHarmMelodyRoot, 'func', 'melB')
 
 sh.add(Rhythm('rhy'))
