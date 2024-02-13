@@ -26,6 +26,13 @@ import random
 from rich import print
 
 
+
+import argparse
+
+parser = argparse.ArgumentParser(description = 'Fake Sacred Harp')
+parser.add_argument('--save', '-s', type=int, default=0, help='starting number to save generation, otherwise draft generations')
+parser.add_argument('--nb', '-n', type=int, default=0, help='number of generations with --save')
+
 class Structure(ur.ItemChoice):
     CHOICES = ['AABC', 'ABA', 'ACBA' ]
 
@@ -244,83 +251,109 @@ class ScorerHarmMelodyRoot(ScorerHarmMelody):
             return -20.0
 
 
-print('[yellow]### Init')
-sh = ur.Model()
+def gen_sacred():
+    print('[yellow]### Init')
+    sh = ur.Model()
 
-sh.add(Structure('struct'))
+    sh.add(Structure('struct'))
 
-mode = random.choice(['Major', 'minor'])
+    mode = random.choice(['Major', 'minor'])
 
-# sh.add(ur.Or('func', [FuncMajor('Major'),
-#                       FuncMinor('minor')]))
+    # sh.add(ur.Or('func', [FuncMajor('Major'),
+    #                       FuncMinor('minor')]))
 
-if mode == 'Major':
-    Func = FuncMajor
-    MelodyUp = MelodyMajorUp
-    MelodyDown = MelodyMajorDown
-else:
-    Func = FuncMinor
-    MelodyUp = MelodyMinorUp
-    MelodyDown = MelodyMinorDown
-    
-sh.add(Func('func'))
-sh.structurer('struct', 'func')
+    if mode == 'Major':
+        Func = FuncMajor
+        MelodyUp = MelodyMajorUp
+        MelodyDown = MelodyMajorDown
+    else:
+        Func = FuncMinor
+        MelodyUp = MelodyMinorUp
+        MelodyDown = MelodyMinorDown
 
-sh.add(MelodyUp('mel'))
-score = sh.scorer(ScorerHarmMelody, 'func', 'mel')
+    sh.add(Func('func'))
+    sh.structurer('struct', 'func')
 
-sh.add(MelodyUp('melS'))
-scoreS = sh.scorer(ScorerHarmMelody, 'func', 'melS')
+    sh.add(MelodyUp('mel'))
+    score = sh.scorer(ScorerHarmMelody, 'func', 'mel')
 
-sh.add(MelodyDown('melA'))
-scoreA = sh.scorer(ScorerHarmMelody, 'func', 'melA')
+    sh.add(MelodyUp('melS'))
+    scoreS = sh.scorer(ScorerHarmMelody, 'func', 'melS')
 
-sh.add(MelodyDown('melB'))
-scoreB = sh.scorer(ScorerHarmMelodyRoot, 'func', 'melB')
+    sh.add(MelodyDown('melA'))
+    scoreA = sh.scorer(ScorerHarmMelody, 'func', 'melA')
 
-sh.add(Rhythm('rhy'))
+    sh.add(MelodyDown('melB'))
+    scoreB = sh.scorer(ScorerHarmMelodyRoot, 'func', 'melB')
 
-print(sh)
+    sh.add(Rhythm('rhy'))
 
-# -------------------------------------------------------
+    print(sh)
 
-print('[yellow]### Gen 1, independent')
-sh.generate()
-sh.score()
-print(sh)
+    # -------------------------------------------------------
 
-# -------------------------------------------------------
+    print('[yellow]### Gen 1, independent')
+    sh.generate()
+    sh.score()
+    print(sh)
 
-print('[yellow]### Gen 2')
-sh.reset()
-sh['struct'].gen()
-sh.set_structure()
+    # -------------------------------------------------------
 
-d0 = sh['func'].gen()
-print("d0", d0)
+    print('[yellow]### Gen 2')
+    sh.reset()
+    sh['struct'].gen()
+    sh.set_structure()
 
-sh['mel'].set_filter(score)
-m0 = sh['mel'].gen(d0)
+    d0 = sh['func'].gen()
+    print("d0", d0)
 
-
-sh['melS'].set_filter(scoreS)
-m0 = sh['melS'].gen(d0)
-sh['melA'].set_filter(scoreA)
-m0 = sh['melA'].gen(d0)
-
-sh['melB'].set_filter(scoreB)
-m0 = sh['melB'].gen(d0)
-
-sh['rhy'].gen(d0)
-
-sh.score()
-print(sh)
+    sh['mel'].set_filter(score)
+    m0 = sh['mel'].gen(d0)
 
 
-sh.export(
-    gabuzomeu.sentence(),
-    sh['struct'].structure,
-    sh['rhy'],
-    ['melS', 'melA', 'mel', 'melB'],
-    ['func']
-    )
+    sh['melS'].set_filter(scoreS)
+    m0 = sh['melS'].gen(d0)
+    sh['melA'].set_filter(scoreA)
+    m0 = sh['melA'].gen(d0)
+
+    sh['melB'].set_filter(scoreB)
+    m0 = sh['melB'].gen(d0)
+
+    sh['rhy'].gen(d0)
+
+    sh.score()
+    return sh
+
+
+def sacred(code, f):
+    sh = gen_sacred()    
+    print(sh)
+
+    sh.export(
+        f,
+        code + '. ' + gabuzomeu.sentence(),
+        sh['struct'].structure,
+        sh['rhy'],
+        ['melS', 'melA', 'mel', 'melB'],
+        ['func']
+        )
+
+if __name__ == '__main__':
+
+    args = parser.parse_args()
+
+    if args.nb:
+        nb = args.nb
+    else:
+        nb = 20 if args.save else 5
+
+    for i in range(nb):
+        if args.save:
+            n = args.save + i
+            code = '%03d' % n
+            f = 'sacred-' + code
+        else:
+            code = 'draft-%02d' % i
+            f = code
+
+        sacred(code, f)

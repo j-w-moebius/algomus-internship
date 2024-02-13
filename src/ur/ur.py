@@ -376,8 +376,8 @@ class Model(And):
     def structurer(self, struct, mod):
         self.structurers += [(self[struct], self[mod])]
 
-    def export(self, title, structure, rhythms, mods_melodies, mods_annots):
+    def export(self, code, title, structure, rhythms, mods_melodies, mods_annots):
         print('Exporting...')
         melodies = [(mod, self[mod].export(structure, rhythms)) for mod in mods_melodies]
         annots   = [(mod, self[mod].export(structure, rhythms, annotation=True)) for mod in mods_annots]
-        export.export(title, melodies, annots)
+        export.export(code, title, melodies, annots)

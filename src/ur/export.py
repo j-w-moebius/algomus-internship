@@ -4,9 +4,10 @@ import os
 import music21 as m21
 import datetime
 
+DIR_OUT = '../../data/gen/'
 TINY = "tinyNotation: 4/4 "
 
-def export(title, melodies, annotations):
+def export(code, title, melodies, annotations):
 
     score = m21.stream.Score()
     score.insert(0, m21.metadata.Metadata())
@@ -49,7 +50,8 @@ def export(title, melodies, annotations):
         score.append(part)
 
     # score.show('txt')
-    f = 'score.mxl'
+    os.system(f'mkdir -p {DIR_OUT}')
+    f = f'{DIR_OUT}/{code}.mxl'
     print('==>', f)
     score.write('musicxml', f)
     os.system(f'verovio {f}')
