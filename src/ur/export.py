@@ -21,7 +21,12 @@ def export(title, melodies, annotations):
         print(f'🎵 {name:5s}', data)
         part = m21.stream.Part()
         part = m21.converter.parse(TINY + data)
-        if n == 2:
+        if name == 'mel':
+            for cl in part.measure(1).getElementsByClass('Clef'):
+                part.measure(1).remove(cl)
+            part.measure(1).insert(0, m21.clef.Treble8vbClef())
+            part = part.transpose(-12)
+        if name == 'melB':
             for cl in part.measure(1).getElementsByClass('Clef'):
                 part.measure(1).remove(cl)
             part.measure(1).insert(0, m21.clef.BassClef())

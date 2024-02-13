@@ -267,7 +267,13 @@ sh.add(Func('func'))
 sh.structurer('struct', 'func')
 
 sh.add(MelodyUp('mel'))
-scoreT = sh.scorer(ScorerHarmMelody, 'func', 'mel')
+score = sh.scorer(ScorerHarmMelody, 'func', 'mel')
+
+sh.add(MelodyUp('melS'))
+scoreS = sh.scorer(ScorerHarmMelody, 'func', 'melS')
+
+sh.add(MelodyDown('melA'))
+scoreA = sh.scorer(ScorerHarmMelody, 'func', 'melA')
 
 sh.add(MelodyDown('melB'))
 scoreB = sh.scorer(ScorerHarmMelodyRoot, 'func', 'melB')
@@ -293,8 +299,14 @@ sh.set_structure()
 d0 = sh['func'].gen()
 print("d0", d0)
 
-sh['mel'].set_filter(scoreT)
+sh['mel'].set_filter(score)
 m0 = sh['mel'].gen(d0)
+
+
+sh['melS'].set_filter(scoreS)
+m0 = sh['melS'].gen(d0)
+sh['melA'].set_filter(scoreA)
+m0 = sh['melA'].gen(d0)
 
 sh['melB'].set_filter(scoreB)
 m0 = sh['melB'].gen(d0)
@@ -309,6 +321,6 @@ sh.export(
     gabuzomeu.sentence(),
     sh['struct'].structure,
     sh['rhy'],
-    ['mel', 'melB'],
+    ['melS', 'melA', 'mel', 'melB'],
     ['func']
     )
