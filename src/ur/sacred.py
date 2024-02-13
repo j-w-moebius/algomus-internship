@@ -27,7 +27,7 @@ from rich import print
 
 
 class Structure(ur.ItemChoice):
-    CHOICES = ['AABC', 'ABA']
+    CHOICES = ['AABC', 'ABA', 'ACBA' ]
 
 class FuncMajor(ur.ItemMarkov):
 
