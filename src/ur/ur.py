@@ -194,11 +194,16 @@ class Gen(object):
     def id(self):
         return f'{self.__class__.__name__}-{self.name}'
 
-    def export(self, structure, rhythms=None, annotation=False):
+    def export(self, structure, rhythms=None, lyrics=None, annotation=False):
         out = []
+        lyr = []
         for struct in structure:
             items = self.gens[struct][0].one
             rhy = rhythms.gens[struct][0].one if rhythms else None
+            if lyrics:
+                ly = lyrics.gens[struct][0].one
+                ly = ly[:len(rhy)]
+                lyr += ly
             for i, item in enumerate(items):
                 if not rhythms:
                     out += [ item ]
@@ -228,7 +233,8 @@ class Gen(object):
                     s += f' {item}{rh} '
                 out += [ s ]
             out += [ ' r4  ']
-        return out
+
+        return out, lyr
 
     def str(self, indent=0):
         ind = '    ' * indent
@@ -291,7 +297,7 @@ class ItemLyricsChoiceFiles(Gen):
 
         text = ' '.join(open(f).readlines())
         text = text.replace('-', ' -')
-        words = text.split()
+        words = text.split()[:50]
         return Item(words)
 
 
@@ -388,8 +394,8 @@ class Model(And):
     def structurer(self, struct, mod):
         self.structurers += [(self[struct], self[mod])]
 
-    def export(self, code, title, structure, rhythms, mods_melodies, mods_annots):
+    def export(self, code, title, structure, rhythms, lyrics, mods_melodies, mods_annots):
         print('Exporting...')
-        melodies = [(mod, self[mod].export(structure, rhythms)) for mod in mods_melodies]
+        melodies = [(mod, self[mod].export(structure, rhythms, lyrics=lyrics)) for mod in mods_melodies]
         annots   = [(mod, self[mod].export(structure, rhythms, annotation=True)) for mod in mods_annots]
         export.export(code, title, melodies, annots)

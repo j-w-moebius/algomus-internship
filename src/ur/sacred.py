@@ -363,6 +363,7 @@ def sacred(code, f):
         code + '. ' + gabuzomeu.sentence(),
         sh['struct'].structure,
         sh['rhy'],
+        sh['lyr'],
         ['melS', 'melA', 'mel', 'melB'],
         ['func']
         )

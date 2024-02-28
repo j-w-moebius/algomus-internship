@@ -15,7 +15,7 @@ def export(code, title, melodies, annotations):
     score.metadata.composer = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
     n = 0
-    for (name, mel) in melodies:
+    for (name, (mel, lyrics)) in melodies:
         n += 1
         data = ''.join([f'{note:3s}' for note in mel])
         data = data.replace("a,", "A").replace("b,", "B")
@@ -33,9 +33,16 @@ def export(code, title, melodies, annotations):
             part.measure(1).insert(0, m21.clef.BassClef())
             part = part.transpose(-12)
         # part.show('txt')
+
+        if lyrics:
+            print(lyrics)
+            for i, note in enumerate(part.flatten().getElementsByClass('Note')):
+                note.lyric = lyrics[i]
+                print (i, note)
+
         score.append(part)
 
-    for (name, lyr) in annotations:
+    for (name, (lyr, _)) in annotations:
         part = m21.stream.Part()
         part.insert(0, m21.clef.PercussionClef())
         part.insert(0, m21.layout.StaffLayout(staffLines=1))
