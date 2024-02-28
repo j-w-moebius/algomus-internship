@@ -196,6 +196,26 @@ class MelodyMinorDown(ur.ItemMarkov):
     }
 
 
+class ScorerLyricsRhythm(ur.ScorerSequence):
+
+    STRESSES = [
+        ('>>', { '2': 2, '4': 1,  '4. 8': 2, '8 8': 0}),
+        ('>',  { '2': 2, '4': 1,  '4. 8': 2, '8 8': 0}),
+
+        ('.',  { '2': 2, '4': 1,  '4. 8': 2, '8 8': 0}),
+        (';',  { '2': 2, '4': 1,  '4. 8': 2, '8 8': 0}),
+        (',',  { '2': 2, '4': 1,  '4. 8': 2, '8 8': 0}),
+
+        ('',   { '2': 0, '4': 0,  '4. 8': 0, '8 8': 1}),
+    ]
+
+
+    def score_element(self, lyr, rhy):
+        for (symbol, scores) in self.STRESSES:
+            if symbol in lyr:
+                if rhy in scores:
+                    return scores[rhy]
+                # return 0
 
 class ScorerHarmMelody(ur.ScorerSequence):
 
@@ -292,6 +312,7 @@ def gen_sacred():
 
     sh.add(Lyrics('lyr'))
     sh.add(Rhythm('rhy'))
+    scoreL = sh.scorer(ScorerLyricsRhythm, 'lyr', 'rhy')
 
     print(sh)
 
@@ -324,9 +345,11 @@ def gen_sacred():
     sh['melB'].set_filter(scoreB)
     m0 = sh['melB'].gen(d0)
 
-    sh['rhy'].gen(d0)
 
-    l0 = sh['lyr'].gen()
+    l0 = sh['lyr'].gen(d0)
+    sh['rhy'].set_filter(scoreL)
+    r0 = sh['rhy'].gen(l0)
+
     sh.score()
     return sh
 
