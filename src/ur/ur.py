@@ -283,6 +283,18 @@ class ItemChoice(Gen):
     def item(self, gens_in=None, struct=None):
         return Item(pwchoice(self.CHOICES))
 
+class ItemLyricsChoiceFiles(Gen):
+
+    def item(self, gens_in=None, struct=None):
+        f = random.choice(self.FILES)
+        print('<==', f)
+
+        text = ' '.join(open(f).readlines())
+        text = text.replace('-', ' -')
+        words = text.split()
+        return Item(words)
+
+
 class ItemSequence(Gen):
     
     def items(self, i, n):

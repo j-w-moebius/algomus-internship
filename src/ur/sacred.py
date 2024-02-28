@@ -21,6 +21,7 @@
 
 
 import ur
+import glob
 import gabuzomeu
 import random
 from rich import print
@@ -35,6 +36,9 @@ parser.add_argument('--nb', '-n', type=int, default=0, help='number of generatio
 
 class Structure(ur.ItemChoice):
     CHOICES = ['AABC', 'ABA', 'ACBA' ]
+
+class Lyrics(ur.ItemLyricsChoiceFiles):
+    FILES = glob.glob('../../data/lyrics/*.txt')
 
 class FuncMajor(ur.ItemMarkov):
 
@@ -286,6 +290,7 @@ def gen_sacred():
     sh.add(MelodyDown('melB'))
     scoreB = sh.scorer(ScorerHarmMelodyRoot, 'func', 'melB')
 
+    sh.add(Lyrics('lyr'))
     sh.add(Rhythm('rhy'))
 
     print(sh)
@@ -321,6 +326,7 @@ def gen_sacred():
 
     sh['rhy'].gen(d0)
 
+    l0 = sh['lyr'].gen()
     sh.score()
     return sh
 
