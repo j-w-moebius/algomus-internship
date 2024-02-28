@@ -345,17 +345,21 @@ class ItemMarkov(Gen):
 
         i = 0
         n_min = self.len_to_gen(gens_in=gens_in, struct=struct)
-        state = pwchoice(self.INITIAL)
-        emits = []
 
-        emit = pwchoice(self.EMISSIONS[state])
-        emits += [emit]
-        i += 1
-        while i < n_min or state not in self.FINAL:
-            state = pwchoice(self.TRANSITIONS[state])
+        while i != n_min:
+            # i == n_min : item has exact targeted length
+            i = 0
+            state = pwchoice(self.INITIAL)
+            emits = []
+
             emit = pwchoice(self.EMISSIONS[state])
             emits += [emit]
             i += 1
+            while i < n_min or state not in self.FINAL:
+                state = pwchoice(self.TRANSITIONS[state])
+                emit = pwchoice(self.EMISSIONS[state])
+                emits += [emit]
+                i += 1
 
         return Item(emits, self.id() + ':' + str(i))
 
