@@ -295,7 +295,10 @@ class ItemLyricsChoiceFiles(Gen):
         f = random.choice(self.FILES)
         print('<==', f)
 
-        text = ' '.join(open(f).readlines())
+        text = ''
+        for l in open(f).readlines():
+            text += l.strip() + '/ '
+
         text = text.replace('-', ' -')
         words = text.split()[:50]
         return Item(words)
