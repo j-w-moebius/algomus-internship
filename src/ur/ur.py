@@ -289,9 +289,27 @@ class ItemChoice(Gen):
     def item(self, gens_in=None, struct=None):
         return Item(pwchoice(self.CHOICES))
 
-class ItemLyricsChoiceFiles(Gen):
 
-    def item(self, gens_in=None, struct=None):
+class ItemLyricsChoiceFiles(ItemChoice):
+
+    STRESS_WORDS = []
+
+    def load(self):
+        self.CHOICES = []
+        for f in self.FILES:
+            print('<==', f)
+            for l in open(f).readlines():
+                text = l.replace('-', ' -').strip() + '/'
+                words = []
+                for w in text.split():
+                    for ww in self.STRESS_WORDS:
+                        if ww in w:
+                            w = '>>' + w
+                    words += [w]
+                if len(words) >= 4:
+                    self.CHOICES += [words]
+
+    def xitem(self, gens_in=None, struct=None):
         f = random.choice(self.FILES)
         print('<==', f)
 

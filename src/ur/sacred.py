@@ -39,6 +39,7 @@ class Structure(ur.ItemChoice):
 
 class Lyrics(ur.ItemLyricsChoiceFiles):
     FILES = glob.glob('../../data/lyrics/*.txt')
+    STRESS_WORDS = ['Lord', 'God', 'Christ']
 
 class FuncMajor(ur.ItemMarkov):
 
@@ -312,6 +313,8 @@ def gen_sacred():
     scoreB = sh.scorer(ScorerHarmMelodyRoot, 'func', 'melB')
 
     sh.add(Lyrics('lyr'))
+    sh.structurer('struct', 'lyr')
+    sh['lyr'].load()
     sh.add(Rhythm('rhy'))
     scoreL = sh.scorer(ScorerLyricsRhythm, 'lyr', 'rhy')
 
@@ -331,7 +334,11 @@ def gen_sacred():
     sh['struct'].gen()
     sh.set_structure()
 
-    d0 = sh['func'].gen()
+    l0 = sh['lyr'].gen()
+    sh['rhy'].set_filter(scoreL)
+    r0 = sh['rhy'].gen(l0)
+
+    d0 = sh['func'].gen(l0)
     print("d0", d0)
 
     sh['mel'].set_filter(score)
@@ -347,9 +354,6 @@ def gen_sacred():
     m0 = sh['melB'].gen(d0)
 
 
-    l0 = sh['lyr'].gen(d0)
-    sh['rhy'].set_filter(scoreL)
-    r0 = sh['rhy'].gen(l0)
 
     sh.score()
     return sh
