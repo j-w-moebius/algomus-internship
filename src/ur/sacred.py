@@ -38,8 +38,8 @@ class Structure(ur.ItemChoice):
     CHOICES = ['AABC', 'ABA', 'ACBA' ]
 
 class Lyrics(ur.ItemLyricsChoiceFiles):
-    FILES = glob.glob('../../data/lyrics/*.txt')
-    STRESS_WORDS = ['Lord', 'God', 'Christ']
+    FILES = glob.glob('../../data/lyrics-s/*.txt')
+    STRESS_WORDS = ['Lord', 'God', 'Christ', 'Son']
 
 class FuncMajor(ur.ItemMarkov):
 
@@ -91,6 +91,7 @@ class Rhythm(ur.ItemSpanSequence):
         ('4', 0.5),
     ]
     ITEMS = [
+                ('2', 0.03),
                 ('4', 0.7),
                 ('8 8', 0.25),
                 ('4. 8', 0.05),
@@ -197,19 +198,25 @@ class MelodyMinorDown(ur.ItemMarkov):
     }
 
 
+S2 = { '2': 2, '4.': 2, '4': 1, '8': 0, '4. 8': 2, '8 8': 2 }
+S1 = { '2': 1, '4.': 1, '4': 1, '8': 0, '4. 8': 1, '8 8': 1 }
+S0 = { '2': 0, '4.': 0, '4': 1, '8': 1, '4. 8': 0, '8 8': 0 }
+
 class ScorerLyricsRhythm(ur.ScorerSpanSequence):
 
 
     STRESSES = [
-        ('>>', { '2': 2, '4': 1,  '4. 8': 2, '8 8': 2}),
-        ('>',  { '2': 2, '4': 1,  '4. 8': 2, '8 8': 2}),
+        ('!', S2),
+        ('>>', S1),
+        ('>',  S1),
 
-        ('/',  { '2': 50, '4': -10,  '4. 8': -10, '8 8': -10}),
-        ('.',  { '2': 10, '4': 0,  '4. 8': 0, '8 8': 0}),
-        (';',  { '2': 10, '4': 0,  '4. 8': 0, '8 8': 0}),
-        (',',  { '2': 2, '4': 1,  '4. 8': 2, '8 8': 2}),
+        ('/', S2),
+        ('.', S1),
 
-        ('',   { '2': 0, '4': 5,  '4. 8': 0, '8 8': 0 }),
+        (';', S1),
+        (',', S1),
+
+        ('',  S0),
     ]
 
 

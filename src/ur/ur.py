@@ -302,17 +302,17 @@ class ItemLyricsChoiceFiles(ItemChoice):
     def load(self):
         self.CHOICES = []
         for f in self.FILES:
-            print('<==', f)
             for l in open(f).readlines():
                 text = l.replace('-', ' -').strip() + '/'
                 words = []
                 for w in text.split():
                     for ww in self.STRESS_WORDS:
                         if ww in w:
-                            w = '>>' + w
+                            w = '!' + w
                     words += [w]
                 if len(words) >= 4:
                     self.CHOICES += [words]
+        print(f'<== {len(self.FILES)} files, {len(self.CHOICES)} lines')
 
     def xitem(self, gens_in=None, struct=None):
         f = random.choice(self.FILES)
@@ -324,7 +324,7 @@ class ItemLyricsChoiceFiles(ItemChoice):
 
         text = text.replace('-', ' -')
         words = text.split()[:50]
-        return Item(words)
+        return Item(words, self.id() + ':' + str(n))
 
 
 class ItemSequence(Gen):
