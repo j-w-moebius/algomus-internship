@@ -35,10 +35,12 @@ def export(code, title, melodies, annotations):
         # part.show('txt')
 
         if lyrics:
-            print(lyrics)
+            print(f"📁 {' '.join(lyrics)}")
             for i, note in enumerate(part.flatten().getElementsByClass('Note')):
-                note.lyric = lyrics[i]
-                print (i, note)
+                try:
+                    note.lyric = lyrics[i]
+                except:
+                    pass
 
         score.append(part)
 

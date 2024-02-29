@@ -226,6 +226,8 @@ class ScorerLyricsRhythm(ur.ScorerSpanSequence):
                 if rhy in scores:
                     return scores[rhy]
                 # return 0
+        print('!', lyr, rhy)
+        return 0
 
 class ScorerHarmMelody(ur.ScorerSequence):
 
