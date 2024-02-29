@@ -202,8 +202,7 @@ class Gen(object):
             rhy = rhythms.gens[struct][0].one if rhythms else None
             if lyrics:
                 ly = lyrics.gens[struct][0].one
-                ly = ly[:len(rhy)]
-                lyr += ly
+            i_ly = 0
             for i, item in enumerate(items):
                 if not rhythms:
                     out += [ item ]
@@ -216,11 +215,17 @@ class Gen(object):
 
                 rhy_i = rhy[i]
 
+                if lyrics:
+                    n_ly = len(rhy_i.split())
+                    lyr += ly[i_ly:i_ly+n_ly]
+                    i_ly += n_ly
+
                 # Some passing notes between thirds
                 if rhy_i == '4' and i < len(items)-1:
                     if nonchord.interval_third(item, items[i+1]):
                         if random.choice([True, False]):
                             rhy_i = '8 8'
+                            lyr += ['-']
 
                 s = ''
 
@@ -339,6 +344,25 @@ class ItemSequence(Gen):
             seq += [pwchoice(self.items(i, n))]
         return Item(seq, self.id() + ':' + str(n))
 
+
+class ItemSpanSequence(ItemSequence):
+
+    def item(self, gens_in=None, struct=None):
+        n = self.len_to_gen(gens_in=gens_in, struct=struct)
+        seq = []
+        i = 0
+        while i < n:
+            nn = 0
+            while i + nn > n or (not nn):
+                # Do not generate a last thing that go beyond n
+                its = pwchoice(self.items(i, n))
+                nn = len(its.split())
+            seq += [its]
+            i += nn
+        return Item(seq, self.id() + f':{n/len(seq)}')
+
+
+
 class ItemMarkov(Gen):
 
     def item(self, gens_in=None, struct=None):
@@ -385,18 +409,26 @@ class Scorer(object):
 
 class ScorerSequence(Scorer):
 
+    def span(self, g):
+        return g
+
     def score_first_last_element(self, e1, e2):
         return self.score_element(e1, e2)
 
     def score_item(self, gen1: Item, gen2: Item, verbose=False):
-        z = list(zip(gen1.one, gen2.one))
+        z = list(zip(self.span(gen1.one), self.span(gen2.one)))
         scores =  [self.score_first_last_element(z[0][0], z[0][1])]
         scores += [self.score_element(e1, e2) for (e1, e2) in z[1:-1]]
         scores += [self.score_first_last_element(z[-1][0], z[-1][1])]
 
         if verbose:
-            print(scores)
+            print(scores, gen1, gen2)
         return sum(scores)/len(scores)
+
+
+class ScorerSpanSequence(ScorerSequence):
+    def span(self, g):
+        return ' '.join(g).split()
 
 ### Model
 

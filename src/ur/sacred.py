@@ -85,7 +85,7 @@ class FuncMinor(ur.ItemMarkov):
     }
 
 
-class Rhythm(ur.ItemSequence):
+class Rhythm(ur.ItemSpanSequence):
     ITEMS_LAST = [
         ('2', 0.5),
         ('4', 0.5),
@@ -197,7 +197,8 @@ class MelodyMinorDown(ur.ItemMarkov):
     }
 
 
-class ScorerLyricsRhythm(ur.ScorerSequence):
+class ScorerLyricsRhythm(ur.ScorerSpanSequence):
+
 
     STRESSES = [
         ('>>', { '2': 2, '4': 1,  '4. 8': 2, '8 8': 2}),
@@ -337,8 +338,9 @@ def gen_sacred():
     l0 = sh['lyr'].gen()
     sh['rhy'].set_filter(scoreL)
     r0 = sh['rhy'].gen(l0)
+    print(r0)
 
-    d0 = sh['func'].gen(l0)
+    d0 = sh['func'].gen(r0)
     print("d0", d0)
 
     sh['mel'].set_filter(score)
