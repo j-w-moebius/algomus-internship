@@ -465,26 +465,34 @@ def gen_sacred():
 
     if mode == 'Major':
         Func = FuncMajor
-        MelodyUp = MelodyMajorUp
-        MelodyDown = MelodyMajorDown
+        # MelodyUp = MelodyMajorUp
+        # MelodyDown = MelodyMajorDown
+        MelodyS = MelodyMajorS
+        MelodyA = MelodyMajorA
+        MelodyT = MelodyMajorT
+        MelodyB = MelodyMajorB
     else:
         Func = FuncMinor
-        MelodyUp = MelodyMinorUp
-        MelodyDown = MelodyMinorDown
+        # MelodyUp = MelodyMinorUp
+        # MelodyDown = MelodyMinorDown
+        MelodyS = MelodyMinorS
+        MelodyA = MelodyMinorA
+        MelodyT = MelodyMinorT
+        MelodyB = MelodyMinorB
 
     sh.add(Func('func'))
     sh.structurer('struct', 'func')
 
-    sh.add(MelodyUp('mel'))
+    sh.add(MelodyT('mel'))
     score = sh.scorer(ScorerHarmMelody, 'func', 'mel')
 
-    sh.add(MelodyUp('melS'))
+    sh.add(MelodyS('melS'))
     scoreS = sh.scorer(ScorerHarmMelody, 'func', 'melS')
 
-    sh.add(MelodyDown('melA'))
+    sh.add(MelodyA('melA'))
     scoreA = sh.scorer(ScorerHarmMelody, 'func', 'melA')
 
-    sh.add(MelodyDown('melB'))
+    sh.add(MelodyB('melB'))
     scoreB = sh.scorer(ScorerHarmMelodyRoot, 'func', 'melB')
 
     sh.add(Lyrics('lyr'))
