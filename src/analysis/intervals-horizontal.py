@@ -27,15 +27,19 @@ def compute_interval_freqs(s: stream.base.Score, freqs_list: list[dict[str, dict
 
 # transpose the piece to C Major or a minor, depending on its mode
 def normalize_key(s, mode, tonic):
-    if mode == 'major':
-        i = interval.Interval(tonic, pitch.Pitch('C'))
-    elif mode == 'minor':
-        i = interval.Interval(tonic, pitch.Pitch('A'))
+    target = pitch.Pitch('C')
+    if mode == 'minor':
+        target = pitch.Pitch('A')
+    i = interval.Interval(tonic, target)
+    if i.semitones >= 7:
+        i = i.complement
+    elif i.semitones <= -7:
+        i = i.complement
     return s.transpose(i)
 
 # analyze horizontal interval frequencies
 # conditioned on one predecessor
-# mode: restricts the pieces that contribute to frequencies ('major' or 'minor')
+# mode: restricts the pieces that contribute to frequencies ('Major' or 'Minor')
 def analyze_corpus(corpus_path: str, mode: str) -> list[dict[str, dict[str, float]]]:
     freqs_list = [{}, {}, {}, {}]
 
@@ -60,33 +64,34 @@ def analyze_corpus(corpus_path: str, mode: str) -> list[dict[str, dict[str, floa
     
     return freqs_list
 
-def pretty(freqs, nb=15):
+def pretty(class_name, freqs, nb=15):
     freqs_sorted = [(n, sorted(list(succ.items()), key=lambda f:str(f[0]))) for (n, succ) in freqs.items()]
 
     pitches = [n for (n, _) in freqs_sorted]
-    s = '  STATES = ['
+    s = f"class {class_name}(ur.ItemMarkov):\n"
+    s += '\tSTATES = ['
     su = []
     for p in pitches:
         su += [f"'{p}'"]
-    s += ', '. join(su) + ']\n\n'
+    s += ', '. join(su) + ']\n'
+    s += '\tINITIAL = [...]\n'
+    s += '\tFINAL = STATES\n\n'
 
-    #s += '  TRANSITIONS = {\n'
-    #for (n, succs) in freqs_sorted:
-    #    s += f"    '{n}': " + '{'
-    #    su = []
-    #    for (data, freq) in succs[:nb]:
-    #        su += [f"'{data}': {freq:.3f}"]
-    #    s += ', '. join(su) + '},\n'
-
-    #s += '}'
+    s += '\tTRANSITIONS = {\n'
+    for (n, succs) in freqs_sorted:
+        s += f"\t\t'{n}': " + '{'
+        su = []
+        for (data, freq) in succs[:nb]:
+            su += [f"'{data}': {freq:.3f}"]
+        s += ', '. join(su) + '},\n'
+    s += '\t}\n\n'
+    s += '\tEMISSIONS = {\n\t\tx: {x: 1.00} for x in STATES\n\t}\n\n'
     return s
 
 voice_names = ["S", "A", "T", "B"]
 
 dir_path = os.path.join(os.path.dirname(__file__), '../../data/the-scared-harp')
-for mode in ["major", "minor"]:
-    freqs_list = analyze_corpus(dir_path, mode)
-    print(f"{mode}:")
+for mode in ["Major", "Minor"]:
+    freqs_list = analyze_corpus(dir_path, mode.lower())
     for (i, freqs) in enumerate(freqs_list):
-        print(f"Voice {voice_names[i]}:")
-        print(pretty(freqs))
+        print(pretty(f"Melody{mode}{voice_names[i]}", freqs))
