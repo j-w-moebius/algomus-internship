@@ -67,13 +67,16 @@ def analyze_corpus(corpus_path: str, mode: str, direction: str) -> dict[str, dic
     return freqs
 
 def pretty(freqs, nb=15):
-    freqs_sorted = [(n, sorted(list(succ.items()), key=lambda f:-f[1])) for (n, succ) in freqs.items()]
-    s = '' 
+    freqs_sorted = [(n, sorted(list(succ.items()), key=lambda f:str(f[0]))) for (n, succ) in freqs.items()]
+    s = 'TRANSITIONS = {\n'
     for (n, succs) in freqs_sorted:
-        s += f'\tSuccessors of {n}:\n'
+        s += f"  '{n}': " + '{'
+        su = []
         for (data, freq) in succs[:nb]:
-            s += f'\t\t{freq:.3f} {data}\n'
+            su += [f"'{data}': {freq:.3f}"]
+        s += ', '. join(su) + '},\n'
 
+    s += '}'
     return s
 
 
