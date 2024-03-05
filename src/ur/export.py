@@ -62,7 +62,8 @@ def export(code, title, melodies, annotations):
         score.append(part)
 
     # score.show('txt')
-    os.system(f'mkdir -p {DIR_OUT}')
+    dir = os.path.dirname(f'{DIR_OUT}/{code}')
+    os.system(f'mkdir -p {dir}')
     f = f'{DIR_OUT}/{code}.mxl'
     print('==>', f)
     score.write('musicxml', f)

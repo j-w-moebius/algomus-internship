@@ -554,11 +554,14 @@ if __name__ == '__main__':
     else:
         nb = 20 if args.save else 5
 
+    if args.save:
+        span = '%03d-%03d/' % (args.save, args.save + nb - 1)
+
     for i in range(nb):
         if args.save:
             n = args.save + i
             code = '%03d' % n
-            f = 'sacred-' + code
+            f = span + 'sacred-' + code
         else:
             code = 'draft-%02d' % i
             f = code
