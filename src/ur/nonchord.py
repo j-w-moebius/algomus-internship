@@ -35,6 +35,12 @@ def interval_second(n1, n2):
 def interval_third(n1, n2):
     return abs(note_index(n2) - note_index(n1)) == 2
 
+def interval_fourth(n1, n2):
+    return abs(note_index(n2) - note_index(n1)) == 3
+
+def interval_fifth_up(n1, n2):
+    return note_index(n2) - note_index(n1) == 4
+
 def note_passing(n1, n2):
     return note_from_index((note_index(n1) + note_index(n2))//2)
 

@@ -484,7 +484,7 @@ class ScorerMelodyMelody(ur.ScorerTwoSequenceIntervals):
             int1 = music.interval(mel1a, mel1b) % 12
             int2 = music.interval(mel2a, mel2b) % 12
             if int1 == int2:
-                return 0.0
+                return -1.0
 
         return 1.0
 
@@ -551,6 +551,8 @@ def gen_sacred():
             'same-neighbor-16': 0.1,
             'second-jump': 0.4,
             'second-8-16-16': 0.2,
+            'fourth-8-16-16': 0.3,
+            'fifth-jump': 0.4,
         }
     sh.scorer(ScorerMelodyHarm, 'mel', 'func', 2)
     sh.scorer(ScorerMelody, 'mel')
@@ -563,6 +565,8 @@ def gen_sacred():
             'same-neighbor-16': 0,
             'second-jump': 0,
             'second-8-16-16': 0,
+            'fourth-8-16-16': 0.3,
+            'fifth-jump': 0.7,
         }
     sh.scorer(ScorerMelodyHarmRoot, 'melB', 'func', 2)
     sh.scorer(ScorerMelodyMelody, 'melB', 'mel')

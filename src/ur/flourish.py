@@ -2,12 +2,14 @@ import nonchord
 import random
 
 FLOURISH = {
-    'third-passing': 0.5,
+    'third-passing': 0.4,
     'third-16': 0.1,
     'same-neighbor-16': 0.0,
     'same-neighbor': 0.1,
     'second-jump': 0.2,
     'second-8-16-16': 0.1,
+    'fourth-8-16-16': 0.1,
+    'fifth-jump': 0.1,
 }
 
 def flourish(items, i, rhy_i, thresholds):
@@ -21,8 +23,27 @@ def flourish(items, i, rhy_i, thresholds):
     n1 = items[i]
     n2 = items[i+1]
 
+    # Some passing notes between fourths
+    if nonchord.interval_fifth_up(n1, n2):
+        if random.random() < thresholds['fifth-jump']:
+            rhy = '8 8'
+            lyr += ['-']
+            new_items += [
+                nonchord.note_direction(n1, n2, 2)
+            ]
+            
+    # Some passing notes between fourths
+    elif nonchord.interval_fourth(n1, n2):
+        if random.random() < thresholds['fourth-8-16-16']:
+            rhy = '8 16 16'
+            lyr += ['-', '-']
+            new_items += [
+                nonchord.note_direction(n1, n2, 1),
+                nonchord.note_direction(n1, n2, 2)
+            ]
+
     # Some passing notes between thirds
-    if nonchord.interval_third(n1, n2):
+    elif nonchord.interval_third(n1, n2):
         if random.random() < thresholds['third-16']:
             rhy = '16 16 16 16'
             lyr += ['-', '-', '-']
