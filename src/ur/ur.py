@@ -422,7 +422,7 @@ class ItemPitchMarkov(ItemMarkov):
         for n1 in list(self.TRANSITIONS):
             for n2 in list(self.TRANSITIONS[n1]):
                 if not music.in_range(n2, self.AMBITUS) or '#' in n2 or '-' in n2:
-                    print('del', n1, n2)
+                    # print('del', n1, n2)
                     del self.TRANSITIONS[n1][n2]
                     if len(self.TRANSITIONS[n1]) == 0:
                         del self.TRANSITIONS[n1]

@@ -8,7 +8,6 @@ def abc_from_m21(note):
     note = note.replace('#', '').replace('-', '')
     n = note[0].lower()
     oct = int(note[1])
-    print(note)
     if oct < 4:
         n += ("," * (4-oct))
     if oct > 4:

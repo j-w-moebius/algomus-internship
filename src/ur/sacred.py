@@ -542,7 +542,7 @@ def gen_sacred():
     m0 = sh['melA'].gen(d0)
     m0 = sh['melB'].gen(d0)
 
-    sh.score()
+    # sh.score()
     return sh
 
 
