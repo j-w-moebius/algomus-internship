@@ -351,13 +351,18 @@ class ScorerMelody(ur.ScorerOne):
         elif ambitus > self.AMBITUS_GOOD:
             score += 2
 
-        # Large intervals, then short contrary motion
         for i in range(len(gen.one)-2):
             a, b, c = gen.one[i:i+3]
+
+            # Large intervals, then short contrary motion
             if music.interval(a, b) > 7 and music.interval(b, c) in [-1, -2]:
                 score += 2
             if music.interval(a, b) < -7 and music.interval(b, c) in [1, 2]:
                 score += 2
+
+            # Too many repeated notes
+            if a == b and b == c:
+                score -= 2
 
         return score
 
