@@ -4,6 +4,7 @@ import random
 FLOURISH = {
     'third-passing': 0.5,
     'third-16': 0.1,
+    'same-neighbor-16': 0.0,
     'same-neighbor': 0.1,
     'second-jump': 0.2,
     'second-8-16-16': 0.1,
@@ -37,7 +38,15 @@ def flourish(items, i, rhy_i, thresholds):
 
     # Some neighbor notes between same notes
     if n1 == n2:
-        if random.random() < thresholds['same-neighbor']:
+        if random.random() < thresholds['same-neighbor-16']:
+            rhy = '16 16 16 16'
+            lyr += ['-', '-', '-']
+            new_items += [
+                nonchord.note_direction(n1, n2, 1),
+                nonchord.note_direction(n1, n2, 2),
+                nonchord.note_direction(n1, n2, 1),
+            ]
+        elif random.random() < thresholds['same-neighbor']:
             rhy = '8 8'
             lyr += ['-']
             new_items += [nonchord.note_nonchord(n1, n2, True)]

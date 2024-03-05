@@ -458,6 +458,7 @@ def gen_sacred():
             'third-passing': 0.7,
             'third-16': 0.3,
             'same-neighbor': 0.5,
+            'same-neighbor-16': 0.1,
             'second-jump': 0.4,
             'second-8-16-16': 0.2,
         }
@@ -475,6 +476,7 @@ def gen_sacred():
             'third-passing': 0.7,
             'third-16': 0,
             'same-neighbor': 0,
+            'same-neighbor-16': 0,
             'second-jump': 0,
             'second-8-16-16': 0,
         }
