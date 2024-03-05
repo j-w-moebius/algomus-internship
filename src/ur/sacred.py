@@ -24,6 +24,7 @@ import ur
 import glob
 import gabuzomeu
 import random
+import music
 import music21
 from rich import print
 
@@ -338,6 +339,18 @@ S2 = { '2': 2, '4.': 2, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 2, '8 8': 0, '
 S1 = { '2': 1, '4.': 1, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 1, '8 8': 0, '8. 16': 1 }
 S0 = { '2': 0, '4.': 0, '8.': 0, '4': 1, '8': 1, '16': 1, '4. 8': 0, '8 8': 1, '8. 16': 0 }
 
+class ScorerMelody(ur.ScorerOne):
+    def score_item(self, _, gen):
+        score = 0
+
+        ambitus = music.ambitus(gen.one)
+        if ambitus < 5 or ambitus > 14:
+            score += -5
+        elif ambitus > 7:
+            score += 2
+
+        return score
+
 class ScorerLyricsRhythm(ur.ScorerTwoSpanSequence):
 
 
@@ -465,6 +478,7 @@ def gen_sacred():
         }
     sh['mel'].flourish['same-neighbor'] = .50
     score = sh.scorer(ScorerHarmMelody, 'func', 'mel')
+    scoreMel = sh.scorer(ScorerMelody, 'mel')
 
     sh.add(MelodyS('melS'))
     scoreS = sh.scorer(ScorerHarmMelody, 'func', 'melS')
@@ -506,23 +520,23 @@ def gen_sacred():
     sh.set_structure()
 
     l0 = sh['lyr'].gen()
-    sh['rhy'].set_filter(scoreL)
+    sh['rhy'].add_filter(scoreL)
     r0 = sh['rhy'].gen(l0)
     print(r0)
 
     d0 = sh['func'].gen(r0)
     print("d0", d0)
 
-    sh['mel'].set_filter(score)
+    sh['mel'].add_filter(score)
+    sh['mel'].add_filter(scoreMel)
     m0 = sh['mel'].gen(d0)
 
-
-    sh['melS'].set_filter(scoreS)
+    sh['melS'].add_filter(scoreS)
     m0 = sh['melS'].gen(d0)
-    sh['melA'].set_filter(scoreA)
+    sh['melA'].add_filter(scoreA)
     m0 = sh['melA'].gen(d0)
 
-    sh['melB'].set_filter(scoreB)
+    sh['melB'].add_filter(scoreB)
     m0 = sh['melB'].gen(d0)
 
 

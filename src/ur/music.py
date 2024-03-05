@@ -14,3 +14,7 @@ def abc_from_m21(note):
     if oct > 4:
         n += ("'" * (oct-4))
     return n
+
+def ambitus(mel):
+    mnotes = [music21.pitch.Pitch(n) for n in mel]
+    return(max(mnotes).midi - min(mnotes).midi)

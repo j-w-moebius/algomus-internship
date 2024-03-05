@@ -93,7 +93,7 @@ class Gen(object):
         self.scorers = []
         self.structurers = []
         self.structure = [ ALL ]
-        self.filter = None
+        self.filters = []
         self.name = name if name else self.hash()
         self.flourish = flourish.FLOURISH
         self.setup()
@@ -127,14 +127,16 @@ class Gen(object):
         return Data(item=item, struct=struct)
 
     def one_filtered(self, gens_in, struct, n=500) -> Data:
-        if not self.filter:
+        if not self.filters:
             one = self.one(gens_in, struct)
             return one
 
         sp = []
         for i in range(n):
             one = self.one(gens_in, struct)
-            score = self.filter.score_item(gens_in[struct][0], one[struct][0])
+            score = 0
+            for filter in self.filters:
+                score += filter.score_item(gens_in[struct][0], one[struct][0])
             sp += [ (score, one) ]
         average = sum(map (lambda x:x[0], sp)) / len(sp)
         sp.sort(key = lambda x:x[0])
@@ -166,8 +168,8 @@ class Gen(object):
         for i in range(n):
             self.gen()
 
-    def set_filter(self, scorer):
-        self.filter = scorer
+    def add_filter(self, scorer):
+        self.filters += [scorer]
 
     def set_structure(self):
         for (s, mod) in self.structurers:
@@ -178,6 +180,8 @@ class Gen(object):
 
     def score(self):
         for s in self.scorers:
+            if not hasattr(s, 'mod2'):
+                continue
             structures = set(s.mod1.gens.data.keys()).intersection(set(s.mod2.gens.data.keys()))
             print(f'Scoring {s}') # {structures}')
             for struct in structures:
@@ -427,6 +431,24 @@ class ItemPitchMarkov(ItemMarkov):
 
 ### Scores
 
+
+
+class ScorerOne(object):
+
+    def __init__(self, mod):
+        self.mod1 = mod
+
+    def __str__(self):
+        return f'<<{self.mod1.id()}>>'
+
+    def score(self, gens1: Data):
+        for struct in gens1.data.keys():
+            self.score_item(gens1[struct])
+
+    def score_item(self, gen1, gen2):
+        raise NotImplemented
+
+
 class ScorerTwo(object):
 
     def __init__(self, mod1, mod2):
@@ -481,8 +503,11 @@ class Model(And):
     def add(self, mod):
         self.mods += [mod]
 
-    def scorer(self, scorer, mod1, mod2):
-        sco = scorer(self[mod1], self[mod2])
+    def scorer(self, scorer, mod1, mod2=None):
+        if mod2:
+            sco = scorer(self[mod1], self[mod2])
+        else:
+            sco = scorer(self[mod1])
         self.scorers += [sco]
         return sco
 
