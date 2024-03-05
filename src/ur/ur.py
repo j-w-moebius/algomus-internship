@@ -96,7 +96,10 @@ class Gen(object):
         self.name = name if name else self.hash()
         self.flourish = {
             'third-passing': 0.5,
+            'third-16': 0.1,
             'same-neighbor': 0.1,
+            'second-jump': 0.2,
+            'second-8-16-16': 0.1,
         }
         self.setup()
 
@@ -233,7 +236,15 @@ class Gen(object):
                 if rhy_i == '4' and i < len(items)-1:
                     # Some passing notes between thirds
                     if nonchord.interval_third(item, items[i+1]):
-                        if random.random() < self.flourish['third-passing']:
+                        if random.random() < self.flourish['third-16']:
+                            rhy_i = '16 16 16 16'
+                            lyr += ['-', '-', '-']
+                            new_items += [
+                                nonchord.note_direction(item, items[i+1], 1),
+                                items[i+1],
+                                nonchord.note_direction(item, items[i+1], 3),
+                                ]
+                        elif random.random() < self.flourish['third-passing']:
                             rhy_i = '8 8'
                             lyr += ['-']
                             new_items += [nonchord.note_nonchord(item, items[i+1])]
@@ -245,11 +256,26 @@ class Gen(object):
                             lyr += ['-']
                             new_items += [nonchord.note_nonchord(item, items[i+1], True)]
 
+                    # Some jump-passing notes between seconds
+                    if nonchord.interval_second(item, items[i+1]):
+                        if random.random() < self.flourish['second-jump']:
+                            rhy_i = '8 8'
+                            lyr += ['-']
+                            new_items += [nonchord.note_direction(item, items[i+1], 2)]
+                        if random.random() < self.flourish['second-8-16-16']:
+                            rhy_i = '8 16 16'
+                            lyr += ['-', '-']
+                            new_items += [
+                                items[i+1], 
+                                nonchord.note_direction(item, items[i+1], 2)
+                            ]
+
+
                 s = ''
 
                 # Follow common rhythm
                 for j, rh in enumerate(rhy_i.split(' ')):
-                    if j == 1:
+                    if j >= 1:
                         if i < len(items)-1:
                             item = new_items[j-1] if new_items else nonchord.note_nonchord(item, items[i+1])
 
