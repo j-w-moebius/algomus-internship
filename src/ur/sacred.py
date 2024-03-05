@@ -37,7 +37,7 @@ parser.add_argument('--save', '-s', type=int, default=0, help='starting number t
 parser.add_argument('--nb', '-n', type=int, default=0, help='number of generations with --save')
 
 class Structure(ur.ItemChoice):
-    CHOICES = ['QQBC', 'AQA', 'AQRA', 'AQAC', 'BAQA' ]
+    CHOICES = ['QQ-BC', 'A-Q-A', 'AQ-RA', 'AQ-AC', 'BA-QA' ]
 
 class Lyrics(ur.ItemLyricsChoiceFiles):
     FILES = glob.glob('../../data/lyrics-s/*.txt')
@@ -653,7 +653,7 @@ def sacred(code, f):
     sh.export(
         f,
         code + '. ' + gabuzomeu.sentence(),
-        sh['struct'].structure,
+        sh['struct'].structure_full,
         sh['rhy'],
         sh['lyr'],
         ['melS', 'melA', 'mel', 'melB'],

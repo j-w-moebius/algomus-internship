@@ -179,7 +179,8 @@ class Gen(object):
 
     def set_structure(self):
         for (s, mod) in self.structurers:
-            s.structure = s.gens[ALL][0].one
+            s.structure_full = s.gens[ALL][0].one
+            s.structure = s.structure_full.replace('-', '')
             mod.structure = s.structure
     def str_score(self, s):
         return f'{s:0.3f}'
@@ -215,6 +216,11 @@ class Gen(object):
         out = []
         lyr = []
         for struct in structure:
+
+            if struct == '-':
+                out += [ ' r4  ']
+                continue
+
             items = self.gens[struct][0].one
             if not annotation:
                 items = list(map(music.abc_from_m21, items))
@@ -254,7 +260,6 @@ class Gen(object):
 
                     s += f' {item}{rh} '
                 out += [ s ]
-            out += [ ' r4  ']
 
         return out, lyr
 
