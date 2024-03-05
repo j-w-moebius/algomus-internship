@@ -338,7 +338,7 @@ S2 = { '2': 2, '4.': 2, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 2, '8 8': 0, '
 S1 = { '2': 1, '4.': 1, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 1, '8 8': 0, '8. 16': 1 }
 S0 = { '2': 0, '4.': 0, '8.': 0, '4': 1, '8': 1, '16': 1, '4. 8': 0, '8 8': 1, '8. 16': 0 }
 
-class ScorerLyricsRhythm(ur.ScorerSpanSequence):
+class ScorerLyricsRhythm(ur.ScorerTwoSpanSequence):
 
 
     STRESSES = [
@@ -365,7 +365,7 @@ class ScorerLyricsRhythm(ur.ScorerSpanSequence):
         print('!', lyr, rhy)
         return 0
 
-class ScorerHarmMelody(ur.ScorerSequence):
+class ScorerHarmMelody(ur.ScorerTwoSequence):
 
     CHORDS = {
         'I': 'ceg',

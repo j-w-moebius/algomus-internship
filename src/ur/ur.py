@@ -427,7 +427,7 @@ class ItemPitchMarkov(ItemMarkov):
 
 ### Scores
 
-class Scorer(object):
+class ScorerTwo(object):
 
     def __init__(self, mod1, mod2):
         self.mod1 = mod1
@@ -445,7 +445,7 @@ class Scorer(object):
     def score_item(self, gen1, gen2):
         raise NotImplemented
 
-class ScorerSequence(Scorer):
+class ScorerTwoSequence(ScorerTwo):
 
     def span(self, g):
         return g
@@ -464,7 +464,7 @@ class ScorerSequence(Scorer):
         return sum(scores)/len(scores)
 
 
-class ScorerSpanSequence(ScorerSequence):
+class ScorerTwoSpanSequence(ScorerTwoSequence):
     def span(self, g):
         return ' '.join(g).split()
 
