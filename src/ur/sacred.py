@@ -340,16 +340,27 @@ S1 = { '2': 1, '4.': 1, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 1, '8 8': 0, '
 S0 = { '2': 0, '4.': 0, '8.': 0, '4': 1, '8': 1, '16': 1, '4. 8': 0, '8 8': 1, '8. 16': 0 }
 
 class ScorerMelody(ur.ScorerOne):
+
+    AMBITUS_LOW = 5
+    AMBITUS_HIGH = 14
+    AMBITUS_GOOD = 7
+
     def score_item(self, _, gen):
         score = 0
 
         ambitus = music.ambitus(gen.one)
-        if ambitus < 5 or ambitus > 14:
+        if ambitus < self.AMBITUS_LOW or ambitus > self.AMBITUS_HIGH:
             score += -5
-        elif ambitus > 7:
+        elif ambitus > self.AMBITUS_GOOD:
             score += 2
 
         return score
+
+
+class ScorerMelodySA(ScorerMelody):
+    AMBITUS_LOW = 5
+    AMBITUS_HIGH = 12
+    AMBITUS_GOOD = 5
 
 class ScorerLyricsRhythm(ur.ScorerTwoSpanSequence):
 
@@ -482,9 +493,11 @@ def gen_sacred():
 
     sh.add(MelodyS('melS'))
     scoreS = sh.scorer(ScorerHarmMelody, 'func', 'melS')
+    scoreMelS = sh.scorer(ScorerMelodySA, 'melS')
 
     sh.add(MelodyA('melA'))
     scoreA = sh.scorer(ScorerHarmMelody, 'func', 'melA')
+    scoreMelA = sh.scorer(ScorerMelodySA, 'melA')
 
     sh.add(MelodyB('melB'))
     sh['melB'].flourish = {
@@ -532,8 +545,11 @@ def gen_sacred():
     m0 = sh['mel'].gen(d0)
 
     sh['melS'].add_filter(scoreS)
+    sh['melS'].add_filter(scoreMelS)
     m0 = sh['melS'].gen(d0)
+
     sh['melA'].add_filter(scoreA)
+    sh['melA'].add_filter(scoreMelA)
     m0 = sh['melA'].gen(d0)
 
     sh['melB'].add_filter(scoreB)
