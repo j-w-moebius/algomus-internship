@@ -135,8 +135,10 @@ class Gen(object):
         for i in range(n):
             one = self.one(gens_in, struct)
             score = 0
+
             for filter in self.filters:
-                score += filter.score_item(one[struct][0], gens_in[struct][0])
+                v2 = filter.mod2.gens[struct][0] if filter.two() else None
+                score += filter.score_item(one[struct][0], v2)
             sp += [ (score, one) ]
         average = sum(map (lambda x:x[0], sp)) / len(sp)
         sp.sort(key = lambda x:x[0])
@@ -180,7 +182,7 @@ class Gen(object):
 
     def score(self):
         for s in self.scorers:
-            if not hasattr(s, 'mod2'):
+            if not s.two():
                 continue
             structures = set(s.mod1.gens.data.keys()).intersection(set(s.mod2.gens.data.keys()))
             print(f'Scoring {s}') # {structures}')
@@ -441,6 +443,9 @@ class ScorerOne(object):
     def __str__(self):
         return f'<<{self.mod1.id()}>>'
 
+    def two(self):
+        return False
+
     def score(self, gens1: Data):
         for struct in gens1.data.keys():
             self.score_item(gens1[struct])
@@ -454,6 +459,9 @@ class ScorerTwo(object):
     def __init__(self, mod1, mod2):
         self.mod1 = mod1
         self.mod2 = mod2
+
+    def two(self):
+        return True
 
     def __str__(self):
         return f'<<{self.mod1.id()} // {self.mod2.id()}>>'
@@ -472,6 +480,9 @@ class ScorerTwoSequence(ScorerTwo):
     def span(self, g):
         return g
 
+    def score_element(self, e1, e2):
+        raise NotImplemented
+
     def score_first_last_element(self, e1, e2):
         return self.score_element(e1, e2)
 
@@ -484,6 +495,25 @@ class ScorerTwoSequence(ScorerTwo):
         if verbose:
             print(scores, gen1, gen2)
         return sum(scores)/len(scores)
+
+class ScorerTwoSequenceIntervals(ScorerTwo):
+
+    def span(self, g):
+        return g
+
+    def score_element(self, e1, f1, e2, f2):
+        raise NotImplemented
+
+    def score_item(self, gen1: Item, gen2: Item, verbose=False):
+        z = list(zip(self.span(gen1.one), self.span(gen2.one)))
+        scores = []
+        for i in range(len(z)-1):
+            scores += [self.score_element(z[i][0], z[i+1][0], z[i][1], z[i+1][1]) ]
+
+        if verbose:
+            print(scores, gen1, gen2)
+        return sum(scores)/len(scores)
+
 
 
 class ScorerTwoSpanSequence(ScorerTwoSequence):
