@@ -344,11 +344,20 @@ class ScorerMelody(ur.ScorerOne):
     def score_item(self, gen, _):
         score = 0
 
+        # Ambitus
         ambitus = music.ambitus(gen.one)
         if ambitus < self.AMBITUS_LOW or ambitus > self.AMBITUS_HIGH:
             score += -5
         elif ambitus > self.AMBITUS_GOOD:
             score += 2
+
+        # Large intervals, then short contrary motion
+        for i in range(len(gen.one)-2):
+            a, b, c = gen.one[i:i+3]
+            if music.interval(a, b) > 7 and music.interval(b, c) in [-1, -2]:
+                score += 2
+            if music.interval(a, b) < -7 and music.interval(b, c) in [1, 2]:
+                score += 2
 
         return score
 
