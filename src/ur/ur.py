@@ -139,7 +139,8 @@ class Gen(object):
         average = sum(map (lambda x:x[0], sp)) / len(sp)
         sp.sort(key = lambda x:x[0])
         one = sp[-1][1]
-        print(f'struct {struct}, nb {n}, avg {average}, best {sp[-1][0]}')
+        firsts = ' '.join([f'{x[0]:.3f}' for x in sp[-5:]])
+        print(f'<{self.name}> struct {struct}, nb {n}, avg {average:.3f}, best {sp[-1][0]:.3f}, firsts {firsts}')
         one.context += f'={sp[-1][0]:.3f}'
         one[struct][0].context += '=' + f'={sp[-1][0]:.3f}'
         return one
@@ -178,12 +179,12 @@ class Gen(object):
     def score(self):
         for s in self.scorers:
             structures = set(s.mod1.gens.data.keys()).intersection(set(s.mod2.gens.data.keys()))
-            print('Scoring', s, structures)
+            print(f'Scoring {s}') # {structures}')
             for struct in structures:
                 for (d1, d2) in zip(s.mod1.gens[struct], s.mod2.gens[struct]):
                     ss = s.score_item(d1, d2)
                     d2.context += ',' + self.str_score(ss)
-                    print("  ", ss, d1, d2)
+                    print("  ", struct, ss, d1, d2)
 
     def learn(self):
         raise NotImplemented
