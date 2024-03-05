@@ -552,7 +552,8 @@ def gen_sacred():
             'second-jump': 0.4,
             'second-8-16-16': 0.2,
             'fourth-8-16-16': 0.3,
-            'fifth-jump': 0.4,
+            'fifth-jump': 0.2,
+            'fifth-16': 0.4,
         }
     sh.scorer(ScorerMelodyHarm, 'mel', 'func', 2)
     sh.scorer(ScorerMelody, 'mel')
@@ -567,6 +568,7 @@ def gen_sacred():
             'second-8-16-16': 0,
             'fourth-8-16-16': 0.3,
             'fifth-jump': 0.7,
+            'fifth-16': 0.2,
         }
     sh.scorer(ScorerMelodyHarmRoot, 'melB', 'func', 2)
     sh.scorer(ScorerMelodyMelody, 'melB', 'mel')
