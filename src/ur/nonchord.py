@@ -1,10 +1,17 @@
 
 import random
 
-NOTES = ["a,", 'b,', 'c', 'd', 'e', 'f', 'g', 'a', 'b', "c'", "d'", "e'", "g'"]
+NOTES = [
+    "c,,", "d,,", "e,,", "f,,", "g,,", "a,,", "b,,",
+    "c,", "d,", "e,", "f,", "g,", "a,", "b,",
+    'c', 'd', 'e', 'f', 'g', 'a', 'b',
+    "c'", "d'", "e'", "f'", "g'", "a'", "b'",
+    "c''"
+    ]
 
 def note_index(n):
     if n not in NOTES:
+        print('!', n)
         return None
     return NOTES.index(n)
 

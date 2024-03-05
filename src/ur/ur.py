@@ -23,6 +23,7 @@ from typing import Any
 from tools import *
 from collections import defaultdict
 from rich import print
+import music
 import nonchord
 import export
 
@@ -93,6 +94,9 @@ class Gen(object):
         self.structure = [ ALL ]
         self.filter = None
         self.name = name if name else self.hash()
+        self.setup()
+
+    def setup(self):
         pass
 
     def reset(self):
@@ -365,6 +369,11 @@ class ItemSpanSequence(ItemSequence):
 
 class ItemMarkov(Gen):
 
+    def filter_state(self, state):
+        if state is None:
+            return False
+        return True
+
     def item(self, gens_in=None, struct=None):
 
         i = 0
@@ -380,12 +389,38 @@ class ItemMarkov(Gen):
             emits += [emit]
             i += 1
             while i < n_min or state not in self.FINAL:
-                state = pwchoice(self.TRANSITIONS[state])
+                next_state = None
+                while not self.filter_state(next_state):
+                    next_state = pwchoice(self.TRANSITIONS[state])
+                state = next_state
                 emit = pwchoice(self.EMISSIONS[state])
                 emits += [emit]
                 i += 1
 
         return Item(emits, self.id() + ':' + str(i))
+
+class ItemPitchMarkov(ItemMarkov):
+
+    def filter_state(self, pitch):
+        # Redundant, but we may here implement melodic rules
+        if pitch is None:
+            return False
+        return music.in_range(pitch, self.AMBITUS)
+
+    def setup(self):
+        self.EMISSIONS = {
+            x: {music.abc_from_m21(x): 1.00} for x in self.STATES
+        }
+
+        for n1 in list(self.TRANSITIONS):
+            for n2 in list(self.TRANSITIONS[n1]):
+                if not music.in_range(n2, self.AMBITUS) or '#' in n2 or '-' in n2:
+                    print('del', n1, n2)
+                    del self.TRANSITIONS[n1][n2]
+                    if len(self.TRANSITIONS[n1]) == 0:
+                        del self.TRANSITIONS[n1]
+
+
 
 ### Scores
 

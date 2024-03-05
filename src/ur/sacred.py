@@ -24,6 +24,7 @@ import ur
 import glob
 import gabuzomeu
 import random
+import music21
 from rich import print
 
 
@@ -100,7 +101,8 @@ class Rhythm(ur.ItemSpanSequence):
 class Melody0(ur.ItemSequence):
     ITEMS = 'cdefgab'
 
-class MelodyMajorS(ur.ItemMarkov):
+class MelodyMajorS(ur.ItemPitchMarkov):
+    AMBITUS = ['C4', 'G5']
     STATES = ['C4', 'D4', 'E4', 'F4', 'B3', 'G4', 'A4', 'A3', 'C5', 'B4', 'G3', 'D5', 'E5', 'F5', 'A5', 'G5', 'A-5', 'F#5', 'D3', 'F3']
     INITIAL = ['E4', 'G4', 'C5']
     FINAL = STATES
@@ -128,12 +130,8 @@ class MelodyMajorS(ur.ItemMarkov):
         'F3': {'G3': 1.000},
     }
 
-    EMISSIONS = {
-        x: {x: 1.00} for x in STATES
-    }
-
-
-class MelodyMajorA(ur.ItemMarkov):
+class MelodyMajorA(ur.ItemPitchMarkov):
+    AMBITUS = ['G3', 'C5']
     STATES = ['G3', 'B3', 'C4', 'D4', 'A3', 'E3', 'F3', 'G4', 'F4', 'A4', 'F#4', 'B4', 'C5', 'D5', 'E4', 'E5', 'F5', 'A-4', 'D3']
     INITIAL = ['C4', 'E4', 'G4']
     FINAL = STATES
@@ -160,12 +158,8 @@ class MelodyMajorA(ur.ItemMarkov):
         'D3': {'G3': 1.000},
     }
 
-    EMISSIONS = {
-        x: {x: 1.00} for x in STATES
-    }
-
-
-class MelodyMajorT(ur.ItemMarkov):
+class MelodyMajorT(ur.ItemPitchMarkov):
+    AMBITUS = ['C3', 'G4']
     STATES = ['E3', 'G3', 'A3', 'F3', 'D3', 'B3', 'C3', 'B2', 'A2', 'E4', 'C4', 'D4', 'C#4', 'G4', 'F4', 'A4', 'B-4', 'F#4', 'E-4', 'G#3', 'F#3']
     INITIAL = ['E3', 'G3', 'C4']
     FINAL = STATES
@@ -194,12 +188,8 @@ class MelodyMajorT(ur.ItemMarkov):
         'F#3': {'F#3': 0.500, 'G3': 0.500},
     }
 
-    EMISSIONS = {
-        x: {x: 1.00} for x in STATES
-    }
-
-
-class MelodyMajorB(ur.ItemMarkov):
+class MelodyMajorB(ur.ItemPitchMarkov):
+    AMBITUS = ['G2', 'C4']
     STATES = ['C3', 'G2', 'F3', 'B2', 'D3', 'E3', 'A2', 'G3', 'F2', 'E2', 'D2', 'C2', 'F#3', 'C4', 'E4', 'D4', 'F4', 'B3', 'A3', 'E-4', 'B-2', 'C#3']
     INITIAL = ['C3']
     FINAL = STATES
@@ -229,11 +219,8 @@ class MelodyMajorB(ur.ItemMarkov):
         'C#3': {'D3': 1.000},
     }
 
-    EMISSIONS = {
-        x: {x: 1.00} for x in STATES
-    }
-
-class MelodyMinorS(ur.ItemMarkov):
+class MelodyMinorS(ur.ItemPitchMarkov):
+    AMBITUS = ['C4', 'G5']
     STATES = ['E4', 'A4', 'B4', 'C5', 'G4', 'F4', 'D5', 'E5', 'G5', 'F5', 'A5', 'F#5', 'E-5', 'B-4', 'B-5', 'D4', 'C4']
     INITIAL = ['E4', 'A4', 'C5']
     FINAL = STATES
@@ -258,12 +245,8 @@ class MelodyMinorS(ur.ItemMarkov):
         'C4': {'C4': 1.000},
     }
 
-    EMISSIONS = {
-        x: {x: 1.00} for x in STATES
-    }
-
-
-class MelodyMinorA(ur.ItemMarkov):
+class MelodyMinorA(ur.ItemPitchMarkov):
+    AMBITUS = ['G3', 'C5']
     STATES = ['E4', 'A4', 'F4', 'G4', 'D4', 'B4', 'C5', 'D5', 'A-4', 'F#4', 'E5', 'B-4', 'E-4', 'G#4', 'G5', 'F5', 'C4', 'B3', 'C#4']
     INITIAL = ['C4', 'E4', 'A4']
     FINAL = STATES
@@ -290,12 +273,8 @@ class MelodyMinorA(ur.ItemMarkov):
         'C#4': {'D4': 1.000},
     }
 
-    EMISSIONS = {
-        x: {x: 1.00} for x in STATES
-    }
-
-
-class MelodyMinorT(ur.ItemMarkov):
+class MelodyMinorT(ur.ItemPitchMarkov):
+    AMBITUS = ['C3', 'G4']
     STATES = ['E4', 'C4', 'D4', 'B3', 'A3', 'A-3', 'G4', 'A-4', 'A4', 'G3', 'F3', 'E3', 'F#4', 'B-3', 'E-4', 'F4', 'B-4', 'F#3', 'G#3', 'D3']
     INITIAL = ['E3', 'A3', 'C4']
     FINAL = STATES
@@ -323,12 +302,8 @@ class MelodyMinorT(ur.ItemMarkov):
         'D3': {'G3': 1.000},
     }
 
-    EMISSIONS = {
-        x: {x: 1.00} for x in STATES
-    }
-
-
-class MelodyMinorB(ur.ItemMarkov):
+class MelodyMinorB(ur.ItemPitchMarkov):
+    AMBITUS = ['G2', 'C4']
     STATES = ['E4', 'A3', 'F3', 'D3', 'E3', 'A-3', 'G3', 'C4', 'D4', 'B3', 'C3', 'F#3', 'B-3', 'C#3', 'E-3', 'E-4', 'A2', 'B2', 'G2', 'F2', 'E2']
     INITIAL = ['A2', 'A3']
     FINAL = STATES
@@ -356,11 +331,6 @@ class MelodyMinorB(ur.ItemMarkov):
         'F2': {'G2': 1.000},
         'E2': {'A2': 0.667, 'F2': 0.333},
     }
-
-    EMISSIONS = {
-        x: {x: 1.00} for x in STATES
-    }
-
 
 
 S2 = { '2': 2, '4.': 2, '4': 1, '8': 0, '4. 8': 2, '8 8': 2 }
