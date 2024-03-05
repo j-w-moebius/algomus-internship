@@ -17,3 +17,7 @@ def abc_from_m21(note):
 def ambitus(mel):
     mnotes = [music21.pitch.Pitch(n) for n in mel]
     return(max(mnotes).midi - min(mnotes).midi)
+
+def interval(n1, n2):
+    print(n1, n2)
+    return music21.pitch.Pitch(n2).midi - music21.pitch.Pitch(n1).midi

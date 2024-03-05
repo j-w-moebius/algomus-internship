@@ -423,6 +423,22 @@ class ScorerMelodyHarm(ur.ScorerTwoSequence):
             return -20
 
 
+class ScorerMelodyMelody(ur.ScorerTwoSequenceIntervals):
+
+    def score_element(self,
+                      mel1a, mel1b,
+                      mel2a, mel2b):
+
+
+        # Detect doubling of voices
+        if (music.interval(mel1a, mel2a) % 12) == 0:
+            int1 = music.interval(mel1a, mel1b) % 12
+            int2 = music.interval(mel2a, mel2b) % 12
+            if int1 == int2:
+                return 0.0
+
+        return 1.0
+
 class ScorerMelodyHarmRoot(ScorerMelodyHarm):
 
     SCORES = {
@@ -490,14 +506,6 @@ def gen_sacred():
     sh.scorer(ScorerMelodyHarm, 'mel', 'func')
     sh.scorer(ScorerMelody, 'mel')
 
-    sh.add(MelodyS('melS'))
-    sh.scorer(ScorerMelodyHarm, 'melS', 'func')
-    sh.scorer(ScorerMelodySA, 'melS')
-
-    sh.add(MelodyA('melA'))
-    scoreA = sh.scorer(ScorerMelodyHarm, 'melA', 'func')
-    scoreMelA = sh.scorer(ScorerMelodySA, 'melA')
-
     sh.add(MelodyB('melB'))
     sh['melB'].flourish = {
             'third-passing': 0.7,
@@ -508,6 +516,20 @@ def gen_sacred():
             'second-8-16-16': 0,
         }
     sh.scorer(ScorerMelodyHarmRoot, 'melB', 'func')
+    sh.scorer(ScorerMelodyMelody, 'melB', 'mel')
+
+    sh.add(MelodyS('melS'))
+    sh.scorer(ScorerMelodyHarm, 'melS', 'func')
+    sh.scorer(ScorerMelodySA, 'melS')
+    sh.scorer(ScorerMelodyMelody, 'melS', 'mel')
+    sh.scorer(ScorerMelodyMelody, 'melS', 'melB')
+
+    sh.add(MelodyA('melA'))
+    sh.scorer(ScorerMelodyHarm, 'melA', 'func')
+    sh.scorer(ScorerMelodySA, 'melA')
+    sh.scorer(ScorerMelodyMelody, 'melA', 'mel')
+    sh.scorer(ScorerMelodyMelody, 'melA', 'melB')
+    sh.scorer(ScorerMelodyMelody, 'melA', 'melS')
 
     sh.add(Lyrics('lyr'))
     sh.structurer('struct', 'lyr')
@@ -539,9 +561,10 @@ def gen_sacred():
     print("d0", d0)
 
     m0 = sh['mel'].gen(d0)
+    m0 = sh['melB'].gen(d0)
     m0 = sh['melS'].gen(d0)
     m0 = sh['melA'].gen(d0)
-    m0 = sh['melB'].gen(d0)
+
 
     # sh.score()
     return sh
