@@ -37,14 +37,15 @@ def flourish(items, i, rhy_i, thresholds):
             new_items += [nonchord.note_nonchord(n1, n2)]
 
     # Some neighbor notes between same notes
-    if n1 == n2:
+    elif n1 == n2:
         if random.random() < thresholds['same-neighbor-16']:
             rhy = '16 16 16 16'
             lyr += ['-', '-', '-']
+            dir = random.choice([-1, 1])
             new_items += [
-                nonchord.note_direction(n1, n2, 1),
-                nonchord.note_direction(n1, n2, 2),
-                nonchord.note_direction(n1, n2, 1),
+                nonchord.note_projection(n1, dir, 1),
+                nonchord.note_projection(n1, dir, 2),
+                nonchord.note_projection(n1, dir, 1),
             ]
         elif random.random() < thresholds['same-neighbor']:
             rhy = '8 8'
@@ -52,12 +53,12 @@ def flourish(items, i, rhy_i, thresholds):
             new_items += [nonchord.note_nonchord(n1, n2, True)]
 
     # Some jump-passing notes between seconds
-    if nonchord.interval_second(n1, n2):
+    elif nonchord.interval_second(n1, n2):
         if random.random() < thresholds['second-jump']:
             rhy = '8 8'
             lyr += ['-']
             new_items += [nonchord.note_direction(n1, n2, 2)]
-        if random.random() < thresholds['second-8-16-16']:
+        elif random.random() < thresholds['second-8-16-16']:
             rhy = '8 16 16'
             lyr += ['-', '-']
             new_items += [

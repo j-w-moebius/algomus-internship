@@ -38,9 +38,19 @@ def interval_third(n1, n2):
 def note_passing(n1, n2):
     return note_from_index((note_index(n1) + note_index(n2))//2)
 
+def direction(n1, n2):
+    if note_index(n2) > note_index(n1):
+        return 1
+    elif note_index(n2) < note_index(n1):
+        return -1
+    else:
+        return random.choice([-1, 1])
+
 def note_direction(n1, n2, nb):
-    direction = 1 if note_index(n2) > note_index(n1) else -1
-    return note_from_index(note_index(n1) + direction*nb)
+    return note_projection(n1, direction(n1, n2), nb)
+        
+def note_projection(n1, dir, nb):
+    return note_from_index(note_index(n1) + dir*nb)
 
 def note_nonchord(n1, n2, always=False):
     '''
