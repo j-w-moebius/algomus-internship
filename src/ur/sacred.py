@@ -423,6 +423,18 @@ class ScorerMelodyHarm(ur.ScorerTwoSequence):
             return -20
 
 
+class ScorerMelodyMelodyBelow(ur.ScorerTwoSequence):
+    def score_element(self, mel1, mel2):
+        if music.interval(mel1, mel2) < 0:
+            return 0.0
+        return 1.0
+
+class ScorerMelodyMelodyAbove(ur.ScorerTwoSequence):
+    def score_element(self, mel1, mel2):
+        if music.interval(mel1, mel2) > 0:
+            return 0.0
+        return 1.0
+
 class ScorerMelodyMelody(ur.ScorerTwoSequenceIntervals):
 
     def score_element(self,
@@ -517,6 +529,7 @@ def gen_sacred():
         }
     sh.scorer(ScorerMelodyHarmRoot, 'melB', 'func')
     sh.scorer(ScorerMelodyMelody, 'melB', 'mel')
+    sh.scorer(ScorerMelodyMelodyBelow, 'melB', 'mel')
 
     sh.add(MelodyS('melS'))
     sh.scorer(ScorerMelodyHarm, 'melS', 'func')
@@ -530,6 +543,7 @@ def gen_sacred():
     sh.scorer(ScorerMelodyMelody, 'melA', 'mel')
     sh.scorer(ScorerMelodyMelody, 'melA', 'melB')
     sh.scorer(ScorerMelodyMelody, 'melA', 'melS')
+    sh.scorer(ScorerMelodyMelodyBelow, 'melA', 'melS')
 
     sh.add(Lyrics('lyr'))
     sh.structurer('struct', 'lyr')
