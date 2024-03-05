@@ -370,7 +370,7 @@ class ScorerRhythmLyrics(ur.ScorerTwoSpanSequence):
         ('>>', S1),
         ('>',  S1),
 
-        ('/', S2),
+        ('/', S1),
         ('.', S1),
 
         (';', S1),
@@ -388,6 +388,29 @@ class ScorerRhythmLyrics(ur.ScorerTwoSpanSequence):
                 # return 0
         print('!', lyr, rhy)
         return 0
+
+
+class ScorerRhythmMetrics(ur.ScorerOne):
+
+    def score_item(self, gen, _):
+        score = 0
+
+        # music.duration(gen.one)
+        pos = 0
+        for r in gen.one:
+            d = int(music.duration(r))
+            if pos + d > 4:
+                score -= 2
+            if d > 1 and pos == 1:
+                score -= 1
+            if d == 1 and r != '4' and pos == 3:
+                score += 1
+            pos = (pos + d) % 4
+
+        if pos in [0, 2]:
+            score -= 5
+
+        return score
 
 class ScorerMelodyHarm(ur.ScorerTwoSequence):
 
@@ -550,6 +573,7 @@ def gen_sacred():
     sh['lyr'].load()
     sh.add(Rhythm('rhy'))
     sh.scorer(ScorerRhythmLyrics, 'rhy', 'lyr')
+    sh.scorer(ScorerRhythmMetrics, 'rhy')
 
     print(sh)
 

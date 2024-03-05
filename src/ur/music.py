@@ -19,5 +19,17 @@ def ambitus(mel):
     return(max(mnotes).midi - min(mnotes).midi)
 
 def interval(n1, n2):
-    print(n1, n2)
     return music21.pitch.Pitch(n2).midi - music21.pitch.Pitch(n1).midi
+
+DURATION = {
+  '2.': 3,
+  '4.': 1.5,
+  '8.': .75,
+  '2': 2,
+  '4': 1,
+  '8': .5,
+  '16': .25
+}
+
+def duration(r):
+    return sum([DURATION[x] for x in r.split()])
