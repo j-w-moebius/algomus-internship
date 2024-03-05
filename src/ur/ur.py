@@ -206,6 +206,9 @@ class Gen(object):
         lyr = []
         for struct in structure:
             items = self.gens[struct][0].one
+            if not annotation:
+                items = list(map(music.abc_from_m21, items))
+
             rhy = rhythms.gens[struct][0].one if rhythms else None
             if lyrics:
                 ly = lyrics.gens[struct][0].one
@@ -227,8 +230,9 @@ class Gen(object):
                     lyr += ly[i_ly:i_ly+n_ly]
                     i_ly += n_ly
 
-                rhy_i, new_lyr, new_items = flourish.flourish(items, i, rhy_i, self.flourish)
-                lyr += new_lyr
+                if not annotation:
+                    rhy_i, new_lyr, new_items = flourish.flourish(items, i, rhy_i, self.flourish)
+                    lyr += new_lyr
 
                 s = ''
 
@@ -408,7 +412,7 @@ class ItemPitchMarkov(ItemMarkov):
 
     def setup(self):
         self.EMISSIONS = {
-            x: {music.abc_from_m21(x): 1.00} for x in self.STATES
+            x: {x: 1.00} for x in self.STATES
         }
 
         for n1 in list(self.TRANSITIONS):
