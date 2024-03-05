@@ -347,22 +347,22 @@ class ScorerMelody(ur.ScorerOne):
         # Ambitus
         ambitus = music.ambitus(gen.one)
         if ambitus < self.AMBITUS_LOW or ambitus > self.AMBITUS_HIGH:
-            score += -5
+            score -= 1
         elif ambitus > self.AMBITUS_GOOD:
-            score += 2
+            score += 0.5
 
         for i in range(len(gen.one)-2):
             a, b, c = gen.one[i:i+3]
 
             # Large intervals, then short contrary motion
             if music.interval(a, b) > 7 and music.interval(b, c) in [-1, -2]:
-                score += 2
+                score += 0.2
             if music.interval(a, b) < -7 and music.interval(b, c) in [1, 2]:
-                score += 2
+                score += 0.2
 
             # Too many repeated notes
             if a == b and b == c:
-                score -= 2
+                score -= 0.2
 
         return score
 
@@ -414,15 +414,15 @@ class ScorerRhythmMetrics(ur.ScorerOne):
         for r in gen.one:
             d = int(music.duration(r))
             if pos + d > 4:
-                score -= 2
+                score -= .5
             if d > 1 and pos == 1:
-                score -= 1
+                score -= .2
             if d == 1 and r != '4' and pos == 3:
-                score += 1
+                score += .2
             pos = (pos + d) % 4
 
         if pos in [0, 2]:
-            score -= 5
+            score -= .5
 
         return score
 
