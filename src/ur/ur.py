@@ -190,7 +190,7 @@ class Gen(object):
                 for (d1, d2) in zip(s.mod1.gens[struct], s.mod2.gens[struct]):
                     ss = s.score_item(d1, d2)
                     d2.context += ',' + self.str_score(ss)
-                    print("  ", struct, ss, d1, d2)
+                    # print("  ", struct, ss, d1, d2)
 
     def learn(self):
         raise NotImplemented
@@ -467,7 +467,7 @@ class ScorerTwo(object):
         return f'<<{self.mod1.id()} // {self.mod2.id()}>>'
 
     def score(self, gens1: Data, gens2: Data):
-        print(gens1, gens2)
+        # print(gens1, gens2)
         for struct in set(gens1.data.keys()).union(set(gens2.data.keys())):
             print(struct)
             self.score_item(gens1[struct], gens2[struct])
