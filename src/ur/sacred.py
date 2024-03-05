@@ -454,6 +454,8 @@ def gen_sacred():
     sh.structurer('struct', 'func')
 
     sh.add(MelodyT('mel'))
+    sh['mel'].flourish['third-passing'] = .70
+    sh['mel'].flourish['same-neighbor'] = .50
     score = sh.scorer(ScorerHarmMelody, 'func', 'mel')
 
     sh.add(MelodyS('melS'))

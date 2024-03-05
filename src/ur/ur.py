@@ -94,6 +94,10 @@ class Gen(object):
         self.structure = [ ALL ]
         self.filter = None
         self.name = name if name else self.hash()
+        self.flourish = {
+            'third-passing': 0.5,
+            'same-neighbor': 0.1,
+        }
         self.setup()
 
     def setup(self):
@@ -224,12 +228,22 @@ class Gen(object):
                     lyr += ly[i_ly:i_ly+n_ly]
                     i_ly += n_ly
 
-                # Some passing notes between thirds
+                new_items = []
+
                 if rhy_i == '4' and i < len(items)-1:
+                    # Some passing notes between thirds
                     if nonchord.interval_third(item, items[i+1]):
-                        if random.choice([True, False]):
+                        if random.random() < self.flourish['third-passing']:
                             rhy_i = '8 8'
                             lyr += ['-']
+                            new_items += [nonchord.note_nonchord(item, items[i+1])]
+
+                    # Some neighbor notes between same notes
+                    if item == items[i+1]:
+                        if random.random() < self.flourish['same-neighbor']:
+                            rhy_i = '8 8'
+                            lyr += ['-']
+                            new_items += [nonchord.note_nonchord(item, items[i+1], True)]
 
                 s = ''
 
@@ -237,7 +251,7 @@ class Gen(object):
                 for j, rh in enumerate(rhy_i.split(' ')):
                     if j == 1:
                         if i < len(items)-1:
-                            item = nonchord.note_nonchord(item, items[i+1])
+                            item = new_items[j-1] if new_items else nonchord.note_nonchord(item, items[i+1])
 
                     s += f' {item}{rh} '
                 out += [ s ]

@@ -35,12 +35,12 @@ def interval_third(n1, n2):
 def note_passing(n1, n2):
     return note_from_index((note_index(n1) + note_index(n2))//2)
 
-def note_nonchord(n1, n2):
+def note_nonchord(n1, n2, always=False):
     '''
     Returns a possible nonchord note between n1 and n2
     '''
     if n1 == n2:
-        if random.choice([True, False]):
+        if random.choice([True, False]) or always:
             return note_neighbor(n1)
     if interval_third(n1, n2):
         return note_passing(n1, n2)
