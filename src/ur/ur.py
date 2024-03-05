@@ -136,9 +136,9 @@ class Gen(object):
             one = self.one(gens_in, struct)
             score = 0
 
-            for filter in self.filters:
+            for filter, weight in self.filters:
                 v2 = filter.mod2.gens[struct][0] if filter.two() else None
-                score += filter.score_item(one[struct][0], v2)
+                score += filter.score_item(one[struct][0], v2) * weight
             sp += [ (score, one) ]
         average = sum(map (lambda x:x[0], sp)) / len(sp)
         sp.sort(key = lambda x:x[0])
@@ -170,8 +170,8 @@ class Gen(object):
         for i in range(n):
             self.gen()
 
-    def add_filter(self, scorer):
-        self.filters += [scorer]
+    def add_filter(self, scorer, weight):
+        self.filters += [(scorer, weight)]
 
     def set_structure(self):
         for (s, mod) in self.structurers:
@@ -533,13 +533,13 @@ class Model(And):
     def add(self, mod):
         self.mods += [mod]
 
-    def scorer(self, scorer, mod1, mod2=None):
+    def scorer(self, scorer, mod1, mod2=None, weight=1):
         if mod2:
             sco = scorer(self[mod1], self[mod2])
         else:
             sco = scorer(self[mod1])
         self.scorers += [sco]
-        self[mod1].add_filter(sco)
+        self[mod1].add_filter(sco, weight)
         return sco
 
     def structurer(self, struct, mod):

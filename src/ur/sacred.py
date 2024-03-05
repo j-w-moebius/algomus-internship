@@ -515,7 +515,7 @@ def gen_sacred():
             'second-jump': 0.4,
             'second-8-16-16': 0.2,
         }
-    sh.scorer(ScorerMelodyHarm, 'mel', 'func')
+    sh.scorer(ScorerMelodyHarm, 'mel', 'func', 2)
     sh.scorer(ScorerMelody, 'mel')
 
     sh.add(MelodyB('melB'))
@@ -527,19 +527,19 @@ def gen_sacred():
             'second-jump': 0,
             'second-8-16-16': 0,
         }
-    sh.scorer(ScorerMelodyHarmRoot, 'melB', 'func')
+    sh.scorer(ScorerMelodyHarmRoot, 'melB', 'func', 2)
     sh.scorer(ScorerMelodyMelody, 'melB', 'mel')
     sh.scorer(ScorerMelodyMelodyBelow, 'melB', 'mel')
 
     sh.add(MelodyS('melS'))
-    sh.scorer(ScorerMelodyHarm, 'melS', 'func')
-    sh.scorer(ScorerMelodySA, 'melS')
+    sh.scorer(ScorerMelodyHarm, 'melS', 'func', 4)
+    sh.scorer(ScorerMelodySA, 'melS', weight=2)
     sh.scorer(ScorerMelodyMelody, 'melS', 'mel')
     sh.scorer(ScorerMelodyMelody, 'melS', 'melB')
 
     sh.add(MelodyA('melA'))
-    sh.scorer(ScorerMelodyHarm, 'melA', 'func')
-    sh.scorer(ScorerMelodySA, 'melA')
+    sh.scorer(ScorerMelodyHarm, 'melA', 'func', 8)
+    sh.scorer(ScorerMelodySA, 'melA', weight=4)
     sh.scorer(ScorerMelodyMelody, 'melA', 'mel')
     sh.scorer(ScorerMelodyMelody, 'melA', 'melB')
     sh.scorer(ScorerMelodyMelody, 'melA', 'melS')
