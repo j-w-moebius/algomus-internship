@@ -37,7 +37,7 @@ parser.add_argument('--save', '-s', type=int, default=0, help='starting number t
 parser.add_argument('--nb', '-n', type=int, default=0, help='number of generations with --save')
 
 class Structure(ur.ItemChoice):
-    CHOICES = ['AABC', 'ABA', 'ACBA' ]
+    CHOICES = ['AABC', 'ABA', 'ACBA', 'ABAC', 'BACA' ]
 
 class Lyrics(ur.ItemLyricsChoiceFiles):
     FILES = glob.glob('../../data/lyrics-s/*.txt')
