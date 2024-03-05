@@ -136,7 +136,7 @@ class Gen(object):
             one = self.one(gens_in, struct)
             score = 0
             for filter in self.filters:
-                score += filter.score_item(gens_in[struct][0], one[struct][0])
+                score += filter.score_item(one[struct][0], gens_in[struct][0])
             sp += [ (score, one) ]
         average = sum(map (lambda x:x[0], sp)) / len(sp)
         sp.sort(key = lambda x:x[0])
@@ -509,6 +509,7 @@ class Model(And):
         else:
             sco = scorer(self[mod1])
         self.scorers += [sco]
+        self[mod1].add_filter(sco)
         return sco
 
     def structurer(self, struct, mod):

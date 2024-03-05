@@ -345,7 +345,7 @@ class ScorerMelody(ur.ScorerOne):
     AMBITUS_HIGH = 14
     AMBITUS_GOOD = 7
 
-    def score_item(self, _, gen):
+    def score_item(self, gen, _):
         score = 0
 
         ambitus = music.ambitus(gen.one)
@@ -362,8 +362,7 @@ class ScorerMelodySA(ScorerMelody):
     AMBITUS_HIGH = 12
     AMBITUS_GOOD = 5
 
-class ScorerLyricsRhythm(ur.ScorerTwoSpanSequence):
-
+class ScorerRhythmLyrics(ur.ScorerTwoSpanSequence):
 
     STRESSES = [
         ('!', S2),
@@ -380,7 +379,7 @@ class ScorerLyricsRhythm(ur.ScorerTwoSpanSequence):
     ]
 
 
-    def score_element(self, lyr, rhy):
+    def score_element(self, rhy, lyr):
         for (symbol, scores) in self.STRESSES:
             if symbol in lyr:
                 if rhy in scores:
@@ -389,7 +388,7 @@ class ScorerLyricsRhythm(ur.ScorerTwoSpanSequence):
         print('!', lyr, rhy)
         return 0
 
-class ScorerHarmMelody(ur.ScorerTwoSequence):
+class ScorerMelodyHarm(ur.ScorerTwoSequence):
 
     CHORDS = {
         'I': 'ceg',
@@ -409,21 +408,21 @@ class ScorerHarmMelody(ur.ScorerTwoSequence):
         'VII': 'gd',
     }
 
-    def score_element(self, harm, mel):
+    def score_element(self, mel, harm):
         # print (mel, harm, self.CHORDS[harm])
-        if mel[0] in self.CHORDS[harm]:
+        if mel[0].lower() in self.CHORDS[harm]:
             return 1.0
         else:
             return 0.0
 
-    def score_first_last_element(self, harm, mel):
-        if mel[0] in self.CHORDS[harm]:
+    def score_first_last_element(self, mel, harm):
+        if mel[0].lower() in self.CHORDS[harm]:
             return 1.0
         else:
             return -20
 
 
-class ScorerHarmMelodyRoot(ScorerHarmMelody):
+class ScorerMelodyHarmRoot(ScorerMelodyHarm):
 
     SCORES = {
         None: -5.0,
@@ -433,15 +432,15 @@ class ScorerHarmMelodyRoot(ScorerHarmMelody):
     }
 
     '''Favors 5, '''
-    def score_element(self, harm, mel):
-        if mel[0] in self.CHORDS[harm]:
-            i = self.CHORDS[harm].index(mel[0])
+    def score_element(self, mel, harm):
+        if mel[0].lower() in self.CHORDS[harm]:
+            i = self.CHORDS[harm].index(mel[0].lower())
             return self.SCORES[i]
         else:
             return self.SCORES[None]
 
-    def score_first_last_element(self, harm, mel):
-        if mel[0] == self.CHORDS[harm][0]:
+    def score_first_last_element(self, mel, harm):
+        if mel[0].lower() == self.CHORDS[harm][0]:
             return 0.0
         else:
             return -20.0
@@ -487,16 +486,15 @@ def gen_sacred():
             'second-jump': 0.4,
             'second-8-16-16': 0.2,
         }
-    sh['mel'].flourish['same-neighbor'] = .50
-    score = sh.scorer(ScorerHarmMelody, 'func', 'mel')
-    scoreMel = sh.scorer(ScorerMelody, 'mel')
+    sh.scorer(ScorerMelodyHarm, 'mel', 'func')
+    sh.scorer(ScorerMelody, 'mel')
 
     sh.add(MelodyS('melS'))
-    scoreS = sh.scorer(ScorerHarmMelody, 'func', 'melS')
-    scoreMelS = sh.scorer(ScorerMelodySA, 'melS')
+    sh.scorer(ScorerMelodyHarm, 'melS', 'func')
+    sh.scorer(ScorerMelodySA, 'melS')
 
     sh.add(MelodyA('melA'))
-    scoreA = sh.scorer(ScorerHarmMelody, 'func', 'melA')
+    scoreA = sh.scorer(ScorerMelodyHarm, 'melA', 'func')
     scoreMelA = sh.scorer(ScorerMelodySA, 'melA')
 
     sh.add(MelodyB('melB'))
@@ -508,22 +506,22 @@ def gen_sacred():
             'second-jump': 0,
             'second-8-16-16': 0,
         }
-    scoreB = sh.scorer(ScorerHarmMelodyRoot, 'func', 'melB')
+    sh.scorer(ScorerMelodyHarmRoot, 'melB', 'func')
 
     sh.add(Lyrics('lyr'))
     sh.structurer('struct', 'lyr')
     sh['lyr'].load()
     sh.add(Rhythm('rhy'))
-    scoreL = sh.scorer(ScorerLyricsRhythm, 'lyr', 'rhy')
+    sh.scorer(ScorerRhythmLyrics, 'rhy', 'lyr')
 
     print(sh)
 
     # -------------------------------------------------------
 
-    print('[yellow]### Gen 1, independent')
-    sh.generate()
-    sh.score()
-    print(sh)
+    # print('[yellow]### Gen 1, independent')
+    # sh.generate()
+    # sh.score()
+    # print(sh)
 
     # -------------------------------------------------------
 
@@ -533,29 +531,16 @@ def gen_sacred():
     sh.set_structure()
 
     l0 = sh['lyr'].gen()
-    sh['rhy'].add_filter(scoreL)
     r0 = sh['rhy'].gen(l0)
     print(r0)
 
     d0 = sh['func'].gen(r0)
     print("d0", d0)
 
-    sh['mel'].add_filter(score)
-    sh['mel'].add_filter(scoreMel)
     m0 = sh['mel'].gen(d0)
-
-    sh['melS'].add_filter(scoreS)
-    sh['melS'].add_filter(scoreMelS)
     m0 = sh['melS'].gen(d0)
-
-    sh['melA'].add_filter(scoreA)
-    sh['melA'].add_filter(scoreMelA)
     m0 = sh['melA'].gen(d0)
-
-    sh['melB'].add_filter(scoreB)
     m0 = sh['melB'].gen(d0)
-
-
 
     sh.score()
     return sh
