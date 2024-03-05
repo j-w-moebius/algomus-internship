@@ -7,7 +7,7 @@ import datetime
 DIR_OUT = '../../data/gen/'
 TINY = "tinyNotation: 4/4 "
 
-def export(code, title, melodies, annotations):
+def export(code, title, melodies, annotations, key):
 
     score = m21.stream.Score()
     score.insert(0, m21.metadata.Metadata())
@@ -35,6 +35,8 @@ def export(code, title, melodies, annotations):
                 part.measure(1).remove(cl)
             part.measure(1).insert(0, m21.clef.BassClef())
             # part = part.transpose(-12)
+        part.measure(1).insert(0, m21.key.KeySignature(0))
+        part = part.transpose(key)
         # part.show('txt')
 
         if lyrics:

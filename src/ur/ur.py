@@ -90,6 +90,7 @@ class Gen(object):
     def __init__(self, name = None, mods = None):
         self.gens = Data()
         self.mods = mods if mods else []
+        self.key = None
         self.scorers = []
         self.structurers = []
         self.structure = [ ALL ]
@@ -97,6 +98,9 @@ class Gen(object):
         self.name = name if name else self.hash()
         self.flourish = flourish.FLOURISH
         self.setup()
+
+    def set_key(self, key):
+        self.key = key
 
     def setup(self):
         pass
@@ -378,6 +382,10 @@ class ItemSpanSequence(ItemSequence):
 
 class ItemMarkov(Gen):
 
+    def setup(self):
+        self.initial = self.INITIAL
+        self.transitions = self.TRANSITIONS
+
     def filter_state(self, state):
         if state is None:
             return False
@@ -391,7 +399,7 @@ class ItemMarkov(Gen):
         while i != n_min:
             # i == n_min : item has exact targeted length
             i = 0
-            state = pwchoice(self.INITIAL)
+            state = pwchoice(self.initial)
             emits = []
 
             emit = pwchoice(self.EMISSIONS[state])
@@ -400,7 +408,7 @@ class ItemMarkov(Gen):
             while i < n_min or state not in self.FINAL:
                 next_state = None
                 while not self.filter_state(next_state):
-                    next_state = pwchoice(self.TRANSITIONS[state])
+                    next_state = pwchoice(self.transitions[state])
                 state = next_state
                 emit = pwchoice(self.EMISSIONS[state])
                 emits += [emit]
@@ -416,18 +424,25 @@ class ItemPitchMarkov(ItemMarkov):
             return False
         return music.in_range(pitch, self.AMBITUS)
 
-    def setup(self):
+    def set_key(self, key):
         self.EMISSIONS = {
             x: {x: 1.00} for x in self.STATES
-        }
+        }    
+        self.key = key
+        self.initial = self.INITIAL.copy()
+        self.transitions = self.TRANSITIONS.copy()
 
-        for n1 in list(self.TRANSITIONS):
-            for n2 in list(self.TRANSITIONS[n1]):
-                if not music.in_range(n2, self.AMBITUS) or '#' in n2 or '-' in n2:
-                    # print('del', n1, n2)
-                    del self.TRANSITIONS[n1][n2]
-                    if len(self.TRANSITIONS[n1]) == 0:
-                        del self.TRANSITIONS[n1]
+        for n1 in list(self.transitions):
+            for n2 in list(self.transitions[n1]):
+                if not music.in_range(n2, self.AMBITUS, self.key) or '#' in n2 or '-' in n2:
+                    # print(self.key, 'del', n1, n2)
+                    del self.transitions[n1][n2]
+                    if len(self.transitions[n1]) == 0:
+                        del self.transitions[n1]
+        for n in list(self.initial):
+            if not music.in_range(n, self.AMBITUS_INITIAL, self.key):
+                self.initial.remove(n)
+
 
 
 
@@ -549,4 +564,4 @@ class Model(And):
         print('Exporting...')
         melodies = [(mod, self[mod].export(structure, rhythms, lyrics=lyrics)) for mod in mods_melodies]
         annots   = [(mod, self[mod].export(structure, rhythms, annotation=True)) for mod in mods_annots]
-        export.export(code, title, melodies, annots)
+        export.export(code, title, melodies, annots, self.key)

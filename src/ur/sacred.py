@@ -37,11 +37,14 @@ parser.add_argument('--save', '-s', type=int, default=0, help='starting number t
 parser.add_argument('--nb', '-n', type=int, default=0, help='number of generations with --save')
 
 class Structure(ur.ItemChoice):
-    CHOICES = ['AABC', 'ABA', 'ACBA', 'ABAC', 'BACA' ]
+    CHOICES = ['QQBC', 'AQA', 'AQRA', 'AQAC', 'BAQA' ]
 
 class Lyrics(ur.ItemLyricsChoiceFiles):
     FILES = glob.glob('../../data/lyrics-s/*.txt')
     STRESS_WORDS = ['Lord', 'God', 'Christ', 'Son']
+
+class Key(ur.ItemChoice):
+    CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4']
 
 class FuncMajor(ur.ItemMarkov):
 
@@ -89,7 +92,7 @@ class FuncMinor(ur.ItemMarkov):
 
 class Rhythm(ur.ItemSpanSequence):
     ITEMS_LAST = [
-        ('2', 0.5),
+        ('2', 0.8),
         ('4', 0.5),
     ]
     ITEMS = [
@@ -105,8 +108,9 @@ class Melody0(ur.ItemSequence):
 
 class MelodyMajorS(ur.ItemPitchMarkov):
     AMBITUS = ['C4', 'G5']
+    AMBITUS_INITIAL = ['E4', 'C5']
     STATES = ['C4', 'D4', 'E4', 'F4', 'B3', 'G4', 'A4', 'A3', 'C5', 'B4', 'G3', 'D5', 'E5', 'F5', 'A5', 'G5', 'A-5', 'F#5', 'D3', 'F3']
-    INITIAL = ['E4', 'G4', 'C5']
+    INITIAL = ['C4', 'E4', 'G4', 'C5', 'E5']
     FINAL = STATES
 
     TRANSITIONS = {
@@ -134,8 +138,9 @@ class MelodyMajorS(ur.ItemPitchMarkov):
 
 class MelodyMajorA(ur.ItemPitchMarkov):
     AMBITUS = ['G3', 'C5']
+    AMBITUS_INITIAL = ['A3', 'G4']
     STATES = ['G3', 'B3', 'C4', 'D4', 'A3', 'E3', 'F3', 'G4', 'F4', 'A4', 'F#4', 'B4', 'C5', 'D5', 'E4', 'E5', 'F5', 'A-4', 'D3']
-    INITIAL = ['C4', 'E4', 'G4']
+    INITIAL = ['G3', 'C4', 'E4', 'G4', 'C4']
     FINAL = STATES
 
     TRANSITIONS = {
@@ -162,8 +167,9 @@ class MelodyMajorA(ur.ItemPitchMarkov):
 
 class MelodyMajorT(ur.ItemPitchMarkov):
     AMBITUS = ['C3', 'G4']
+    AMBITUS_INITIAL = ['E3', 'D4']
     STATES = ['E3', 'G3', 'A3', 'F3', 'D3', 'B3', 'C3', 'B2', 'A2', 'E4', 'C4', 'D4', 'C#4', 'G4', 'F4', 'A4', 'B-4', 'F#4', 'E-4', 'G#3', 'F#3']
-    INITIAL = ['E3', 'G3', 'C4']
+    INITIAL = ['C3', 'E3', 'G3', 'C4', 'E4']
     FINAL = STATES
 
     TRANSITIONS = {
@@ -192,8 +198,9 @@ class MelodyMajorT(ur.ItemPitchMarkov):
 
 class MelodyMajorB(ur.ItemPitchMarkov):
     AMBITUS = ['G2', 'C4']
+    AMBITUS_INITIAL = ['A2', 'A3']
     STATES = ['C3', 'G2', 'F3', 'B2', 'D3', 'E3', 'A2', 'G3', 'F2', 'E2', 'D2', 'C2', 'F#3', 'C4', 'E4', 'D4', 'F4', 'B3', 'A3', 'E-4', 'B-2', 'C#3']
-    INITIAL = ['C3']
+    INITIAL = ['C3', 'C4']
     FINAL = STATES
 
     TRANSITIONS = {
@@ -223,8 +230,9 @@ class MelodyMajorB(ur.ItemPitchMarkov):
 
 class MelodyMinorS(ur.ItemPitchMarkov):
     AMBITUS = ['C4', 'G5']
+    AMBITUS_INITIAL = ['E4', 'C5']
     STATES = ['E4', 'A4', 'B4', 'C5', 'G4', 'F4', 'D5', 'E5', 'G5', 'F5', 'A5', 'F#5', 'E-5', 'B-4', 'B-5', 'D4', 'C4']
-    INITIAL = ['E4', 'A4', 'C5']
+    INITIAL = ['E4', 'A4', 'C5', 'E5']
     FINAL = STATES
 
     TRANSITIONS = {
@@ -249,8 +257,9 @@ class MelodyMinorS(ur.ItemPitchMarkov):
 
 class MelodyMinorA(ur.ItemPitchMarkov):
     AMBITUS = ['G3', 'C5']
+    AMBITUS_INITIAL = ['A3', 'G4']
     STATES = ['E4', 'A4', 'F4', 'G4', 'D4', 'B4', 'C5', 'D5', 'A-4', 'F#4', 'E5', 'B-4', 'E-4', 'G#4', 'G5', 'F5', 'C4', 'B3', 'C#4']
-    INITIAL = ['C4', 'E4', 'A4']
+    INITIAL = ['C4', 'E4', 'A4', 'C5']
     FINAL = STATES
 
     TRANSITIONS = {
@@ -277,8 +286,9 @@ class MelodyMinorA(ur.ItemPitchMarkov):
 
 class MelodyMinorT(ur.ItemPitchMarkov):
     AMBITUS = ['C3', 'G4']
+    AMBITUS_INITIAL = ['E3', 'D4']
     STATES = ['E4', 'C4', 'D4', 'B3', 'A3', 'A-3', 'G4', 'A-4', 'A4', 'G3', 'F3', 'E3', 'F#4', 'B-3', 'E-4', 'F4', 'B-4', 'F#3', 'G#3', 'D3']
-    INITIAL = ['E3', 'A3', 'C4']
+    INITIAL = ['E3', 'A3', 'C4', 'E4']
     FINAL = STATES
 
     TRANSITIONS = {
@@ -306,6 +316,7 @@ class MelodyMinorT(ur.ItemPitchMarkov):
 
 class MelodyMinorB(ur.ItemPitchMarkov):
     AMBITUS = ['G2', 'C4']
+    AMBITUS_INITIAL = ['A2', 'A3']
     STATES = ['E4', 'A3', 'F3', 'D3', 'E3', 'A-3', 'G3', 'C4', 'D4', 'B3', 'C3', 'F#3', 'B-3', 'C#3', 'E-3', 'E-4', 'A2', 'B2', 'G2', 'F2', 'E2']
     INITIAL = ['A2', 'A3']
     FINAL = STATES
@@ -374,7 +385,7 @@ class ScorerMelodySA(ScorerMelody):
 
 
 S2 = { '2': 2, '4.': 2, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 2, '8 8': 0, '8. 16': 2 }
-S1 = { '2': 1, '4.': 1, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 1, '8 8': 0, '8. 16': 1 }
+S1 = { '2': 2, '4.': 1, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 1, '8 8': 0, '8. 16': 1 }
 S0 = { '2': 0, '4.': 0, '8.': 0, '4': 1, '8': 1, '16': 1, '4. 8': 0, '8 8': 1, '8. 16': 0 }
 
 class ScorerRhythmLyrics(ur.ScorerTwoSpanSequence):
@@ -518,6 +529,8 @@ def gen_sacred():
 
     sh.add(Structure('struct'))
 
+    key = random.choice(Key.CHOICES)
+    print(f'[blue]{key}')
     mode = random.choice(['Major', 'minor'])
 
     # sh.add(ur.Or('func', [FuncMajor('Major'),
@@ -544,6 +557,7 @@ def gen_sacred():
     sh.structurer('struct', 'func')
 
     sh.add(MelodyT('mel'))
+    sh['mel'].set_key(key)
     sh['mel'].flourish = {
             'third-passing': 0.7,
             'third-16': 0.3,
@@ -559,6 +573,7 @@ def gen_sacred():
     sh.scorer(ScorerMelody, 'mel')
 
     sh.add(MelodyB('melB'))
+    sh['melB'].set_key(key)
     sh['melB'].flourish = {
             'third-passing': 0.7,
             'third-16': 0,
@@ -575,12 +590,14 @@ def gen_sacred():
     sh.scorer(ScorerMelodyMelodyBelow, 'melB', 'mel')
 
     sh.add(MelodyS('melS'))
+    sh['melS'].set_key(key)
     sh.scorer(ScorerMelodyHarm, 'melS', 'func', 4)
     sh.scorer(ScorerMelodySA, 'melS', weight=2)
     sh.scorer(ScorerMelodyMelody, 'melS', 'mel')
     sh.scorer(ScorerMelodyMelody, 'melS', 'melB')
 
     sh.add(MelodyA('melA'))
+    sh['melA'].set_key(key)
     sh.scorer(ScorerMelodyHarm, 'melA', 'func', 8)
     sh.scorer(ScorerMelodySA, 'melA', weight=4)
     sh.scorer(ScorerMelodyMelody, 'melA', 'mel')
@@ -594,6 +611,7 @@ def gen_sacred():
     sh.add(Rhythm('rhy'))
     sh.scorer(ScorerRhythmLyrics, 'rhy', 'lyr')
     sh.scorer(ScorerRhythmMetrics, 'rhy')
+    sh.set_key(key)
 
     print(sh)
 

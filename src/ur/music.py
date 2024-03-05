@@ -1,8 +1,11 @@
 
 import music21
 
-def in_range(note, ambitus):
-    return (music21.pitch.Pitch(note) >= music21.pitch.Pitch(ambitus[0])) and (music21.pitch.Pitch(note) <= music21.pitch.Pitch(ambitus[1]))
+def in_range(note, ambitus, key=None):
+    n = music21.pitch.Pitch(note)
+    if key:
+        n = n.transpose(key)
+    return (n.midi >= music21.pitch.Pitch(ambitus[0]).midi) and (n.midi <= music21.pitch.Pitch(ambitus[1]).midi)
 
 def abc_from_m21(note):
     note = note.replace('#', '').replace('-', '')
