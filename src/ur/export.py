@@ -7,6 +7,13 @@ import datetime
 DIR_OUT = '../../data/gen/'
 TINY = "tinyNotation: "
 
+INSTRUMENTS = {
+    'melS': (m21.instrument.ElectricOrgan(), m21.dynamics.Dynamic('mf')),
+    'melA': (m21.instrument.ElectricOrgan(), m21.dynamics.Dynamic('mf')),
+    'mel': (m21.instrument.Organ(), m21.dynamics.Dynamic('f')),
+    'melB': (m21.instrument.Bassoon(), m21.dynamics.Dynamic('mf')),
+}
+
 def export(code, title, melodies, annotations, key, meter):
 
     score = m21.stream.Score()
@@ -29,6 +36,12 @@ def export(code, title, melodies, annotations, key, meter):
         print(f'🎵 {name:5s}', data)
         part = m21.stream.Part()
         part = m21.converter.parse(TINY + meter + " " + data)
+        part.partName = name
+        part.partAbbreviation = name
+        part.insert(0, m21.tempo.MetronomeMark('andante'))
+        if name in INSTRUMENTS:
+            part.insert(0, INSTRUMENTS[name][0])
+            part.insert(0, INSTRUMENTS[name][1])
         if name == 'mel':
             for cl in part.measure(1).getElementsByClass('Clef'):
                 part.measure(1).remove(cl)
@@ -65,7 +78,7 @@ def export(code, title, melodies, annotations, key, meter):
                 continue
             ew = m21.expressions.TextExpression(ly)
             part.insert(i, ew)
-        score.append(part)
+        # score.append(part)
 
     # score.show('txt')
     dir = os.path.dirname(f'{DIR_OUT}/{code}')
