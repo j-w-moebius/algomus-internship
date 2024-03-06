@@ -35,13 +35,20 @@ import argparse
 parser = argparse.ArgumentParser(description = 'Fake Sacred Harp')
 parser.add_argument('--save', '-s', type=int, default=0, help='starting number to save generation, otherwise draft generations')
 parser.add_argument('--nb', '-n', type=int, default=0, help='number of generations with --save')
+parser.add_argument('--woo', action='store_true', help='experiment')
 
 class Structure(ur.ItemChoice):
     CHOICES = ['QQ-BC', 'A-Q-A', 'AQ-RA', 'AQ-AC', 'BA-QA' ]
 
+class WStructure(ur.ItemChoice):
+    CHOICES = ['A-A-C', 'A-B-A', 'B-A-Q-A' ]
+
 class Lyrics(ur.ItemLyricsChoiceFiles):
     FILES = glob.glob('../../data/lyrics-s/*.txt')
     STRESS_WORDS = ['Lord', 'God', 'Christ', 'Son']
+
+class WLyrics(ur.ItemLyricsChoiceFiles):
+    FILES = glob.glob('../../data/lyrics-w/*.txt')
 
 class Key(ur.ItemChoice):
     CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4']
@@ -101,6 +108,22 @@ class Rhythm(ur.ItemSpanSequence):
                 ('8 8', 0.20),
                 ('8. 16', 0.05),
                 ('4. 8', 0.05),
+            ]
+
+
+class WRhythm(ur.ItemSpanSequence):
+    ITEMS_LAST = [
+        ('2', 0.8),
+        ('4', 0.5),
+    ]
+    ITEMS = [
+                ('1 2', 0.1),
+                ('8 8 1 4', 0.2),
+                ('4 1 4', 0.2),
+                ('1 4', 0.6),
+                ('1 8 8 2', 0.20),
+                ('1 16 16 16 16', 0.05),
+                ('1 4. 8', 0.05),
             ]
 
 class Melody0(ur.ItemSequence):
@@ -384,9 +407,9 @@ class ScorerMelodySA(ScorerMelody):
     AMBITUS_GOOD = 5
 
 
-S2 = { '2': 2, '4.': 2, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 2, '8 8': 0, '8. 16': 2 }
-S1 = { '2': 2, '4.': 1, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 1, '8 8': 0, '8. 16': 1 }
-S0 = { '2': 0, '4.': 0, '8.': 0, '4': 1, '8': 1, '16': 1, '4. 8': 0, '8 8': 1, '8. 16': 0 }
+S2 = { '1': 2, '2': 2, '2.': 2, '4.': 2, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 2, '8 8': 0, '8. 16': 2 }
+S1 = { '1': 2, '2': 2, '2.': 2, '4.': 1, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 1, '8 8': 0, '8. 16': 1 }
+S0 = { '1': 0, '2': 0, '2.': 0, '4.': 0, '8.': 0, '4': 1, '8': 1, '16': 1, '4. 8': 0, '8 8': 1, '8. 16': 0 }
 
 class ScorerRhythmLyrics(ur.ScorerTwoSpanSequence):
 
@@ -437,6 +460,13 @@ class ScorerRhythmMetrics(ur.ScorerOne):
 
         return score
 
+
+class WScorerRhythmMetrics(ur.ScorerOne):
+
+    def score_item(self, gen, _):
+        return 0
+
+
 class ScorerMelodyHarm(ur.ScorerTwoSequence):
 
     CHORDS = {
@@ -470,6 +500,43 @@ class ScorerMelodyHarm(ur.ScorerTwoSequence):
         else:
             return -20
 
+
+class WFunc(ur.ItemMarkov):
+
+    SOURCE = ''
+
+    STATES = '1235yvVYZ'
+    INITIAL = ['1', '1', 'Z']
+    FINAL = ['y', 'v', '5', 'V']
+
+    TRANSITIONS = {
+        '1': { '1': 0.62, '2': 0.10 },
+        '2': { '1': 0.30, '2': 0.30, '3': 0.30 },
+        '3': { '1': 0.13, '2': 0.10, '3': 0.18, '5': 0.38 },
+        '5': { '1': 0.07, '2': 0.10, '3': 0.29, '5': 0.35, 'V': 0.30 },
+        'v': { 'v': 0.80, 'y': 0.20 },
+        'y': { 'y': 0.20 },
+
+        'Z': { 'Z': 0.60, 'Y': 0.20 },
+        'Y': { 'Z': 0.30, 'Y': 0.80, 'V': 0.20 },
+        'V': { 'Y': 0.30, 'V': 0.30 },
+    }
+
+    EMISSIONS = {
+            x: {x.upper(): 1.00} for x in STATES
+    }
+
+class WScorerMelodyHarm(ScorerMelodyHarm):
+
+    CHORDS = {
+        '1': 'c',
+        '2': 'cd',
+        '3': 'cde',
+        '5': 'cdeg',
+        'V': 'dgac',
+        'Y': 'eb',
+        'Z': 'fcd',
+    }
 
 class ScorerMelodyMelodyBelow(ur.ScorerTwoSequence):
     def score_element(self, mel1, mel2):
@@ -523,11 +590,8 @@ class ScorerMelodyHarmRoot(ScorerMelodyHarm):
             return -20.0
 
 
-def gen_sacred():
+def gen_sacred(woo):
     print('[yellow]### Init')
-    sh = ur.Model()
-
-    sh.add(Structure('struct'))
 
     key = random.choice(Key.CHOICES)
     print(f'[blue]{key}')
@@ -553,7 +617,27 @@ def gen_sacred():
         MelodyT = MelodyMinorT
         MelodyB = MelodyMinorB
 
-    sh.add(Func('func'))
+    if woo:
+        zFunc = WFunc
+        zScorerMelodyHarm = WScorerMelodyHarm
+        zScorerMelodyHarmRoot = WScorerMelodyHarm
+        zLyrics = WLyrics
+        zRhythm = WRhythm
+        zScorerRhythmMetrics = WScorerRhythmMetrics
+        zStructure = WStructure
+    else:
+        zFunc = Func
+        zScorerMelodyHarm = ScorerMelodyHarm
+        zScorerMelodyHarmRoot = ScorerMelodyHarm
+        zLyrics = Lyrics
+        zRhythm = Rhythm
+        zScorerRhythmMetrics = ScorerRhythmMetrics
+        zStructure = Structure
+
+    sh = ur.Model()
+    sh.add(zStructure('struct'))
+
+    sh.add(zFunc('func'))
     sh.structurer('struct', 'func')
 
     sh.add(MelodyT('mel'))
@@ -569,7 +653,7 @@ def gen_sacred():
             'fifth-jump': 0.2,
             'fifth-16': 0.4,
         }
-    sh.scorer(ScorerMelodyHarm, 'mel', 'func', 2)
+    sh.scorer(zScorerMelodyHarm, 'mel', 'func', 2)
     sh.scorer(ScorerMelody, 'mel')
 
     sh.add(MelodyB('melB'))
@@ -585,32 +669,32 @@ def gen_sacred():
             'fifth-jump': 0.7,
             'fifth-16': 0.2,
         }
-    sh.scorer(ScorerMelodyHarmRoot, 'melB', 'func', 2)
+    sh.scorer(zScorerMelodyHarmRoot, 'melB', 'func', 2)
     sh.scorer(ScorerMelodyMelody, 'melB', 'mel')
     sh.scorer(ScorerMelodyMelodyBelow, 'melB', 'mel')
 
     sh.add(MelodyS('melS'))
     sh['melS'].set_key(key)
-    sh.scorer(ScorerMelodyHarm, 'melS', 'func', 4)
+    sh.scorer(zScorerMelodyHarm, 'melS', 'func', 4)
     sh.scorer(ScorerMelodySA, 'melS', weight=2)
     sh.scorer(ScorerMelodyMelody, 'melS', 'mel')
     sh.scorer(ScorerMelodyMelody, 'melS', 'melB')
 
     sh.add(MelodyA('melA'))
     sh['melA'].set_key(key)
-    sh.scorer(ScorerMelodyHarm, 'melA', 'func', 8)
+    sh.scorer(zScorerMelodyHarm, 'melA', 'func', 8)
     sh.scorer(ScorerMelodySA, 'melA', weight=4)
     sh.scorer(ScorerMelodyMelody, 'melA', 'mel')
     sh.scorer(ScorerMelodyMelody, 'melA', 'melB')
     sh.scorer(ScorerMelodyMelody, 'melA', 'melS')
     sh.scorer(ScorerMelodyMelodyBelow, 'melA', 'melS')
 
-    sh.add(Lyrics('lyr'))
+    sh.add(zLyrics('lyr'))
     sh.structurer('struct', 'lyr')
     sh['lyr'].load()
-    sh.add(Rhythm('rhy'))
+    sh.add(zRhythm('rhy'))
     sh.scorer(ScorerRhythmLyrics, 'rhy', 'lyr')
-    sh.scorer(ScorerRhythmMetrics, 'rhy')
+    sh.scorer(zScorerRhythmMetrics, 'rhy')
     sh.set_key(key)
 
     print(sh)
@@ -641,23 +725,31 @@ def gen_sacred():
     m0 = sh['melS'].gen(d0)
     m0 = sh['melA'].gen(d0)
 
+    if woo:
+        sh.modes = [
+            [('e', 'e-')],
+            [('a', 'a-'), ('g', 'f')],
+            [('f', 'f#'), ('g', 'b-'), ('b', 'b-')],
+            [('f', 'f#'), ('g', 'a'), ('e', 'e-')],
+        ]
 
     # sh.score()
     return sh
 
 
-def sacred(code, f):
-    sh = gen_sacred()    
+def sacred(code, f, woo):
+    sh = gen_sacred(woo)    
     print(sh)
 
     sh.export(
         f,
-        code + '. ' + gabuzomeu.sentence(),
+        code + '. ' + gabuzomeu.sentence(woo),
         sh['struct'].structure_full,
         sh['rhy'],
         sh['lyr'],
         ['melS', 'melA', 'mel', 'melB'],
-        ['func']
+        ['func'],
+        '24/4' if woo else '4/4',
         )
 
 if __name__ == '__main__':
@@ -681,4 +773,4 @@ if __name__ == '__main__':
             code = 'draft-%02d' % i
             f = code
 
-        sacred(code, f)
+        sacred(code, f, args.woo)

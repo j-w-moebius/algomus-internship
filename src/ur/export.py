@@ -5,9 +5,9 @@ import music21 as m21
 import datetime
 
 DIR_OUT = '../../data/gen/'
-TINY = "tinyNotation: 4/4 "
+TINY = "tinyNotation: "
 
-def export(code, title, melodies, annotations, key):
+def export(code, title, melodies, annotations, key, meter):
 
     score = m21.stream.Score()
     score.insert(0, m21.metadata.Metadata())
@@ -18,13 +18,17 @@ def export(code, title, melodies, annotations, key):
     for (name, (mel, lyrics)) in melodies:
         n += 1
         data = ''.join([f'{note:3s}' for note in mel])
+
+        data = data.replace("#'", "'#").replace("-'", "'-").replace("#,", ",#").replace("-,", ",-")
+        data = data.replace("#'", "'#").replace("-'", "'-").replace("#,", ",#").replace("-,", ",-")
         for c in 'abcdefg':
            # a, > A  a,, > AA
            data = data.replace(c + ",,", c.upper() * 2)
            data = data.replace(c + ",", c.upper())
+
         print(f'🎵 {name:5s}', data)
         part = m21.stream.Part()
-        part = m21.converter.parse(TINY + data)
+        part = m21.converter.parse(TINY + meter + " " + data)
         if name == 'mel':
             for cl in part.measure(1).getElementsByClass('Clef'):
                 part.measure(1).remove(cl)

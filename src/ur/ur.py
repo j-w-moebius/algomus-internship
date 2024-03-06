@@ -91,6 +91,7 @@ class Gen(object):
         self.gens = Data()
         self.mods = mods if mods else []
         self.key = None
+        self.modes = None
         self.scorers = []
         self.structurers = []
         self.structure = [ ALL ]
@@ -212,7 +213,7 @@ class Gen(object):
     def id(self):
         return f'{self.__class__.__name__}-{self.name}'
 
-    def export(self, structure, rhythms=None, lyrics=None, annotation=False):
+    def export(self, structure, rhythms=None, lyrics=None, annotation=False, modes=None):
         out = []
         lyr = []
         for struct in structure:
@@ -259,6 +260,13 @@ class Gen(object):
                             item = new_items[j-1] if new_items else nonchord.note_nonchord(item, items[i+1])
 
                     s += f' {item}{rh} '
+
+                # Mode colouring
+                if modes:
+                    mode = random.choice(modes)
+                    for (n, nn) in mode:
+                        s = s.replace(n, nn).replace(n.upper(), nn.upper())
+
                 out += [ s ]
 
         return out, lyr
@@ -565,8 +573,8 @@ class Model(And):
     def structurer(self, struct, mod):
         self.structurers += [(self[struct], self[mod])]
 
-    def export(self, code, title, structure, rhythms, lyrics, mods_melodies, mods_annots):
+    def export(self, code, title, structure, rhythms, lyrics, mods_melodies, mods_annots, meter):
         print('Exporting...')
-        melodies = [(mod, self[mod].export(structure, rhythms, lyrics=lyrics)) for mod in mods_melodies]
+        melodies = [(mod, self[mod].export(structure, rhythms, lyrics=lyrics, modes=self.modes)) for mod in mods_melodies]
         annots   = [(mod, self[mod].export(structure, rhythms, annotation=True)) for mod in mods_annots]
-        export.export(code, title, melodies, annots, self.key)
+        export.export(code, title, melodies, annots, self.key, meter)
