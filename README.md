@@ -18,6 +18,9 @@ cd src/ur
 # Generate some draft songs in /data/gen/
 python3 sacred.py 
 
+# Generate some draft songs in /data/gen/, opens them (needs Verovio + Firefox)
+python3 sacred.py --open
+
 # Generate 20 songs in /data/gen/200-219, starting from 200
 python3 sacred.py -s 200 -n 20
 ```

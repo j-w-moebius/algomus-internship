@@ -20,7 +20,7 @@ DURATIONS = {
 def m21duration(dur):
     return m21.duration.Duration(DURATIONS[dur])
 
-def export(code, title, melodies, annotations, key, meter):
+def export(code, title, melodies, annotations, key, meter, svg):
 
     score = m21.stream.Score()
     score.insert(0, m21.metadata.Metadata())
@@ -94,7 +94,10 @@ def export(code, title, melodies, annotations, key, meter):
     f = f'{DIR_OUT}/{code}.mxl'
     print('==>', f)
     score.write('musicxml', f)
-    os.system(f'verovio {f}')
-    ff = f.replace('.mxl', '.svg')
-    os.system(f'firefox {ff}')
+
+    if svg:
+        ff = f.replace('.mxl', '.svg')
+        print(f'[green]==> {ff}')
+        os.system(f'verovio {f}')
+        os.system(f'firefox {ff}')
     

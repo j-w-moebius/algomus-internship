@@ -41,6 +41,7 @@ import argparse
 parser = argparse.ArgumentParser(description = 'Fake Sacred Harp')
 parser.add_argument('--save', '-s', type=int, default=0, help='starting number to save generation, otherwise draft generations')
 parser.add_argument('--nb', '-n', type=int, default=0, help='number of generations with --save')
+parser.add_argument('--svg', action='store_true', help='generate and opens .svg (requires Verovio and Firefox)')
 parser.add_argument('--woo', action='store_true', help='experiment')
 
 class Structure(ur.ItemChoice):
@@ -748,7 +749,7 @@ def gen_sacred(woo):
     return sh
 
 
-def sacred(code, f, woo):
+def sacred(code, f, woo, svg):
     sh = gen_sacred(woo)    
     print(sh)
 
@@ -761,6 +762,7 @@ def sacred(code, f, woo):
         ['melS', 'melA', 'mel', 'melB'],
         ['func'],
         '24/4' if woo else '4/4',
+        svg
         )
 
 if __name__ == '__main__':
@@ -784,4 +786,4 @@ if __name__ == '__main__':
             code = 'draft-%02d' % i
             f = code
 
-        sacred(code, f, args.woo)
+        sacred(code, f, args.woo, args.svg)
