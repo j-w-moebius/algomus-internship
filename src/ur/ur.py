@@ -345,7 +345,7 @@ class ItemLyricsChoiceFiles(ItemChoice):
                     words += [w]
                 if len(words) >= self.MIN_LENGTH:
                     self.CHOICES += [words]
-        print(f'<== {len(self.FILES)} files, {len(self.CHOICES)} lines')
+        print(f'<== Lyrics: {len(self.FILES)} files, {len(self.CHOICES)} lines')
 
     def xitem(self, gens_in=None, struct=None):
         f = random.choice(self.FILES)

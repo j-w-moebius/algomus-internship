@@ -4,6 +4,8 @@ import os
 import music21 as m21
 import datetime
 
+from rich import print
+
 DIR_OUT = '../../data/gen/'
 
 INSTRUMENTS = {
@@ -52,7 +54,6 @@ def export(code, title, melodies, annotations, key, meter, svg):
 
         for tnotes in mel:
             for tnote in tnotes.strip().split():
-                print(tnote)
                 pitch, dur = tnote.split('$')
                 note = m21.note.Note(pitch) if pitch != 'r' else m21.note.Rest()
                 note.duration = m21duration(dur)
@@ -61,8 +62,7 @@ def export(code, title, melodies, annotations, key, meter, svg):
         part = part.transpose(key)
         part.makeMeasures(inPlace = True, innerBarline = m21.bar.Barline())
         part.makeBeams(inPlace = True)
-
-        part.show('txt')
+        # part.show('txt')
 
         if lyrics:
             print(f"📁 {' '.join(lyrics)}")
@@ -92,7 +92,8 @@ def export(code, title, melodies, annotations, key, meter, svg):
     dir = os.path.dirname(f'{DIR_OUT}/{code}')
     os.system(f'mkdir -p {dir}')
     f = f'{DIR_OUT}/{code}.mxl'
-    print('==>', f)
+
+    print(f'[green]==> {f}')
     score.write('musicxml', f)
 
     if svg:
@@ -100,4 +101,5 @@ def export(code, title, melodies, annotations, key, meter, svg):
         print(f'[green]==> {ff}')
         os.system(f'verovio {f}')
         os.system(f'firefox {ff}')
-    
+
+    print()

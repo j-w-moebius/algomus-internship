@@ -602,7 +602,7 @@ def gen_sacred(woo):
     print('[yellow]### Init')
 
     key = random.choice(Key.CHOICES)
-    print(f'[blue]{key}')
+    print(f'Key: [blue]{key}')
     mode = random.choice(['Major', 'minor'])
 
     # sh.add(ur.Or('func', [FuncMajor('Major'),
@@ -705,8 +705,7 @@ def gen_sacred(woo):
     sh.scorer(zScorerRhythmMetrics, 'rhy')
     sh.set_key(key)
 
-    print(sh)
-
+    print()
     # -------------------------------------------------------
 
     # print('[yellow]### Gen 1, independent')
@@ -716,7 +715,7 @@ def gen_sacred(woo):
 
     # -------------------------------------------------------
 
-    print('[yellow]### Gen 2')
+    print('[yellow]### Generating ')
     sh.reset()
     sh['struct'].gen()
     sh.set_structure()
@@ -746,11 +745,14 @@ def gen_sacred(woo):
         ]
 
     # sh.score()
+    print()
     return sh
 
 
 def sacred(code, f, woo, svg):
     sh = gen_sacred(woo)    
+
+    print('[yellow]### Generated ')
     print(sh)
 
     sh.export(
@@ -778,6 +780,7 @@ if __name__ == '__main__':
         span = '%03d-%03d/' % (args.save, args.save + nb - 1)
 
     for i in range(nb):
+
         if args.save:
             n = args.save + i
             code = '%03d' % n
@@ -786,4 +789,5 @@ if __name__ == '__main__':
             code = 'draft-%02d' % i
             f = code
 
+        print(f'[green]## Experiment {code}')
         sacred(code, f, args.woo, args.svg)

@@ -9,8 +9,6 @@ NOTES = []
 for octave in [2, 3, 4, 5]:
     NOTES += [ f'{p}{octave}' for p in "CDEFGAB" ]
 
-print(NOTES)
-
 def note_index(n):
     if n not in NOTES:
         print('!', n)
