@@ -15,10 +15,13 @@ Python librairies
 ```
 cd src/ur
 
-# Generate some draft songs in /data/gen/
+# Generate some draft songs
 python3 sacred.py 
 
-# Generate some draft songs in /data/gen/, opens them (needs Verovio + Firefox)
+# Generate some draft songs, weird model
+python3 sacred.py --woo
+
+# Generate ome draft songs, also with .svg (needs Verovio + Firefox)
 python3 sacred.py --open
 
 # Generate 20 songs in /data/gen/200-219, starting from 200
