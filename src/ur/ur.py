@@ -224,13 +224,10 @@ class Gen(object):
         for struct in structure:
 
             if struct == '-':
-                out += [ ' r4  ']
+                out += [ ' r$4  ']
                 continue
 
             items = self.gens[struct][0].one
-            if not annotation:
-                items = list(map(music.abc_from_m21, items))
-
             rhy = rhythms.gens[struct][0].one if rhythms else None
             if lyrics:
                 ly = lyrics.gens[struct][0].one
@@ -264,7 +261,7 @@ class Gen(object):
                         if i < len(items)-1:
                             item = new_items[j-1] if new_items else nonchord.note_nonchord(item, items[i+1])
 
-                    s += f' {item}{rh} '
+                    s += f' {item}${rh} '
 
                 # Mode colouring
                 if modes:

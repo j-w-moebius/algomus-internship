@@ -1,13 +1,15 @@
 
 import random
 
-NOTES = [
-    "c,,", "d,,", "e,,", "f,,", "g,,", "a,,", "b,,",
-    "c,", "d,", "e,", "f,", "g,", "a,", "b,",
-    'c', 'd', 'e', 'f', 'g', 'a', 'b',
-    "c'", "d'", "e'", "f'", "g'", "a'", "b'",
-    "c''"
-    ]
+# Some tools for (diatonic) nonchord neighbor/passing/projecting notes
+# Could be rewritten with music21 GenericIntervals and scales
+
+NOTES = []
+
+for octave in [2, 3, 4, 5]:
+    NOTES += [ f'{p}{octave}' for p in "CDEFGAB" ]
+
+print(NOTES)
 
 def note_index(n):
     if n not in NOTES:

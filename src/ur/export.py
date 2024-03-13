@@ -5,7 +5,6 @@ import music21 as m21
 import datetime
 
 DIR_OUT = '../../data/gen/'
-TINY = "tinyNotation: "
 
 INSTRUMENTS = {
     'melS': (m21.instrument.ElectricOrgan(), m21.dynamics.Dynamic('mf')),
@@ -13,6 +12,13 @@ INSTRUMENTS = {
     'mel': (m21.instrument.Organ(), m21.dynamics.Dynamic('f')),
     'melB': (m21.instrument.Bassoon(), m21.dynamics.Dynamic('mf')),
 }
+
+DURATIONS = {
+    '1': 4, '2': 2, '4': 1, '8': .5, '16': 0.25,
+    '1.': 6, '2.': 3, '4.': 1.5, '8.': .75
+}
+def m21duration(dur):
+    return m21.duration.Duration(DURATIONS[dur])
 
 def export(code, title, melodies, annotations, key, meter):
 
@@ -25,36 +31,38 @@ def export(code, title, melodies, annotations, key, meter):
     for (name, (mel, lyrics)) in melodies:
         n += 1
         data = ''.join([f'{note:3s}' for note in mel])
-
-        data = data.replace("#'", "'#").replace("-'", "'-").replace("#,", ",#").replace("-,", ",-")
-        data = data.replace("#'", "'#").replace("-'", "'-").replace("#,", ",#").replace("-,", ",-")
-        for c in 'abcdefg':
-           # a, > A  a,, > AA
-           data = data.replace(c + ",,", c.upper() * 2)
-           data = data.replace(c + ",", c.upper())
-
         print(f'🎵 {name:5s}', data)
+
         part = m21.stream.Part()
-        part = m21.converter.parse(TINY + meter + " " + data)
         part.partName = name
         part.partAbbreviation = name
+        part.insert(0, m21.meter.TimeSignature(meter))
         part.insert(0, m21.tempo.MetronomeMark('andante'))
+        part.insert(0, m21.key.KeySignature(0))
         if name in INSTRUMENTS:
             part.insert(0, INSTRUMENTS[name][0])
             part.insert(0, INSTRUMENTS[name][1])
+
         if name == 'mel':
-            for cl in part.measure(1).getElementsByClass('Clef'):
-                part.measure(1).remove(cl)
-            part.measure(1).insert(0, m21.clef.Treble8vbClef())
-            # part = part.transpose(-12)
-        if name == 'melB':
-            for cl in part.measure(1).getElementsByClass('Clef'):
-                part.measure(1).remove(cl)
-            part.measure(1).insert(0, m21.clef.BassClef())
-            # part = part.transpose(-12)
-        part.measure(1).insert(0, m21.key.KeySignature(0))
+            part.insert(0, m21.clef.Treble8vbClef())
+        elif name == 'melB':
+            part.insert(0, m21.clef.BassClef())
+        else:
+            part.insert(0, m21.clef.TrebleClef())
+
+        for tnotes in mel:
+            for tnote in tnotes.strip().split():
+                print(tnote)
+                pitch, dur = tnote.split('$')
+                note = m21.note.Note(pitch) if pitch != 'r' else m21.note.Rest()
+                note.duration = m21duration(dur)
+                part.append(note)
+
         part = part.transpose(key)
-        # part.show('txt')
+        part.makeMeasures(inPlace = True, innerBarline = m21.bar.Barline())
+        part.makeBeams(inPlace = True)
+
+        part.show('txt')
 
         if lyrics:
             print(f"📁 {' '.join(lyrics)}")
