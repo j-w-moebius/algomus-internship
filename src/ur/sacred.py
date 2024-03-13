@@ -47,7 +47,7 @@ class Structure(ur.ItemChoice):
     CHOICES = ['QQ-BC', 'A-Q-A', 'AQ-RA', 'AQ-AC', 'BA-QA' ]
 
 class WStructure(ur.ItemChoice):
-    CHOICES = ['A-A-C', 'A-B-A', 'B-A-Q-A' ]
+    CHOICES = ['A-A-C', 'A-B-A', 'Q-A-A' ]
 
 class Lyrics(ur.ItemLyricsChoiceFiles):
     FILES = glob.glob('../../data/lyrics-s/*.txt')
@@ -55,6 +55,7 @@ class Lyrics(ur.ItemLyricsChoiceFiles):
 
 class WLyrics(ur.ItemLyricsChoiceFiles):
     FILES = glob.glob('../../data/lyrics-w/*.txt')
+    MIN_LENGTH = 9
 
 class Key(ur.ItemChoice):
     CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4']
@@ -512,7 +513,7 @@ class WFunc(ur.ItemMarkov):
     SOURCE = ''
 
     STATES = '1235yvVYZ'
-    INITIAL = ['1', '1', 'Z']
+    INITIAL = ['1', '1']
     FINAL = ['y', 'v', '5', 'V']
 
     TRANSITIONS = {
@@ -733,10 +734,14 @@ def gen_sacred(woo):
 
     if woo:
         sh.modes = [
-            [('e', 'e-')],
-            [('a', 'a-'), ('g', 'f')],
-            [('f', 'f#'), ('g', 'b-'), ('b', 'b-')],
-            [('f', 'f#'), ('g', 'a'), ('e', 'e-')],
+            #[('e', 'e-')],
+            #[('a', 'a-'), ('g', 'f')],
+            #[('f', 'f#'), ('g', 'b-'), ('b', 'b-')],
+            #[('f', 'f#'), ('g', 'a'), ('e', 'e-')],
+            [],
+            #[('a', 'a-'), ('g', 'f')],
+            [('f', 'f#'),  ('b', 'b-')],
+            [('f', 'f#')],
         ]
 
     # sh.score()
@@ -774,7 +779,7 @@ if __name__ == '__main__':
         if args.save:
             n = args.save + i
             code = '%03d' % n
-            f = span + 'sacred-' + code
+            f = span + ('woo-' if args.woo else 'sacred-') + code
         else:
             code = 'draft-%02d' % i
             f = code

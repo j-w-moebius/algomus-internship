@@ -333,6 +333,7 @@ class ItemChoice(Gen):
 class ItemLyricsChoiceFiles(ItemChoice):
 
     STRESS_WORDS = []
+    MIN_LENGTH = 4
 
     def load(self):
         self.CHOICES = []
@@ -345,7 +346,7 @@ class ItemLyricsChoiceFiles(ItemChoice):
                         if ww in w:
                             w = '!' + w
                     words += [w]
-                if len(words) >= 4:
+                if len(words) >= self.MIN_LENGTH:
                     self.CHOICES += [words]
         print(f'<== {len(self.FILES)} files, {len(self.CHOICES)} lines')
 
