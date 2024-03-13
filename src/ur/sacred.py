@@ -6,6 +6,12 @@
 #  Copyright (C) 2024 by Algomus team at CRIStAL 
 #  (UMR CNRS 9189, Université Lille)
 #
+#  Contributors:
+#   - Mathieu Giraud
+#   - Ken Déguernel
+#   - Romain Carl
+#  in collaboration with Holly Herndon and Ian Berman
+#
 #  "Ur" is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
