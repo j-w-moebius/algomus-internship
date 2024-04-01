@@ -50,7 +50,7 @@ def gen_sacred(woo):
 
     key = random.choice(Key.CHOICES)
     print(f'Key: [blue]{key}')
-    mode = random.choice(['Major', 'minor'])
+    mode = 'minor'
 
     # sh.add(ur.Or('func', [FuncMajor('Major'),
     #                       FuncMinor('minor')]))
@@ -210,7 +210,7 @@ def sacred(code, f, woo, svg):
         sh['lyr'],
         ['melS', 'melA', 'mel', 'melB'],
         ['func'],
-        '24/4' if woo else '4/4',
+        random.choice(['3/4', '6/8']),
         svg
         )
 

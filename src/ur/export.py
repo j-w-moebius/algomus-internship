@@ -9,10 +9,10 @@ from rich import print
 DIR_OUT = '../../data/gen/'
 
 INSTRUMENTS = {
-    'melS': (m21.instrument.ElectricOrgan(), m21.dynamics.Dynamic('mf')),
-    'melA': (m21.instrument.ElectricOrgan(), m21.dynamics.Dynamic('mf')),
-    'mel': (m21.instrument.Organ(), m21.dynamics.Dynamic('f')),
-    'melB': (m21.instrument.Bassoon(), m21.dynamics.Dynamic('mf')),
+    'melS': (m21.instrument.Vocalist(), m21.dynamics.Dynamic('mf')),
+    'melA': (m21.instrument.Vocalist(), m21.dynamics.Dynamic('mf')),
+    'mel': (m21.instrument.Vocalist(), m21.dynamics.Dynamic('f')),
+    'melB': (m21.instrument.Vocalist(), m21.dynamics.Dynamic('mf')),
 }
 
 DURATIONS = {
