@@ -445,17 +445,17 @@ class ScorerMelodyHarm(ur.ScorerTwoSequence):
         else:
             return -20
 
-# class ScorerMelodyMelodyBelow(ur.ScorerTwoSequence):
-#     def score_element(self, mel1, mel2):
-#         if music.interval(mel1, mel2) < 0:
-#             return 0.0
-#         return 1.0
+class ScorerMelodyMelodyBelow(ur.ScorerTwoSequence):
+    def score_element(self, mel1, mel2):
+        if music.interval(mel1, mel2) < 0:
+            return 0.0
+        return 1.0
 
-# class ScorerMelodyMelodyAbove(ur.ScorerTwoSequence):
-#     def score_element(self, mel1, mel2):
-#         if music.interval(mel1, mel2) > 0:
-#             return 0.0
-#         return 1.0
+class ScorerMelodyMelodyAbove(ur.ScorerTwoSequence):
+    def score_element(self, mel1, mel2):
+        if music.interval(mel1, mel2) > 0:
+            return 0.0
+        return 0.3
 
 class ScorerMelodyMelody(ur.ScorerTwoSequenceIntervals):
 

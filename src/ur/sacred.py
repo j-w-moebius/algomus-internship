@@ -127,6 +127,7 @@ def gen_sacred(woo):
     sh.scorer(zScorerMelodyHarmRoot, 'melB', 'func', 2)
     sh.scorer(ScorerMelodyMelody, 'melB', 'mel')
     # sh.scorer(ScorerMelodyMelodyBelow, 'melB', 'mel')
+    sh.scorer(ScorerMelodyMelodyAbove, 'melB', 'mel')
 
     sh.add(MelodyS('melS'))
     sh['melS'].set_key(key)
@@ -143,6 +144,7 @@ def gen_sacred(woo):
     sh.scorer(ScorerMelodyMelody, 'melA', 'melB')
     sh.scorer(ScorerMelodyMelody, 'melA', 'melS')
     # sh.scorer(ScorerMelodyMelodyBelow, 'melA', 'melS')
+    sh.scorer(ScorerMelodyMelodyAbove, 'melA', 'melS')
 
     sh.add(zLyrics('lyr'))
     sh.structurer('struct', 'lyr')
