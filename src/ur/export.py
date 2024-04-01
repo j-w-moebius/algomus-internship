@@ -89,8 +89,8 @@ def export(code, title, melodies, annotations, key, meter, svg):
         # score.append(part)
 
     # score.show('txt')
-    dir = os.path.dirname(f'{DIR_OUT}/{code}')
-    os.system(f'mkdir -p {dir}')
+    dir = os.path.dirname(os.path.join(DIR_OUT, f'{code}'))
+    os.makedirs(dir, exist_ok=True)
     f = f'{DIR_OUT}/{code}.mxl'
 
     print(f'[green]==> {f}')

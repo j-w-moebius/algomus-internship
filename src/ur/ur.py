@@ -335,7 +335,7 @@ class ItemLyricsChoiceFiles(ItemChoice):
     def load(self):
         self.CHOICES = []
         for f in self.FILES:
-            for l in open(f).readlines():
+            for l in open(f, encoding='utf-8').readlines():
                 text = l.replace('-', ' -').strip() + '/'
                 words = []
                 for w in text.split():
@@ -352,7 +352,7 @@ class ItemLyricsChoiceFiles(ItemChoice):
         print('<==', f)
 
         text = ''
-        for l in open(f).readlines():
+        for l in open(f, encoding='utf-8').readlines():
             text += l.strip() + '/ '
 
         text = text.replace('-', ' -')
