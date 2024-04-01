@@ -449,13 +449,13 @@ class ScorerMelodyMelodyBelow(ur.ScorerTwoSequence):
     def score_element(self, mel1, mel2):
         if music.interval(mel1, mel2) < 0:
             return 0.0
-        return 1.0
+        return 0.2
 
 class ScorerMelodyMelodyAbove(ur.ScorerTwoSequence):
     def score_element(self, mel1, mel2):
         if music.interval(mel1, mel2) > 0:
             return 0.0
-        return 0.3
+        return 0.2
 
 class ScorerMelodyMelody(ur.ScorerTwoSequenceIntervals):
 
@@ -495,3 +495,19 @@ class ScorerMelodyHarmRoot(ScorerMelodyHarm):
             return 0.0
         else:
             return -20.0
+
+class ScorerFifthInBass(ScorerMelodyHarm):
+    SCORES = {
+        None: -5.0,
+        0: 0.2,
+        1: 0.2,
+        2: 1.0,
+    }
+
+    def score_element(self, mel, harm):
+        
+        if mel[0].lower() in self.CHORDS[harm]:
+            i = self.CHORDS[harm].index(mel[0].lower())
+            return self.SCORES[i]
+        else:
+            return self.SCORES[None]

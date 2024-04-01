@@ -124,10 +124,11 @@ def gen_sacred(woo):
             'fifth-jump': 0.7,
             'fifth-16': 0.2,
         }
-    sh.scorer(zScorerMelodyHarmRoot, 'melB', 'func', 2)
+    # sh.scorer(zScorerMelodyHarmRoot, 'melB', 'func', 2)
+    # sh.scorer(ScorerFifthInBass, 'melB', 'func', 2)
     sh.scorer(ScorerMelodyMelody, 'melB', 'mel')
     # sh.scorer(ScorerMelodyMelodyBelow, 'melB', 'mel')
-    sh.scorer(ScorerMelodyMelodyAbove, 'melB', 'mel')
+    # sh.scorer(ScorerMelodyMelodyAbove, 'mel', 'melA')
 
     sh.add(MelodyS('melS'))
     sh['melS'].set_key(key)
@@ -143,8 +144,7 @@ def gen_sacred(woo):
     sh.scorer(ScorerMelodyMelody, 'melA', 'mel')
     sh.scorer(ScorerMelodyMelody, 'melA', 'melB')
     sh.scorer(ScorerMelodyMelody, 'melA', 'melS')
-    # sh.scorer(ScorerMelodyMelodyBelow, 'melA', 'melS')
-    sh.scorer(ScorerMelodyMelodyAbove, 'melA', 'melS')
+    sh.scorer(ScorerMelodyMelodyBelow, 'melA', 'mel')
 
     sh.add(zLyrics('lyr'))
     sh.structurer('struct', 'lyr')
