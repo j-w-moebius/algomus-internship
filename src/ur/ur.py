@@ -171,7 +171,7 @@ class Gen(object):
         one[struct][0].context += '=' + f'={sp[-1][0]:.3f}'
         return one
 
-    def gen(self, gens_in=None) -> Data:
+    def gen(self, gens_in=None, common=False) -> Data:
         new = Data()
 
         structures = set(self.structure)
@@ -181,11 +181,24 @@ class Gen(object):
             structures.remove(ALL)
 
         for struct in structures:
+            if common and struct.islower():
+                # Skip 'a'
+                continue
+
+            # Main generation
             one = self.one_filtered(gens_in if gens_in else None, struct)
             for struct_child in one.data.keys():
                 struct_dest = struct_child if struct_child != ALL else struct
                 self.gens[struct_dest] += one[struct_child]
                 new[struct_dest] += one[struct_child]
+
+        # Copy 'a' into 'A'
+        if common:
+            for struct in structures:
+                if struct.islower():
+                    self.gens[struct] = self.gens[struct.upper()].copy()
+                    new[struct] = new[struct.upper()].copy()
+
         return new
 
     def generate(self, n=20):

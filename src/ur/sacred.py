@@ -183,11 +183,11 @@ def gen_sacred(woo):
     sh['struct'].gen()
     sh.set_structure()
 
-    l0 = sh['lyr'].gen()
-    r0 = sh['rhy'].gen(l0)
+    l0 = sh['lyr'].gen(common=True)
+    r0 = sh['rhy'].gen(l0, common=True)
     print(r0)
 
-    d0 = sh['func'].gen(r0)
+    d0 = sh['func'].gen(r0, common=True)
     print("d0", d0)
 
     m0 = sh['mel'].gen(d0)

@@ -9,7 +9,8 @@ import music
 import math
 
 class Structure(ur.ItemChoice):
-    CHOICES = ['QQ-BC', 'A-Q-A', 'AQ-RA', 'AQ-AC', 'BA-QA' ]
+    CHOICES = ['A-B-a', 'A-Bb-A', 'A-aB' ]
+            #   ['QQ-BC', 'A-Q-A', 'AQ-RA', 'AQ-AC', 'BA-QA' ]
 
 
 class Lyrics(ur.ItemLyricsChoiceFiles):
