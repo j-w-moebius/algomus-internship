@@ -6,6 +6,7 @@ and by (Kelley 2016) models.
 import ur
 import glob
 import music
+import math
 
 class Structure(ur.ItemChoice):
     CHOICES = ['QQ-BC', 'A-Q-A', 'AQ-RA', 'AQ-AC', 'BA-QA' ]
@@ -456,6 +457,49 @@ class ScorerMelodyMelodyAbove(ur.ScorerTwoSequence):
         if music.interval(mel1, mel2) > 0:
             return 0.0
         return 0.2
+
+class ScorerMelodyMelodyCross(ur.ScorerTwoSequenceAllPairs):
+
+    CROSS = {
+        0: 0.0,
+        1: 0.5,
+        2: 1.0,
+        3: 1.0,
+        4: 0.0,
+        None: 0.0
+    }
+
+    LONGCROSS = {
+        0: 0.0,
+        1: 1.0,
+        2: 1.0,
+        3: 1.0,
+        None: 0.0
+    }
+
+    def score_all_pairs(self, mel1mel2):
+        crossings = 0
+        long_crossings = 0 # at least three notes
+        ss = 0
+        ii = 0 # index of last crossing
+
+        # Count the number of crossings
+        for (i, (n1, n2)) in enumerate(mel1mel2):
+            s = math.copysign(1, music.interval(n1, n2))
+            if s:
+                if ss and ss != s:
+                    crossings += 1
+                    if i >= ii + 3:
+                        long_crossings += 1
+                    ii = i
+                ss = s
+
+        # Score
+        score = self.CROSS[crossings] if crossings in self.CROSS else self.CROSS[None]
+        score += self.LONGCROSS[long_crossings] if long_crossings in self.LONGCROSS else self.LONGCROSS[None]
+
+        return score
+
 
 class ScorerMelodyMelody(ur.ScorerTwoSequenceIntervals):
 

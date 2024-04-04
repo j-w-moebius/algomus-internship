@@ -527,6 +527,14 @@ class ScorerTwoSequence(ScorerTwo):
             print(scores, gen1, gen2)
         return sum(scores)/len(scores)
 
+class ScorerTwoSequenceAllPairs(ScorerTwoSequence):
+    def score_item(self, gen1: Item, gen2: Item):
+        z = list(zip(self.span(gen1.one), self.span(gen2.one)))
+        return self.score_all_pairs(z)
+
+    def score_all_pairs(z):
+        raise NotImplementd
+
 class ScorerTwoSequenceIntervals(ScorerTwo):
 
     def span(self, g):
