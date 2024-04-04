@@ -96,6 +96,9 @@ def gen_sacred(woo):
         zScorerRhythmMetrics = ScorerRhythmMetrics
         zStructure = Structure
 
+    if sh.ternary():
+        zLyrics.MIN_LENGTH = 7
+
     sh.add(zStructure('struct'))
 
     sh.add(zFunc('func'))
