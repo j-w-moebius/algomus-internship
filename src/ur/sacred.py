@@ -220,7 +220,7 @@ def sacred(code, f, woo, svg):
 
     sh.export(
         f,
-        code + '. ' + gabuzomeu.sentence(woo),
+        code + '. ' + gabuzomeu.sentence(woo) + ' (%s)' % sh['struct'].structure,
         sh['struct'].structure_full,
         sh['rhy'],
         sh['lyr'],
