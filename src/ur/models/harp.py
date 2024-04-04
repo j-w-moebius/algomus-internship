@@ -9,7 +9,7 @@ import music
 import math
 
 class Structure(ur.ItemChoice):
-    CHOICES = ['A-B-a', 'A-Bb-A', 'A-aB' ]
+    CHOICES = ['AB-aC', 'AB-bA', 'A-aB' ]
                # 'AQ-RA', 'AQ-AC', 'BA-QA' ]
 
 
@@ -109,7 +109,7 @@ class TernaryRhythm(ur.ItemSpanSequence):
                 ('8 8 8', 0.10),
                 ('4 16 16', 0.05),
                 ('8 8 16 16', 0.05),
-                ('8 16 16 8', 0.05),
+                ('8 16 16 8', 0.02),
                 ('8. 16 8', 0.10),
             ]
 
