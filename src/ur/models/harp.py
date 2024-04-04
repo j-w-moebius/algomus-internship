@@ -388,6 +388,19 @@ class ScorerMelody(ur.ScorerOne):
         return score
 
 
+class ScorerFunc(ur.ScorerOne):
+
+    def score_item(self, gen, _):
+
+        different = len(set(gen.one))
+        stars = len(list(filter(lambda x: '*' in x, gen.one)))
+
+        score = different/len(gen.one)
+        if stars in [1, 2, 3]:
+            score += 0.5
+        return score
+
+
 class ScorerMelodySA(ScorerMelody):
     AMBITUS_LOW = 5
     AMBITUS_HIGH = 12

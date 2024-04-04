@@ -102,6 +102,7 @@ def gen_sacred(woo):
     sh.add(zStructure('struct'))
 
     sh.add(zFunc('func'))
+    sh.scorer(ScorerFunc, 'func')
     sh.structurer('struct', 'func')
 
     sh.add(MelodyT('mel'))
