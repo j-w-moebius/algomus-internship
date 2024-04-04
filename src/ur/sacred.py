@@ -98,6 +98,8 @@ def gen_sacred(woo):
 
     if sh.ternary():
         zLyrics.MIN_LENGTH = 7
+    else:
+        zLyrics.MIN_LENGTH = 5
 
     sh.add(zStructure('struct'))
 
