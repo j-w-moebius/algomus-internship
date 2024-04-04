@@ -9,10 +9,10 @@ from rich import print
 DIR_OUT = '../../data/gen/'
 
 INSTRUMENTS = {
-    'melS': (m21.instrument.ElectricOrgan(), m21.dynamics.Dynamic('mf')),
-    'melA': (m21.instrument.ElectricOrgan(), m21.dynamics.Dynamic('mf')),
-    'mel': (m21.instrument.Organ(), m21.dynamics.Dynamic('f')),
-    'melB': (m21.instrument.Bassoon(), m21.dynamics.Dynamic('mf')),
+    'melS': (m21.instrument.Vocalist(), m21.dynamics.Dynamic('mf')),
+    'melA': (m21.instrument.Vocalist(), m21.dynamics.Dynamic('mf')),
+    'mel': (m21.instrument.Vocalist(), m21.dynamics.Dynamic('f')),
+    'melB': (m21.instrument.Vocalist(), m21.dynamics.Dynamic('mf')),
 }
 
 DURATIONS = {
@@ -89,8 +89,8 @@ def export(code, title, melodies, annotations, key, meter, svg):
         # score.append(part)
 
     # score.show('txt')
-    dir = os.path.dirname(f'{DIR_OUT}/{code}')
-    os.system(f'mkdir -p {dir}')
+    dir = os.path.dirname(os.path.join(DIR_OUT, f'{code}'))
+    os.makedirs(dir, exist_ok=True)
     f = f'{DIR_OUT}/{code}.mxl'
 
     print(f'[green]==> {f}')
