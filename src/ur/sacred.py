@@ -55,6 +55,10 @@ def gen_sacred(woo):
     # sh.add(ur.Or('func', [FuncMajor('Major'),
     #                       FuncMinor('minor')]))
 
+    sh = ur.Model()
+    sh.meter = '24/4' if woo else random.choice(['3/4', '6/8'])
+    print(f'Meter: [blue]{sh.meter}')
+
     if mode == 'Major':
         Func = FuncMajor
         # MelodyUp = MelodyMajorUp
@@ -85,11 +89,13 @@ def gen_sacred(woo):
         zScorerMelodyHarm = ScorerMelodyHarm
         zScorerMelodyHarmRoot = ScorerMelodyHarm
         zLyrics = Lyrics
-        zRhythm = Rhythm
+        if sh.ternary():
+            zRhythm = TernaryRhythm
+        else:
+            zRhythm = Rhythm
         zScorerRhythmMetrics = ScorerRhythmMetrics
         zStructure = Structure
 
-    sh = ur.Model()
     sh.add(zStructure('struct'))
 
     sh.add(zFunc('func'))
@@ -214,7 +220,6 @@ def sacred(code, f, woo, svg):
         sh['lyr'],
         ['melS', 'melA', 'mel', 'melB'],
         ['func'],
-        random.choice(['3/4', '6/8']),
         svg
         )
 

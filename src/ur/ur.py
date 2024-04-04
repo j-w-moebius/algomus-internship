@@ -95,6 +95,7 @@ class Gen(object):
     def __init__(self, name = None, mods = None):
         self.gens = Data()
         self.mods = mods if mods else []
+        self.meter = '4/4'
         self.key = None
         self.modes = None
         self.scorers = []
@@ -107,6 +108,17 @@ class Gen(object):
 
     def set_key(self, key):
         self.key = key
+
+    def set_meter(self, meter):
+        self.meter = meter
+
+    def ternary(self):
+        if '/8' in self.meter:
+            return True
+        return False
+
+    def beat(self):
+        return '4.' if self.ternary() else '4'
 
     def setup(self):
         pass
@@ -218,13 +230,17 @@ class Gen(object):
     def id(self):
         return f'{self.__class__.__name__}-{self.name}'
 
-    def export(self, structure, rhythms=None, lyrics=None, annotation=False, modes=None):
+    def export(self, structure, rhythms=None, lyrics=None, annotation=False, meter=None, modes=None):
         out = []
         lyr = []
+
+        if meter:
+            self.set_meter(meter)
+
         for struct in structure:
 
             if struct == '-':
-                out += [ ' r$4  ']
+                out += [ ' r$%s  ' % self.beat()]
                 continue
 
             items = self.gens[struct][0].one
@@ -584,8 +600,8 @@ class Model(And):
     def structurer(self, struct, mod):
         self.structurers += [(self[struct], self[mod])]
 
-    def export(self, code, title, structure, rhythms, lyrics, mods_melodies, mods_annots, meter, svg):
+    def export(self, code, title, structure, rhythms, lyrics, mods_melodies, mods_annots, svg):
         print('[yellow]## Exporting')
-        melodies = [(mod, self[mod].export(structure, rhythms, lyrics=lyrics, modes=self.modes)) for mod in mods_melodies]
+        melodies = [(mod, self[mod].export(structure, rhythms, lyrics=lyrics, meter=self.meter, modes=self.modes)) for mod in mods_melodies]
         annots   = [(mod, self[mod].export(structure, rhythms, annotation=True)) for mod in mods_annots]
-        export.export(code, title, melodies, annots, self.key, meter, svg)
+        export.export(code, title, melodies, annots, self.key, self.meter, svg)

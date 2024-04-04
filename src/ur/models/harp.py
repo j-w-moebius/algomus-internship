@@ -76,6 +76,23 @@ class Rhythm(ur.ItemSpanSequence):
                 ('4. 8', 0.05),
             ]
 
+class TernaryRhythm(ur.ItemSpanSequence):
+    ITEMS_LAST = [
+        ('2.', 0.8),
+        ('4.', 0.5),
+    ]
+    ITEMS = [
+                ('2.', 0.03),
+                ('4.', 0.30),
+                ('4 8', 0.20),
+                ('8 8 8', 0.10),
+                ('4 16 16', 0.05),
+                ('8 8 16 16', 0.05),
+                ('8 16 16 8', 0.05),
+                ('8. 16 8', 0.10),
+            ]
+
+
 class Melody0(ur.ItemSequence):
     ITEMS = 'cdefgab'
 
