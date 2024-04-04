@@ -3,6 +3,7 @@
 import os
 import music21 as m21
 import datetime
+import random
 
 from rich import print
 
@@ -28,6 +29,7 @@ def export(code, title, melodies, annotations, key, meter, svg):
     score.insert(0, m21.metadata.Metadata())
     score.metadata.title = title
     score.metadata.composer = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    tempo = random.choice(['72', '80', '92'])
     
     n = 0
     for (name, (mel, lyrics)) in melodies:
@@ -39,7 +41,7 @@ def export(code, title, melodies, annotations, key, meter, svg):
         part.partName = name
         part.partAbbreviation = name
         part.insert(0, m21.meter.TimeSignature(meter))
-        part.insert(0, m21.tempo.MetronomeMark('andante'))
+        part.insert(0, m21.tempo.MetronomeMark(number=tempo))
         part.insert(0, m21.key.KeySignature(0))
         if name in INSTRUMENTS:
             part.insert(0, INSTRUMENTS[name][0])
