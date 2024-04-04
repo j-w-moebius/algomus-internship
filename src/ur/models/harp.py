@@ -66,11 +66,12 @@ class FuncMinor(ur.ItemMarkov):
 
 class FuncMinorExtended(FuncMinor):
 
-    STATES = ['i', 'T', 'S', 'D']
-    INITIAL = ['i']
+    STATES = ['i', 'j', 'T', 'S', 'D']
+    INITIAL = ['j']
     FINAL = ['i']
 
     TRANSITIONS = {
+        'j': { 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 },
         'i': { 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 },
         'T': { 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 },
         'S': { 'i': 0.10, 'T': 0.21, 'S': 0.14, 'D': 0.55 },
@@ -78,8 +79,9 @@ class FuncMinorExtended(FuncMinor):
     }
 
     EMISSIONS = {
+        'j': {'i': 0.70, 'i8': 0.30 },
         'i': {'i': 1.00 },
-        'T': {'i': 0.50, '*i9': 0.50},
+        'T': {'i': 0.50, '*i9': 0.50 },
         'S': {'iim': 0.19, 'iv': 0.33, '*iv9': 0.20, 'VI': 0.28},
         'D': {'III': 0.20, '*III7': 0.15, 'v': 0.22, 'v8': 0.10, 'VII': 0.33},
     }
@@ -492,7 +494,7 @@ class ScorerMelodyHarm(ur.ScorerTwoSequence):
         'VI': 'fac',
         'VII': 'gd',
 
-        'v1': 'e',
+        'i8': 'a',
 
         '*i9': 'aeb',
         '*III7': 'cegb',
