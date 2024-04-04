@@ -68,7 +68,7 @@ def gen_sacred(woo):
         MelodyT = MelodyMajorT
         MelodyB = MelodyMajorB
     else:
-        Func = FuncMinor
+        Func = FuncMinorExtended
         # MelodyUp = MelodyMinorUp
         # MelodyDown = MelodyMinorDown
         MelodyS = MelodyMinorS
