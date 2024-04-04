@@ -11,6 +11,11 @@ def ambitus(mel):
     mnotes = [music21.pitch.Pitch(n) for n in mel]
     return(max(mnotes).midi - min(mnotes).midi)
 
+def mean(mel):
+    minotes = [music21.pitch.Pitch(n).midi for n in mel]
+    return(sum(minotes) / len(minotes))
+
+
 def interval(n1, n2):
     return music21.pitch.Pitch(n2).midi - music21.pitch.Pitch(n1).midi
 

@@ -41,6 +41,15 @@ def some_choices(choices, nb):
 
 # ---------------------------------------------------------------------------------
 
+def distance_to_interval(x, bot, top):
+    if x < bot:
+        return bot-x
+    if x > top:
+        return x-top
+    return 0
+
+# ---------------------------------------------------------------------------------
+
 
 def ellipsis_list(l, start=5, end=0):
     if len(l) <= start + end:

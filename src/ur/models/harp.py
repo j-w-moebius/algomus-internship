@@ -7,6 +7,7 @@ import ur
 import glob
 import music
 import math
+import tools
 
 class Structure(ur.ItemChoice):
     CHOICES = ['AB-aC', 'AB-bA', 'A-aB' ]
@@ -390,6 +391,20 @@ class ScorerMelody(ur.ScorerOne):
 
         return score
 
+
+class ScorerSectionsMelodyT(ur.ScorerOne):
+
+    # Target some mean pitch, according to section
+    TARGET = {
+        'A': (50, 57), 'a': (59, 70),
+        'B': (59, 70), 'b': (50, 57),
+        None: (50, 70),
+    }
+
+    def score_item(self, gen, _, struct):
+        mean = music.mean(gen.one)
+        tdown, tup = self.TARGET[struct] if struct in self.TARGET else self.TARGET[None]
+        return -tools.distance_to_interval(mean, tdown, tup)
 
 class ScorerFunc(ur.ScorerOne):
 

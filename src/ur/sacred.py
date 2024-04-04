@@ -122,6 +122,7 @@ def gen_sacred(woo):
         }
     sh.scorer(zScorerMelodyHarm, 'mel', 'func', 2)
     sh.scorer(ScorerMelody, 'mel')
+    sh.scorer(ScorerSectionsMelodyT, 'mel', weight=10)
 
     sh.add(MelodyB('melB'))
     sh['melB'].set_key(key)
