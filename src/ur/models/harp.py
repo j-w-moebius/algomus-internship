@@ -10,7 +10,7 @@ import math
 
 class Structure(ur.ItemChoice):
     CHOICES = ['A-B-a', 'A-Bb-A', 'A-aB' ]
-            #   ['QQ-BC', 'A-Q-A', 'AQ-RA', 'AQ-AC', 'BA-QA' ]
+               # 'AQ-RA', 'AQ-AC', 'BA-QA' ]
 
 
 class Lyrics(ur.ItemLyricsChoiceFiles):
@@ -329,7 +329,7 @@ class MelodyMinorB(ur.ItemPitchMarkov):
     AMBITUS = ['G2', 'C4']
     AMBITUS_INITIAL = ['A2', 'A3']
     STATES = ['E4', 'A3', 'F3', 'D3', 'E3', 'A-3', 'G3', 'C4', 'D4', 'B3', 'C3', 'F#3', 'B-3', 'C#3', 'E-3', 'E-4', 'A2', 'B2', 'G2', 'F2', 'E2']
-    INITIAL = ['A2', 'A3']
+    INITIAL = ['A2', 'C3', 'E3', 'A3', 'C3']
     FINAL = STATES
 
     TRANSITIONS = {
@@ -590,10 +590,10 @@ class ScorerMelodyHarmRoot(ScorerMelodyHarm):
         None: -5.0,
         0: 1.0,
         1: 0.5,
-        2: 0.2,
+        2: 0.5,
     }
 
-    '''Favors 5, '''
+    '''Favors 5, but still allows 6 and 64'''
     def score_element(self, mel, harm):
         if mel[0].lower() in self.CHORDS[harm]:
             i = self.CHORDS[harm].index(mel[0].lower())
@@ -601,7 +601,7 @@ class ScorerMelodyHarmRoot(ScorerMelodyHarm):
         else:
             return self.SCORES[None]
 
-    def score_first_last_element(self, mel, harm):
+    def score_last_element(self, mel, harm):
         if mel[0].lower() == self.CHORDS[harm][0]:
             return 0.0
         else:

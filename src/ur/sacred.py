@@ -136,7 +136,7 @@ def gen_sacred(woo):
             'fifth-jump': 0.7,
             'fifth-16': 0.2,
         }
-    # sh.scorer(zScorerMelodyHarmRoot, 'melB', 'func', 2)
+    sh.scorer(zScorerMelodyHarmRoot, 'melB', 'func', 4)
     # sh.scorer(ScorerFifthInBass, 'melB', 'func', 2)
     sh.scorer(ScorerMelodyMelody, 'melB', 'mel')
     # sh.scorer(ScorerMelodyMelodyBelow, 'melB', 'mel'

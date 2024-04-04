@@ -546,11 +546,16 @@ class ScorerTwoSequence(ScorerTwo):
     def score_first_last_element(self, e1, e2):
         return self.score_element(e1, e2)
 
+    def score_first_element(self, e1, e2):
+        return self.score_first_last_element(e1, e2)
+    def score_last_element(self, e1, e2):
+        return self.score_first_last_element(e1, e2)
+
     def score_item(self, gen1: Item, gen2: Item, verbose=False):
         z = list(zip(self.span(gen1.one), self.span(gen2.one)))
-        scores =  [self.score_first_last_element(z[0][0], z[0][1])]
+        scores =  [self.score_first_element(z[0][0], z[0][1])]
         scores += [self.score_element(e1, e2) for (e1, e2) in z[1:-1]]
-        scores += [self.score_first_last_element(z[-1][0], z[-1][1])]
+        scores += [self.score_last_element(z[-1][0], z[-1][1])]
 
         if verbose:
             print(scores, gen1, gen2)
