@@ -29,7 +29,7 @@ def flourish(items, i, rhy_i, thresholds):
     # Some passing notes between fifths
     if nonchord.interval_fifth_up(n1, n2):
         if random.random() < thresholds['fifth-16']:
-            rhy = '8 8 16 16' if ternary else '16 16 16 16'
+            rhy = random.choice(['8 8 16 16', '8. 16 16 16']) if ternary else '16 16 16 16'
             lyr += ['-', '-', '-']
             new_items += [
                 nonchord.note_direction(n1, n2, 1),
@@ -46,7 +46,7 @@ def flourish(items, i, rhy_i, thresholds):
     # Some passing notes between fourths
     elif nonchord.interval_fourth(n1, n2):
         if random.random() < thresholds['fourth-8-16-16']:
-            rhy = '8 8 8' if ternary else '8 16 16'
+            rhy = random.choice(['8 8 8', '8. 16 8']) if ternary else '8 16 16'
             lyr += ['-', '-']
             new_items += [
                 nonchord.note_direction(n1, n2, 1),
@@ -71,27 +71,27 @@ def flourish(items, i, rhy_i, thresholds):
     # Some neighbor notes between same notes
     elif n1 == n2:
         if random.random() < thresholds['same-neighbor-16']:
-            rhy = '8 8 16 16' if ternary else '16 16 16 16'
+            rhy = random.choice(['8 8 16 16', '8. 16 16 16']) if ternary else '16 16 16 16'
             lyr += ['-', '-', '-']
             dir = random.choice([-1, 1])
             new_items += [
                 nonchord.note_projection(n1, dir, 1),
-                nonchord.note_projection(n1, dir, 2),
+                nonchord.note_projection(n1, dir, 2) if random.choice([True, False]) else n1,
                 nonchord.note_projection(n1, dir, 1),
             ]
         elif random.random() < thresholds['same-neighbor']:
-            rhy = '4 8' if ternary else '8 8'
+            rhy = '4 8' if ternary else random.choice(['8 8', '8. 16'])
             lyr += ['-']
             new_items += [nonchord.note_nonchord(n1, n2, True)]
 
     # Some jump-passing notes between seconds
     elif nonchord.interval_second(n1, n2):
         if random.random() < thresholds['second-jump']:
-            rhy = '4 8' if ternary else '8 8'
+            rhy = '4 8' if ternary else random.choice(['8 8', '8. 16'])
             lyr += ['-']
             new_items += [nonchord.note_direction(n1, n2, 2)]
         elif random.random() < thresholds['second-8-16-16']:
-            rhy = '8 8 8' if ternary else '8 16 16'
+            rhy = random.choice(['8 8 8', '8. 16 8']) if ternary else '8 16 16'
             lyr += ['-', '-']
             new_items += [
                 n2, 
