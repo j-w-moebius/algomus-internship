@@ -160,7 +160,7 @@ class Gen(object):
 
             for filter, weight in self.filters:
                 v2 = filter.mod2.gens[struct][0] if filter.two() else None
-                score += filter.score_item(one[struct][0], v2) * weight
+                score += filter.score_item(one[struct][0], v2, struct) * weight
             sp += [ (score, one) ]
         average = sum(map (lambda x:x[0], sp)) / len(sp)
         sp.sort(key = lambda x:x[0])
@@ -224,7 +224,7 @@ class Gen(object):
             print(f'Scoring {s}') # {structures}')
             for struct in structures:
                 for (d1, d2) in zip(s.mod1.gens[struct], s.mod2.gens[struct]):
-                    ss = s.score_item(d1, d2)
+                    ss = s.score_item(d1, d2, struct)
                     d2.context += ',' + self.str_score(ss)
                     # print("  ", struct, ss, d1, d2)
 
@@ -508,9 +508,9 @@ class ScorerOne(object):
 
     def score(self, gens1: Data):
         for struct in gens1.data.keys():
-            self.score_item(gens1[struct])
+            self.score_item(gens1[struct], struct=struct)
 
-    def score_item(self, gen1, gen2):
+    def score_item(self, gen1, gen2, struct):
         raise NotImplemented
 
 
@@ -530,9 +530,9 @@ class ScorerTwo(object):
         # print(gens1, gens2)
         for struct in set(gens1.data.keys()).union(set(gens2.data.keys())):
             print(struct)
-            self.score_item(gens1[struct], gens2[struct])
+            self.score_item(gens1[struct], gens2[struct], struct)
 
-    def score_item(self, gen1, gen2):
+    def score_item(self, gen1, gen2, struct):
         raise NotImplemented
 
 class ScorerTwoSequence(ScorerTwo):
@@ -551,7 +551,7 @@ class ScorerTwoSequence(ScorerTwo):
     def score_last_element(self, e1, e2):
         return self.score_first_last_element(e1, e2)
 
-    def score_item(self, gen1: Item, gen2: Item, verbose=False):
+    def score_item(self, gen1: Item, gen2: Item, struct=None, verbose=False):
         z = list(zip(self.span(gen1.one), self.span(gen2.one)))
         scores =  [self.score_first_element(z[0][0], z[0][1])]
         scores += [self.score_element(e1, e2) for (e1, e2) in z[1:-1]]
@@ -562,7 +562,7 @@ class ScorerTwoSequence(ScorerTwo):
         return sum(scores)/len(scores)
 
 class ScorerTwoSequenceAllPairs(ScorerTwoSequence):
-    def score_item(self, gen1: Item, gen2: Item):
+    def score_item(self, gen1: Item, gen2: Item, struct=None):
         z = list(zip(self.span(gen1.one), self.span(gen2.one)))
         return self.score_all_pairs(z)
 
@@ -577,7 +577,7 @@ class ScorerTwoSequenceIntervals(ScorerTwo):
     def score_element(self, e1, f1, e2, f2):
         raise NotImplemented
 
-    def score_item(self, gen1: Item, gen2: Item, verbose=False):
+    def score_item(self, gen1: Item, gen2: Item, struct=None, verbose=False):
         z = list(zip(self.span(gen1.one), self.span(gen2.one)))
         scores = []
         for i in range(len(z)-1):

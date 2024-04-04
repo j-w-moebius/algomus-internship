@@ -365,7 +365,7 @@ class ScorerMelody(ur.ScorerOne):
     AMBITUS_HIGH = 14
     AMBITUS_GOOD = 7
 
-    def score_item(self, gen, _):
+    def score_item(self, gen, _, __):
         score = 0
 
         # Ambitus
@@ -393,7 +393,7 @@ class ScorerMelody(ur.ScorerOne):
 
 class ScorerFunc(ur.ScorerOne):
 
-    def score_item(self, gen, _):
+    def score_item(self, gen, _, __):
 
         different = len(set(gen.one))
         stars = len(list(filter(lambda x: '*' in x, gen.one)))
@@ -452,7 +452,7 @@ class ScorerRhythmLyrics(ur.ScorerTwoSpanSequence):
 
 class ScorerRhythmMetrics(ur.ScorerOne):
 
-    def score_item(self, gen, _):
+    def score_item(self, gen, _, __):
         score = 0
 
         # music.duration(gen.one)
