@@ -32,6 +32,7 @@ import music
 import flourish
 import nonchord
 import export
+import tools
 
 ALL = '0'
 
@@ -153,14 +154,28 @@ class Gen(object):
             one = self.one(gens_in, struct)
             return one
 
-        sp = []
+        # Initialize filters:
+        for filter, _ in self.filters:
+            filter.init()
+
+        # Generate
+        ones = []
         for i in range(n):
             one = self.one(gens_in, struct)
-            score = 0
+            ones += [one]
 
+            # Pre-score
             for filter, weight in self.filters:
                 v2 = filter.mod2.gens[struct][0] if filter.two() else None
-                score += filter.score_item(one[struct][0], v2, struct) * weight
+                filter.prescore_item(one[struct][0], v2, struct)
+
+        # Score
+        sp = []
+        for one in ones:
+            score = 0
+            for filter, weight in self.filters:
+                v2 = filter.mod2.gens[struct][0] if filter.two() else None
+                score += filter.postscore_item(one[struct][0], v2, struct) * weight
             sp += [ (score, one) ]
         average = sum(map (lambda x:x[0], sp)) / len(sp)
         sp.sort(key = lambda x:x[0])
@@ -218,13 +233,17 @@ class Gen(object):
 
     def score(self):
         for s in self.scorers:
+            s.init()
             if not s.two():
                 continue
             structures = set(s.mod1.gens.data.keys()).intersection(set(s.mod2.gens.data.keys()))
             print(f'Scoring {s}') # {structures}')
             for struct in structures:
                 for (d1, d2) in zip(s.mod1.gens[struct], s.mod2.gens[struct]):
-                    ss = s.score_item(d1, d2, struct)
+                    s.prescore_item(d1, d2, struct)
+            for struct in structures:
+                for (d1, d2) in zip(s.mod1.gens[struct], s.mod2.gens[struct]):
+                    ss = s.postscore_item(d1, d2, struct)
                     d2.context += ',' + self.str_score(ss)
                     # print("  ", struct, ss, d1, d2)
 
@@ -493,9 +512,24 @@ class ItemPitchMarkov(ItemMarkov):
 
 ### Scores
 
+class Scorer(object):
 
+    def two(self):
+        return False
 
-class ScorerOne(object):
+    def score_item(self, gen1, gen2, struct):
+        raise NotImplemented
+
+    def init(self):
+        pass
+
+    def prescore_item(self, gen1, gen2, struct):
+        pass
+
+    def postscore_item(self, gen1, gen2, struct):
+        return self.score_item(gen1, gen2, struct)
+
+class ScorerOne(Scorer):
 
     def __init__(self, mod):
         self.mod1 = mod
@@ -503,18 +537,12 @@ class ScorerOne(object):
     def __str__(self):
         return f'<<{self.mod1.id()}>>'
 
-    def two(self):
-        return False
-
     def score(self, gens1: Data):
         for struct in gens1.data.keys():
             self.score_item(gens1[struct], struct=struct)
 
-    def score_item(self, gen1, gen2, struct):
-        raise NotImplemented
 
-
-class ScorerTwo(object):
+class ScorerTwo(Scorer):
 
     def __init__(self, mod1, mod2):
         self.mod1 = mod1
@@ -532,8 +560,6 @@ class ScorerTwo(object):
             print(struct)
             self.score_item(gens1[struct], gens2[struct], struct)
 
-    def score_item(self, gen1, gen2, struct):
-        raise NotImplemented
 
 class ScorerTwoSequence(ScorerTwo):
 
