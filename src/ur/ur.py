@@ -614,10 +614,39 @@ class ScorerTwoSequenceIntervals(ScorerTwo):
         return sum(scores)/len(scores)
 
 
-
 class ScorerTwoSpanSequence(ScorerTwoSequence):
     def span(self, g):
         return ' '.join(g).split()
+
+class RelativeScorer(Scorer):
+
+    def init(self):
+        self.scores = []
+
+    def prescore_item(self, gen1, gen2, struct):
+        score = self.score_item(gen1, gen2, struct)
+        self.scores += [score]
+
+    def postscore_item(self, gen1, gen2, struct):
+        bot = min(self.scores)
+        top = max(self.scores)
+        score = self.score_item(gen1, gen2, struct)
+        ratio = (score-bot) / (top-bot)
+        return self.score_ratio(ratio, struct)
+
+    def score_ratio(self, ratio, struct):
+        raise NotImplemented
+
+class RelativeScorerSection(RelativeScorer):
+
+    TARGET = { None: (0.0, 1.0) }
+
+    def score_ratio(self, ratio, struct):
+        bot, top = self.TARGET[struct] if struct in self.TARGET else self.TARGET[None]
+        dist = tools.distance_to_interval(ratio, bot, top)
+        norm = max(bot, 1.0-top)
+        return -dist/norm if norm else 0
+
 
 ### Model
 
