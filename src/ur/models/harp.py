@@ -395,6 +395,7 @@ class ScorerMelody(ur.ScorerOne):
 class ScorerSectionsMelodyT(ur.ScorerOne):
 
     # Target some mean pitch, according to section
+    # Not used now, RelativeScorerSectionMelody is better
     TARGET = {
         'A': (50, 57), 'a': (59, 70),
         'B': (59, 70), 'b': (50, 57),
@@ -405,6 +406,17 @@ class ScorerSectionsMelodyT(ur.ScorerOne):
         mean = music.mean(gen.one)
         tdown, tup = self.TARGET[struct] if struct in self.TARGET else self.TARGET[None]
         return -tools.distance_to_interval(mean, tdown, tup)
+
+class RelativeScorerSectionMelody(ur.ScorerOne, ur.RelativeScorerSection):
+
+    TARGET = {
+        'A': (0.0, 0.4), 'a': (0.6, 1.0),
+        'B': (0.6, 1.0), 'b': (0.0, 0.4),
+        None: (0.0, 1.0),
+    }
+
+    def score_item(self, gen, _, struct):
+        return music.mean(gen.one)
 
 class ScorerFunc(ur.ScorerOne):
 
