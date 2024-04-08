@@ -225,9 +225,15 @@ def sacred(code, f, woo, hh, svg):
     print('[yellow]### Generated ')
     print(sh)
 
+    if hh:
+        title = sh['lyr'].gens['A'][0].one
+        title = ' '.join(title).replace(' -', '').replace('>', '').replace('/', '').replace('.', '').replace(',', '')
+    else:
+        title = gabuzomeu.sentence(woo)
+
     sh.export(
         f,
-        code + '. ' + gabuzomeu.sentence(woo) + ' (%s)' % sh['struct'].structure,
+        f"{code}. {title} ({sh['struct'].structure})",
         sh['struct'].structure_full,
         sh['rhy'],
         sh['lyr'],
