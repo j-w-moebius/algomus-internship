@@ -19,6 +19,10 @@ class Lyrics(ur.ItemLyricsChoiceFiles):
     STRESS_WORDS = ['Lord', 'God', 'Christ', 'Son']
 
 
+class HHLyrics(ur.ItemLyricsChoiceFiles):
+    FILES = glob.glob('../../data/lyrics-hh/*.txt')
+
+
 class Key(ur.ItemChoice):
     CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4']
 

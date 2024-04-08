@@ -43,9 +43,9 @@ parser.add_argument('--save', '-s', type=int, default=0, help='starting number t
 parser.add_argument('--nb', '-n', type=int, default=0, help='number of generations with --save')
 parser.add_argument('--svg', action='store_true', help='generate and opens .svg (requires Verovio and Firefox)')
 parser.add_argument('--woo', action='store_true', help='experiment')
+parser.add_argument('--hh', action='store_true', help="Holly's lyrics")
 
-
-def gen_sacred(woo):
+def gen_sacred(woo, hh):
     print('[yellow]### Init')
 
     key = random.choice(Key.CHOICES)
@@ -88,7 +88,10 @@ def gen_sacred(woo):
         zFunc = Func
         zScorerMelodyHarm = ScorerMelodyHarm
         zScorerMelodyHarmRoot = ScorerMelodyHarm
-        zLyrics = Lyrics
+        if hh:
+            zLyrics = HHLyrics
+        else:
+            zLyrics = Lyrics
         if sh.ternary():
             zRhythm = TernaryRhythm
         else:
@@ -216,8 +219,8 @@ def gen_sacred(woo):
     return sh
 
 
-def sacred(code, f, woo, svg):
-    sh = gen_sacred(woo)    
+def sacred(code, f, woo, hh, svg):
+    sh = gen_sacred(woo, hh)
 
     print('[yellow]### Generated ')
     print(sh)
@@ -256,4 +259,4 @@ if __name__ == '__main__':
             f = code
 
         print(f'[green]## Experiment {code}')
-        sacred(code, f, args.woo, args.svg)
+        sacred(code, f, args.woo, args.hh, args.svg)
