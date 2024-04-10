@@ -89,7 +89,10 @@ def gen_sacred(woo, hh):
         zScorerMelodyHarm = ScorerMelodyHarm
         zScorerMelodyHarmRoot = ScorerMelodyHarm
         if hh:
-            zLyrics = HHLyrics
+            if sh.ternary():
+                zLyrics = HHLyricsTernary
+            else:
+                zLyrics = HHLyrics
         else:
             zLyrics = Lyrics
         if sh.ternary():
