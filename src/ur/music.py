@@ -20,6 +20,7 @@ def interval(n1, n2):
     return music21.pitch.Pitch(n2).midi - music21.pitch.Pitch(n1).midi
 
 DURATION = {
+  '1.': 6,
   '2.': 3,
   '4.': 1.5,
   '8.': .75,
