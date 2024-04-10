@@ -484,7 +484,11 @@ class ItemMarkov(Gen):
             while i < n_min or state not in self.FINAL:
                 next_state = None
                 while not self.filter_state(next_state):
-                    next_state = pwchoice(self.transitions[state])
+                    try:
+                        next_state = pwchoice(self.transitions[state])
+                    except KeyError:
+                        print(f"[red]! No transition for [yellow]{self.__class__.__name__} {state}")
+                        raise
                 state = next_state
                 emit = pwchoice(self.EMISSIONS[state])
                 emits += [emit]
