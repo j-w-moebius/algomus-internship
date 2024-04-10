@@ -41,7 +41,7 @@ def export(code, title, melodies, annotations, key, meter, svg):
         part.partName = name
         part.partAbbreviation = name
         part.insert(0, m21.meter.TimeSignature(meter))
-        part.insert(0, m21.tempo.MetronomeMark(number=tempo))
+        part.insert(0, m21.tempo.MetronomeMark(number=tempo, referent=1.5 if '/8' in meter else 1))
         part.insert(0, m21.key.KeySignature(0))
         if name in INSTRUMENTS:
             part.insert(0, INSTRUMENTS[name][0])
