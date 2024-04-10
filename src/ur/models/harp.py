@@ -125,8 +125,8 @@ class Melody0(ur.ItemSequence):
     ITEMS = 'cdefgab'
 
 class MelodyMajorS(ur.ItemPitchMarkov):
-    AMBITUS = ['C4', 'G5']
-    AMBITUS_INITIAL = ['E4', 'C5']
+    AMBITUS = ['C4', 'A5']
+    AMBITUS_INITIAL = ['E4', 'E5']
     STATES = ['C4', 'D4', 'E4', 'F4', 'B3', 'G4', 'A4', 'A3', 'C5', 'B4', 'G3', 'D5', 'E5', 'F5', 'A5', 'G5', 'A-5', 'F#5', 'D3', 'F3']
     INITIAL = ['C4', 'E4', 'G4', 'C5', 'E5']
     FINAL = STATES
@@ -155,8 +155,8 @@ class MelodyMajorS(ur.ItemPitchMarkov):
     }
 
 class MelodyMajorA(ur.ItemPitchMarkov):
-    AMBITUS = ['G3', 'C5']
-    AMBITUS_INITIAL = ['A3', 'G4']
+    AMBITUS = ['G3', 'D5']
+    AMBITUS_INITIAL = ['A3', 'C5']
     STATES = ['G3', 'B3', 'C4', 'D4', 'A3', 'E3', 'F3', 'G4', 'F4', 'A4', 'F#4', 'B4', 'C5', 'D5', 'E4', 'E5', 'F5', 'A-4', 'D3']
     INITIAL = ['G3', 'C4', 'E4', 'G4', 'C4']
     FINAL = STATES
@@ -184,8 +184,8 @@ class MelodyMajorA(ur.ItemPitchMarkov):
     }
 
 class MelodyMajorT(ur.ItemPitchMarkov):
-    AMBITUS = ['C3', 'G4']
-    AMBITUS_INITIAL = ['E3', 'D4']
+    AMBITUS = ['B2', 'A4']
+    AMBITUS_INITIAL = ['E3', 'E4']
     STATES = ['E3', 'G3', 'A3', 'F3', 'D3', 'B3', 'C3', 'B2', 'A2', 'E4', 'C4', 'D4', 'C#4', 'G4', 'F4', 'A4', 'B-4', 'F#4', 'E-4', 'G#3', 'F#3']
     INITIAL = ['C3', 'E3', 'G3', 'C4', 'E4']
     FINAL = STATES
@@ -215,8 +215,8 @@ class MelodyMajorT(ur.ItemPitchMarkov):
     }
 
 class MelodyMajorB(ur.ItemPitchMarkov):
-    AMBITUS = ['G2', 'C4']
-    AMBITUS_INITIAL = ['A2', 'A3']
+    AMBITUS = ['E2', 'D4']
+    AMBITUS_INITIAL = ['A2', 'C4']
     STATES = ['C3', 'G2', 'F3', 'B2', 'D3', 'E3', 'A2', 'G3', 'F2', 'E2', 'D2', 'C2', 'F#3', 'C4', 'E4', 'D4', 'F4', 'B3', 'A3', 'E-4', 'B-2', 'C#3']
     INITIAL = ['C3', 'C4']
     FINAL = STATES
@@ -247,8 +247,8 @@ class MelodyMajorB(ur.ItemPitchMarkov):
     }
 
 class MelodyMinorS(ur.ItemPitchMarkov):
-    AMBITUS = ['C4', 'G5']
-    AMBITUS_INITIAL = ['E4', 'C5']
+    AMBITUS = ['C4', 'A5']
+    AMBITUS_INITIAL = ['E4', 'E5']
     STATES = ['E4', 'A4', 'B4', 'C5', 'G4', 'F4', 'D5', 'E5', 'G5', 'F5', 'A5', 'F#5', 'E-5', 'B-4', 'B-5', 'D4', 'C4']
     INITIAL = ['E4', 'A4', 'C5', 'E5']
     FINAL = STATES
@@ -274,8 +274,8 @@ class MelodyMinorS(ur.ItemPitchMarkov):
     }
 
 class MelodyMinorA(ur.ItemPitchMarkov):
-    AMBITUS = ['G3', 'C5']
-    AMBITUS_INITIAL = ['A3', 'G4']
+    AMBITUS = ['G3', 'D5']
+    AMBITUS_INITIAL = ['A3', 'C5']
     STATES = ['E4', 'A4', 'F4', 'G4', 'D4', 'B4', 'C5', 'D5', 'A-4', 'F#4', 'E5', 'B-4', 'E-4', 'G#4', 'G5', 'F5', 'C4', 'B3', 'C#4']
     INITIAL = ['C4', 'E4', 'A4', 'C5']
     FINAL = STATES
@@ -303,8 +303,8 @@ class MelodyMinorA(ur.ItemPitchMarkov):
     }
 
 class MelodyMinorT(ur.ItemPitchMarkov):
-    AMBITUS = ['C3', 'G4']
-    AMBITUS_INITIAL = ['E3', 'D4']
+    AMBITUS = ['B2', 'A4']
+    AMBITUS_INITIAL = ['C3', 'E4']
     STATES = ['E4', 'C4', 'D4', 'B3', 'A3', 'A-3', 'G4', 'A-4', 'A4', 'G3', 'F3', 'E3', 'F#4', 'B-3', 'E-4', 'F4', 'B-4', 'F#3', 'G#3', 'D3']
     INITIAL = ['E3', 'A3', 'C4', 'E4']
     FINAL = STATES
@@ -333,8 +333,8 @@ class MelodyMinorT(ur.ItemPitchMarkov):
     }
 
 class MelodyMinorB(ur.ItemPitchMarkov):
-    AMBITUS = ['G2', 'C4']
-    AMBITUS_INITIAL = ['A2', 'A3']
+    AMBITUS = ['E2', 'D4']
+    AMBITUS_INITIAL = ['A2', 'C4']
     STATES = ['E4', 'A3', 'F3', 'D3', 'E3', 'A-3', 'G3', 'C4', 'D4', 'B3', 'C3', 'F#3', 'B-3', 'C#3', 'E-3', 'E-4', 'A2', 'B2', 'G2', 'F2', 'E2']
     INITIAL = ['A2', 'C3', 'E3', 'A3', 'C3']
     FINAL = STATES
