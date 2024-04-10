@@ -84,11 +84,11 @@ class FuncMinorExtended(FuncMinor):
     }
 
     EMISSIONS = {
-        'j': {'i': 0.70, 'i8': 0.15 },
+        'j': {'i': 0.50, 'i3': 0.20,  'i8': 0.15 },
         'i': {'i': 1.00 },
-        'T': {'i': 0.50, '*i9': 0.25 },
+        'T': {'i': 0.30, 'i3': 0.20, '*i9': 0.25 },
         'S': {'iim': 0.19, 'iv': 0.33, '*iv9': 0.10, 'VI': 0.28},
-        'D': {'III': 0.20, '*III7': 0.08, 'v': 0.22, 'v8': 0.05, 'VII': 0.33},
+        'D': {'III': 0.20, '*III7': 0.08, 'v': 0.15, 'v3': 0.7, 'v8': 0.05, 'VII': 0.33},
     }
 
 class Rhythm(ur.ItemSpanSequence):
@@ -524,6 +524,9 @@ class ScorerMelodyHarm(ur.ScorerTwoSequence):
         'v': 'egb',
         'VI': 'fac',
         'VII': 'gd',
+
+        'i3': 'ace',
+        'v3': 'egb',
 
         'i8': 'a',
 
