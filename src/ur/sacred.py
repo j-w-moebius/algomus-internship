@@ -227,7 +227,7 @@ def sacred(code, f, woo, hh, svg):
 
     if hh:
         title = sh['lyr'].gens['Z'][0].one
-        title = ' '.join(title).replace(' -', '').replace('>', '').replace('/', '').replace('.', '').replace(',', '')
+        title = ' '.join(title).replace(' -', '').replace('>', '').replace('/', '').replace('.', '').replace(',', '').replace(';','')
     else:
         title = gabuzomeu.sentence(woo)
 
