@@ -350,7 +350,7 @@ class Or(Gen):
 
     def one(self, gens_in=None, struct=None):
         m = pwchoice(self.mods)
-        gs = m.gen(gens_in)
+        gs = m.gen(gens_in, struct)
         gs.context = self.id() + '/' + gs.context
         return gs
 
@@ -364,7 +364,7 @@ class And(Gen):
     def one(self, gens_in=None, struct=None):
         d = Data()
         for m in self.mods:
-            d.update(m.gen(gens_in))
+            d.update(m.gen(gens_in, struct))
         return d
 
 ### Item generators
@@ -446,6 +446,17 @@ class ItemSpanSequence(ItemSequence):
 
 class ItemMarkov(Gen):
 
+    INITIAL_S = None
+    FINAL_S = None
+
+    def reset_to_struct(self, struct):
+        # Incompatible with ItemPitchMarkov
+        # To be used with Func
+        if self.INITIAL_S:
+            self.INITIAL = self.INITIAL_S[struct if struct in self.INITIAL_S else None]
+        if self.FINAL_S:
+            self.FINAL = self.FINAL_S[struct if struct in self.FINAL_S else None]
+
     def setup(self):
         self.initial = self.INITIAL
         self.transitions = self.TRANSITIONS
@@ -457,6 +468,7 @@ class ItemMarkov(Gen):
 
     def item(self, gens_in=None, struct=None):
 
+        self.reset_to_struct(struct)
         i = 0
         n_min = self.len_to_gen(gens_in=gens_in, struct=struct)
 
