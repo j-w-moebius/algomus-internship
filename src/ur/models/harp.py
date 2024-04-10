@@ -126,7 +126,7 @@ class TernaryRhythm(ur.ItemSpanSequence):
         ('4.', 0.5),
     ]
     ITEMS = [
-                ('2.', 0.10),
+                ('2.', 0.16),
                 ('4.', 0.30),
                 ('2 8 8', 0.10),
                 ('4 8', 0.25),
@@ -535,6 +535,8 @@ class ScorerRhythmMetricsTernary(ur.ScorerOne):
                 score -= .5
             if d > 1.5 and pos == 1.5:
                 score -= .2
+            if d > 1.5 and pos == 0:
+                score += .2
             #if d == 1.5 and r != '4' and pos == 3:
             #    score += .2
             pos = (pos + d) % 3
