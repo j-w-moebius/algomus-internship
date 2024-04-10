@@ -14,7 +14,7 @@ class Structure(ur.ItemChoice):
     # A/a begin on T,     end on T/D
     # B/b begin on T/S/D, end on T/D
     # Z/z begin on S/D,   end on T
-    CHOICES = ['AB-aZ', 'AB-bZ', 'A-aZ-z' ]
+    CHOICES = ['AB-aZ', 'AB-bZ', 'A-aZ-z', 'A-aB-Z-z' ]
                # 'AQ-RA', 'AQ-AC', 'BA-QA' ]
 
 
