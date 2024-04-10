@@ -72,8 +72,8 @@ class FuncMinor(ur.ItemMarkov):
 class FuncMinorExtended(FuncMinor):
 
     STATES = ['i', 'j', 'T', 'S', 'D']
-    INITIAL = ['j']
-    FINAL = ['i']
+    INITIAL_S = { None: ['j'], 'b': ['D', 'S'], 'B': ['D', 'S'] }
+    FINAL_S = { None: ['i'], 'b': ['i', 'D'], 'B': ['i', 'D'] }
 
     TRANSITIONS = {
         'j': { 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 },
