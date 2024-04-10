@@ -94,9 +94,10 @@ def gen_sacred(woo, hh):
             zLyrics = Lyrics
         if sh.ternary():
             zRhythm = TernaryRhythm
+            zScorerRhythmMetrics = ScorerRhythmMetricsTernary
         else:
             zRhythm = Rhythm
-        zScorerRhythmMetrics = ScorerRhythmMetrics
+            zScorerRhythmMetrics = ScorerRhythmMetricsFour
         zStructure = Structure
 
     if sh.ternary():

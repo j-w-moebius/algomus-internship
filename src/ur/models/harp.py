@@ -496,7 +496,7 @@ class ScorerRhythmLyrics(ur.ScorerTwoSpanSequence):
         return 0
 
 
-class ScorerRhythmMetrics(ur.ScorerOne):
+class ScorerRhythmMetricsFour(ur.ScorerOne):
 
     def score_item(self, gen, _, __):
         score = 0
@@ -515,6 +515,29 @@ class ScorerRhythmMetrics(ur.ScorerOne):
 
         if pos in [0, 2]:
             score -= .5
+
+        return score
+
+
+class ScorerRhythmMetricsTernary(ur.ScorerOne):
+
+    def score_item(self, gen, _, __):
+        score = 0
+
+        # music.duration(gen.one)
+        pos = 0
+        for r in gen.one:
+            d = int(music.duration(r))
+            if pos + d > 3:
+                score -= .5
+            if d > 1.5 and pos == 1.5:
+                score -= .2
+            #if d == 1.5 and r != '4' and pos == 3:
+            #    score += .2
+            pos = (pos + d) % 3
+
+        # if pos in [0, 2]:
+        #    score -= .5
 
         return score
 
