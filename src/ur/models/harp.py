@@ -10,7 +10,11 @@ import math
 import tools
 
 class Structure(ur.ItemChoice):
-    CHOICES = ['AB-aC', 'AB-bA', 'A-aB' ]
+    # FuncMinorExtended
+    # A/a begin on T,     end on T/D
+    # B/b begin on T/S/D, end on T/D
+    # Z/z begin on S/D,   end on T
+    CHOICES = ['AB-aZ', 'AB-bZ', 'A-aZ-z' ]
                # 'AQ-RA', 'AQ-AC', 'BA-QA' ]
 
 
@@ -72,8 +76,16 @@ class FuncMinor(ur.ItemMarkov):
 class FuncMinorExtended(FuncMinor):
 
     STATES = ['i', 'j', 'T', 'S', 'D']
-    INITIAL_S = { None: ['j'], 'b': ['D', 'S'], 'B': ['D', 'S'] }
-    FINAL_S = { None: ['i'], 'b': ['i', 'D'], 'B': ['i', 'D'] }
+    INITIAL_S = {
+                 None: ['j'],
+                 'B': ['T', 'S', 'D'],
+                 'Z': ['S', 'D'],
+                 }
+    FINAL_S = {
+               None: ['i'],
+               'A': ['i', 'D'],
+               'B': ['i', 'D'],
+               }
 
     TRANSITIONS = {
         'j': { 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 },
@@ -416,6 +428,7 @@ class RelativeScorerSectionMelody(ur.ScorerOne, ur.RelativeScorerSection):
     TARGET = {
         'A': (0.0, 0.4), 'a': (0.6, 1.0),
         'B': (0.6, 1.0), 'b': (0.0, 0.4),
+        'Z': (0.0, 0.6), 'z': (0.65, 1.0),
         None: (0.0, 1.0),
     }
 
