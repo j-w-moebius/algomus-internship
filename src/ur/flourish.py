@@ -17,6 +17,7 @@ def flourish(items, i, rhy_i, thresholds, ternary):
     rhy = rhy_i    
     lyr = []
     new_items = []
+    ternary16 = False
     
     if rhy not in ['4', '4.'] or i >= len(items)-1:
         return rhy, lyr, new_items 
@@ -27,7 +28,7 @@ def flourish(items, i, rhy_i, thresholds, ternary):
     # Some passing notes between fifths
     if nonchord.interval_fifth_up(n1, n2):
         if random.random() < thresholds['fifth-16']:
-            rhy = random.choice(['8 8 16 16', '8. 16 16 16']) if ternary else '16 16 16 16'
+            rhy = random.choice(['8. 16 16 16']) if ternary else '16 16 16 16'
             lyr += ['-', '-', '-']
             new_items += [
                 nonchord.note_direction(n1, n2, 1),
@@ -53,8 +54,8 @@ def flourish(items, i, rhy_i, thresholds, ternary):
 
     # Some passing notes between thirds
     elif nonchord.interval_third(n1, n2):
-        if random.random() < thresholds['third-16']:
-            rhy = '8 8 16 16' if ternary else '16 16 16 16'
+        if random.random() < thresholds['third-16'] and not ternary16:
+            rhy = '8. 16 16 16' if ternary else '16 16 16 16'
             lyr += ['-', '-', '-']
             new_items += [
                 nonchord.note_direction(n1, n2, 1),
@@ -68,7 +69,7 @@ def flourish(items, i, rhy_i, thresholds, ternary):
 
     # Some neighbor notes between same notes
     elif n1 == n2:
-        if random.random() < thresholds['same-neighbor-16']:
+        if random.random() < thresholds['same-neighbor-16'] and not ternary16:
             rhy = random.choice(['8 8 16 16', '8. 16 16 16']) if ternary else '16 16 16 16'
             lyr += ['-', '-', '-']
             dir = random.choice([-1, 1])
