@@ -535,8 +535,8 @@ class ScorerRhythmMetricsTernary(ur.ScorerOne):
                 score -= .5
             if d > 1.5 and pos == 1.5:
                 score -= .2
-            if d > 1.5 and pos == 0:
-                score += .2
+            #if d > 1.5 and pos == 0:
+            #    score += .2
             #if d == 1.5 and r != '4' and pos == 3:
             #    score += .2
             pos = (pos + d) % 3
