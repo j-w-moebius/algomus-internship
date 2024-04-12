@@ -530,7 +530,7 @@ class ScorerRhythmMetricsTernary(ur.ScorerOne):
         # music.duration(gen.one)
         pos = 0
         for r in gen.one:
-            d = int(music.duration(r))
+            d = int(music.duration(r)*2)/2
             if pos + d > 3:
                 score -= .5
             if d > 1.5 and pos == 1.5:
