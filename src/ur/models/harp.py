@@ -583,16 +583,27 @@ class ScorerMelodyHarm(ur.ScorerTwoSequence):
         'v8': 'e',
     }
 
+    SCORES = {
+        None: 0.0,
+        0: 1.0,
+        1: 1.0,
+        2: 1.0,
+        3: 1.0,
+    }
+
     def score_element(self, mel, harm):
         # print (mel, harm, self.CHORDS[harm])
         if mel[0].lower() in self.CHORDS[harm]:
-            return 1.0
+            ind = self.CHORDS[harm].index(mel[0].lower())
             if self.POSITION and harm in self.FIXED_POSITION:
-                if self.CHORDS[harm].index(mel[0].lower()) == self.POSITION:
-                    return 100.0
-            return 1.0
+                if ind == self.POSITION:
+                    return 20.0
+            if ind in self.SCORES:
+                return self.SCORES[ind]
+            else:
+                return self.SCORES[None]
         else:
-            return 0.0
+            return self.SCORES[None]
 
     def score_first_last_element(self, mel, harm):
         if mel[0].lower() in self.CHORDS[harm]:
@@ -673,21 +684,15 @@ class ScorerMelodyMelody(ur.ScorerTwoSequenceIntervals):
 
 class ScorerMelodyHarmRoot(ScorerMelodyHarm):
 
+    '''Favors 5 and 6, but still allows 6 and 64'''
     SCORES = {
         None: -5.0,
         0: 1.0,
-        1: 0.5,
+        1: 1.0,
         2: 0.5,
     }
 
-    '''Favors 5, but still allows 6 and 64'''
-    def score_element(self, mel, harm):
-        if mel[0].lower() in self.CHORDS[harm]:
-            i = self.CHORDS[harm].index(mel[0].lower())
-            return self.SCORES[i]
-        else:
-            return self.SCORES[None]
-
+    '''Last element has to be 5'''
     def score_last_element(self, mel, harm):
         if mel[0].lower() == self.CHORDS[harm][0]:
             return 0.0
@@ -716,5 +721,5 @@ class ScorerMelodyHarmA(ScorerMelodyHarm):
     POSITION = 2
 class ScorerMelodyHarmT(ScorerMelodyHarm):
     POSITION = 1
-class ScorerMelodyHarmB(ScorerMelodyHarm):
+class ScorerMelodyHarmB(ScorerMelodyHarmRoot):
     POSITION = 0
