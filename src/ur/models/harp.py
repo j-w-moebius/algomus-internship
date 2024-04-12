@@ -11,8 +11,8 @@ import tools
 
 class Structure(ur.ItemChoice):
     # FuncMinorExtended
-    # A/a begin on T,     end on T/D
-    # B/b begin on T/S/D, end on T/D
+    # A/a begin on T,     end on T/S/D
+    # B/b begin on T/S/D, end on T/S/D
     # Z/z begin on S/D,   end on T
     CHOICES = ['AB-aZ', 'AB-bZ', 'A-aZ-z', 'A-aB-Z-z' ]
                # 'AQ-RA', 'AQ-AC', 'BA-QA' ]
@@ -86,8 +86,8 @@ class FuncMinorExtended(FuncMinor):
                  }
     FINAL_S = {
                None: ['i'],
-               'A': ['i', 'D'],
-               'B': ['i', 'D'],
+               'A': ['i', 'D', 'S'],
+               'B': ['i', 'D', 'S'],
                }
 
     TRANSITIONS = {
