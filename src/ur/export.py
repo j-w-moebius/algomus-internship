@@ -20,8 +20,8 @@ DURATIONS = {
     '1': 4, '2': 2, '4': 1, '8': .5, '16': 0.25,
     '1.': 6, '2.': 3, '4.': 1.5, '8.': .75
 }
-def m21duration(dur):
-    return m21.duration.Duration(DURATIONS[dur])
+def m21duration(dur, dur_factor):
+    return m21.duration.Duration(DURATIONS[dur] * dur_factor)
 
 def export(code, title, melodies, annotations, key, meter, svg):
 
@@ -30,6 +30,8 @@ def export(code, title, melodies, annotations, key, meter, svg):
     score.metadata.title = title
     score.metadata.composer = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     tempo = random.choice(['72', '80', '92'])
+    
+    dur_factor = 2 if not '/8' in meter else 1
     
     n = 0
     for (name, (mel, lyrics)) in melodies:
@@ -41,7 +43,7 @@ def export(code, title, melodies, annotations, key, meter, svg):
         part.partName = name
         part.partAbbreviation = name
         part.insert(0, m21.meter.TimeSignature(meter))
-        part.insert(0, m21.tempo.MetronomeMark(number=tempo, referent=1.5 if '/8' in meter else 1))
+        part.insert(0, m21.tempo.MetronomeMark(number=tempo, referent=1.5 if '/8' in meter else 2))
         part.insert(0, m21.key.KeySignature(0))
         if name in INSTRUMENTS:
             part.insert(0, INSTRUMENTS[name][0])
@@ -58,7 +60,7 @@ def export(code, title, melodies, annotations, key, meter, svg):
             for tnote in tnotes.strip().split():
                 pitch, dur = tnote.split('$')
                 note = m21.note.Note(pitch) if pitch != 'r' else m21.note.Rest()
-                note.duration = m21duration(dur)
+                note.duration = m21duration(dur, dur_factor)
                 part.append(note)
 
         part = part.transpose(key)
