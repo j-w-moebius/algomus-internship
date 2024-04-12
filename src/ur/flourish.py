@@ -35,7 +35,7 @@ def flourish(items, i, rhy_i, thresholds, ternary):
                 nonchord.note_direction(n1, n2, 2),
                 nonchord.note_direction(n1, n2, 3),
             ]
-        if random.random() < thresholds['fifth-jump']:
+        elif random.random() < thresholds['fifth-jump']:
             rhy =  '4 8' if ternary else '8 8'
             lyr += ['-']
             new_items += [
