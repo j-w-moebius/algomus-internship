@@ -13,15 +13,13 @@ FLOURISH = {
     'fifth-16': 0.1,
 }
 
-def flourish(items, i, rhy_i, thresholds):
+def flourish(items, i, rhy_i, thresholds, ternary):
     rhy = rhy_i    
     lyr = []
     new_items = []
     
     if rhy not in ['4', '4.'] or i >= len(items)-1:
         return rhy, lyr, new_items 
-
-    ternary = (rhy == '4.')
     
     n1 = items[i]
     n2 = items[i+1]

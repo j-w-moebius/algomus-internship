@@ -298,7 +298,7 @@ class Gen(object):
                     i_ly += n_ly
 
                 if not annotation:
-                    rhy_i, new_lyr, new_items = flourish.flourish(items, i, rhy_i, self.flourish)
+                    rhy_i, new_lyr, new_items = flourish.flourish(items, i, rhy_i, self.flourish, self.ternary())
                     lyr += new_lyr
 
                 s = ''
