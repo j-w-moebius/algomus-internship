@@ -97,4 +97,8 @@ def flourish(items, i, rhy_i, thresholds, ternary):
                 nonchord.note_direction(n1, n2, 2)
             ]
             
+    if new_items:
+        new =  '  '.join([f'{n} {r}' for n, r in zip([n1] + new_items, rhy.split(' '))])
+        print(f"Flourish: {n1} {rhy_i} {n2} => {new}  {n2}")
+
     return rhy, lyr, new_items 
