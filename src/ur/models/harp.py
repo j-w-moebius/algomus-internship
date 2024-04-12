@@ -551,6 +551,9 @@ class ScorerRhythmMetricsTernary(ur.ScorerOne):
 
 class ScorerMelodyHarm(ur.ScorerTwoSequence):
 
+    POSITION = None
+    FIXED_POSITION = [ '*i9', '*III7', '*iv9']
+
     CHORDS = {
         'I': 'ceg',
         'ii': 'dfa',
@@ -573,15 +576,19 @@ class ScorerMelodyHarm(ur.ScorerTwoSequence):
 
         'i8': 'a',
 
-        '*i9': 'aeb',
+        '*i9': 'aaeb',
         '*III7': 'cegb',
-        '*iv9': 'dae',
+        '*iv9': 'daeb',
         'v8': 'e',
     }
 
     def score_element(self, mel, harm):
         # print (mel, harm, self.CHORDS[harm])
         if mel[0].lower() in self.CHORDS[harm]:
+            return 1.0
+            if self.POSITION and harm in self.FIXED_POSITION:
+                if self.CHORDS[harm].index(mel[0].lower()) == self.POSITION:
+                    return 100.0
             return 1.0
         else:
             return 0.0
@@ -701,3 +708,12 @@ class ScorerFifthInBass(ScorerMelodyHarm):
             return self.SCORES[i]
         else:
             return self.SCORES[None]
+
+class ScorerMelodyHarmS(ScorerMelodyHarm):
+    POSITION = 3
+class ScorerMelodyHarmA(ScorerMelodyHarm):
+    POSITION = 2
+class ScorerMelodyHarmT(ScorerMelodyHarm):
+    POSITION = 1
+class ScorerMelodyHarmB(ScorerMelodyHarm):
+    POSITION = 0
