@@ -50,7 +50,7 @@ def gen_sacred(woo, hh):
 
     key = random.choice(Key.CHOICES)
     print(f'Key: [blue]{key}')
-    mode = 'minor'
+    mode = random.choice(['minor', 'minor', 'Major'])
 
     # sh.add(ur.Or('func', [FuncMajor('Major'),
     #                       FuncMinor('minor')]))
