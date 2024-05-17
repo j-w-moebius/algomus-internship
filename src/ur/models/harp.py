@@ -19,15 +19,15 @@ class Structure(ur.ItemChoice):
 
 
 class Lyrics(ur.ItemLyricsChoiceFiles):
-    FILES = glob.glob('../../data/lyrics-s/*.txt')
+    FILES = glob.glob('data/lyrics-s/*.txt')
     STRESS_WORDS = ['Lord', 'God', 'Christ', 'Son']
 
 
 class HHLyrics(ur.ItemLyricsChoiceFiles):
-    FILES = ['../../data/lyrics-hh/6-4.txt']
+    FILES = ['data/lyrics-hh/6-4.txt']
 
 class HHLyricsTernary(ur.ItemLyricsChoiceFiles):
-    FILES = ['../../data/lyrics-hh/3-2.txt', '../../data/lyrics-hh/6-8.txt']
+    FILES = ['data/lyrics-hh/3-2.txt', 'data/lyrics-hh/6-8.txt']
 
 
 class Key(ur.ItemChoice):

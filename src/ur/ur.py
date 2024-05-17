@@ -63,19 +63,21 @@ class Data(object):
     A collection of generation items, indexed by structure
     '''
 
-    def __init__(self, item: Item = None, struct=None, data=None):
+    def __init__(self, item=None, struct=None, data=None):
+        # self.data : defaultdict[str, list[Item]]
         self.data = data if data is not None else defaultdict(list)
         if item:
             self.data[struct if struct else ALL] = [ item ]
         self.context = ''
 
-    def __getitem__(self, struct: str) -> Item:
+    def __getitem__(self, struct: str) -> list[Item]:
         return self.data[struct]
 
     def __setitem__(self, struct: str, one: Item):
         self.data[struct] = one
 
     def update(self, other):
+        """Add other to data."""
         self.data.update(other.data)
 
     def str(self, indent=''):
@@ -94,14 +96,19 @@ class Data(object):
 class Gen(object):
 
     def __init__(self, name = None, mods = None):
+        # the generated data
         self.gens = Data()
-        self.mods = mods if mods else []
+        self.mods= mods if mods else []
         self.meter = '4/4'
-        self.key = None
+        # key expressed as transposing interval (string) wrt C
+        self.key: str = None
         self.modes = None
         self.scorers = []
+        # structure-dependent models
+        # listed as pairs (struc, mod), where the model mod will inherit the structure from struc
         self.structurers = []
         self.structure = [ ALL ]
+        # list of scorers and associated weights
         self.filters = []
         self.name = name if name else self.hash()
         self.flourish = flourish.FLOURISH
@@ -128,7 +135,8 @@ class Gen(object):
         self.gens = Data()
         for m in self.mods:
             m.reset()
-            
+
+    # iterate through models      
     def __iter__(self):
         yield self
         for m in self.mods:
@@ -139,6 +147,7 @@ class Gen(object):
         return Item(42)
 
     def len_to_gen(self, n=8, gens_in=None, struct=None):
+        """Return the length of the gens_in item under struct"""
         if gens_in:
             s0 = gens_in[struct if struct else ALL]
             if s0:
@@ -146,10 +155,13 @@ class Gen(object):
         return n
 
     def one(self, gens_in=None, struct=None) -> Data:
+        """Return a single generated item"""
         item = self.item(gens_in, struct)
         return Data(item=item, struct=struct)
 
     def one_filtered(self, gens_in, struct, n=500) -> Data:
+        """Among n generated items, return the best according to filters
+        """
         if not self.filters:
             one = self.one(gens_in, struct)
             return one
@@ -166,6 +178,7 @@ class Gen(object):
 
             # Pre-score
             for filter, weight in self.filters:
+                # get corresponding element from model linked in scorer, if any
                 v2 = filter.mod2.gens[struct][0] if filter.two() else None
                 filter.prescore_item(one[struct][0], v2, struct)
 
@@ -187,6 +200,14 @@ class Gen(object):
         return one
 
     def gen(self, gens_in=None, common=False) -> Data:
+        """Generate some data, which is both returned and stored in self.gens
+        Parameters
+        ----------
+        gens_in : Data
+            generation constraints
+        common : Bool
+            ???
+        """
         new = Data()
 
         structures = set(self.structure)
@@ -197,7 +218,7 @@ class Gen(object):
 
         for struct in structures:
             if common and struct.islower():
-                # Skip 'a'
+                # Skip x
                 continue
 
             # Main generation
@@ -207,7 +228,7 @@ class Gen(object):
                 self.gens[struct_dest] += one[struct_child]
                 new[struct_dest] += one[struct_child]
 
-        # Copy 'a' into 'A'
+        # Copy X into x
         if common:
             for struct in structures:
                 if struct.islower():
@@ -224,6 +245,8 @@ class Gen(object):
         self.filters += [(scorer, weight)]
 
     def set_structure(self):
+        """Perform structure inheritance for all models in structurers
+        """
         for (s, mod) in self.structurers:
             s.structure_full = s.gens[ALL][0].one
             s.structure = s.structure_full.replace('-', '')
@@ -440,7 +463,7 @@ class ItemSpanSequence(ItemSequence):
                 nn = len(its.split())
             seq += [its]
             i += nn
-        return Item(seq, self.id() + f':{n/len(seq)}')
+        return Item(seq, self.id() + f':{n/len(seq)}')  # ??
 
 
 
@@ -504,7 +527,7 @@ class ItemPitchMarkov(ItemMarkov):
             return False
         return music.in_range(pitch, self.AMBITUS)
 
-    def set_key(self, key):
+    def set_key(self, key: str):
         self.EMISSIONS = {
             x: {x: 1.00} for x in self.STATES
         }    
@@ -559,7 +582,9 @@ class ScorerOne(Scorer):
 
 
 class ScorerTwo(Scorer):
-
+    '''
+    A scorer of two models
+    '''
     def __init__(self, mod1, mod2):
         self.mod1 = mod1
         self.mod2 = mod2
@@ -594,6 +619,7 @@ class ScorerTwoSequence(ScorerTwo):
         return self.score_first_last_element(e1, e2)
 
     def score_item(self, gen1: Item, gen2: Item, struct=None, verbose=False):
+        """Return average pair-wise score of zipped sequences"""
         z = list(zip(self.span(gen1.one), self.span(gen2.one)))
         scores =  [self.score_first_element(z[0][0], z[0][1])]
         scores += [self.score_element(e1, e2) for (e1, e2) in z[1:-1]]
@@ -609,7 +635,7 @@ class ScorerTwoSequenceAllPairs(ScorerTwoSequence):
         return self.score_all_pairs(z)
 
     def score_all_pairs(z):
-        raise NotImplementd
+        raise NotImplemented
 
 class ScorerTwoSequenceIntervals(ScorerTwo):
 
@@ -677,7 +703,9 @@ class Model(And):
     def add(self, mod):
         self.mods += [mod]
 
-    def scorer(self, scorer, mod1, mod2=None, weight=1):
+    def scorer(self, scorer: Scorer, mod1, mod2=None, weight=1):
+        """Bind scorer to mod1 (and mod2 if it scores two models)
+        """
         if mod2:
             sco = scorer(self[mod1], self[mod2])
         else:

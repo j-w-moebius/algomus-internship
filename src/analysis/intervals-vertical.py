@@ -71,6 +71,6 @@ def pretty(freqs, nb=15):
 
     return s
 
-dir_path = os.path.join(os.path.dirname(__file__), '../../data/the-scared-harp')
+dir_path = os.path.join(os.path.dirname(__file__), 'data/the-scared-harp')
 freqs = analyze_corpus(dir_path)
 print(pretty(freqs))

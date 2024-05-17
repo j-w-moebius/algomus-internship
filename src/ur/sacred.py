@@ -76,7 +76,7 @@ def gen_sacred(woo, hh):
         MelodyT = MelodyMinorT
         MelodyB = MelodyMinorB
 
-    if woo:
+    if woo: # weird model
         zFunc = WFunc
         zScorerMelodyHarmS = WScorerMelodyHarm
         zScorerMelodyHarmA = WScorerMelodyHarm

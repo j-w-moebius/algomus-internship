@@ -7,7 +7,7 @@ import random
 
 from rich import print
 
-DIR_OUT = '../../data/gen/'
+DIR_OUT = 'data/gen/'
 
 INSTRUMENTS = {
     'melS': (m21.instrument.Vocalist(), m21.dynamics.Dynamic('mf')),

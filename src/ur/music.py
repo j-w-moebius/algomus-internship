@@ -1,12 +1,14 @@
 
 import music21
 
+# return true iff note is in ambitus (with inclusive bounds)
 def in_range(note, ambitus, key=None):
     n = music21.pitch.Pitch(note)
     if key:
         n = n.transpose(key)
     return (n.midi >= music21.pitch.Pitch(ambitus[0]).midi) and (n.midi <= music21.pitch.Pitch(ambitus[1]).midi)
 
+# return ambitus as pitch difference
 def ambitus(mel):
     mnotes = [music21.pitch.Pitch(n) for n in mel]
     return(max(mnotes).midi - min(mnotes).midi)

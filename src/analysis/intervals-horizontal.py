@@ -90,7 +90,7 @@ def pretty(class_name, freqs, nb=15):
 
 voice_names = ["S", "A", "T", "B"]
 
-dir_path = os.path.join(os.path.dirname(__file__), '../../data/the-scared-harp')
+dir_path = os.path.join(os.path.dirname(__file__), 'data/the-scared-harp')
 for mode in ["Major", "Minor"]:
     freqs_list = analyze_corpus(dir_path, mode.lower())
     for (i, freqs) in enumerate(freqs_list):
