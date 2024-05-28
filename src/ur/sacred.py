@@ -257,7 +257,7 @@ if __name__ == '__main__':
     if args.nb:
         nb = args.nb
     else:
-        nb = 20 if args.save else 5
+        nb = 1 # 20 if args.save else 5
 
     if args.save:
         span = '%03d-%03d/' % (args.save, args.save + nb - 1)

@@ -176,7 +176,7 @@ class Gen(object):
             one = self.one(gens_in, struct)
             ones += [one]
 
-            # Pre-score
+            # Pre-score (so far, only relevant for relative scorer)
             for filter, weight in self.filters:
                 # get corresponding element from model linked in scorer, if any
                 v2 = filter.mod2.gens[struct][0] if filter.two() else None
@@ -206,7 +206,7 @@ class Gen(object):
         gens_in : Data
             generation constraints
         common : Bool
-            ???
+            if true, generated data is copied between structural elements (X to x)
         """
         new = Data()
 
@@ -458,7 +458,7 @@ class ItemSpanSequence(ItemSequence):
         while i < n:
             nn = 0
             while i + nn > n or (not nn):
-                # Do not generate a last thing that go beyond n
+                # Do not generate a last thing that goes beyond n
                 its = pwchoice(self.items(i, n))
                 nn = len(its.split())
             seq += [its]
@@ -468,11 +468,16 @@ class ItemSpanSequence(ItemSequence):
 
 
 class ItemMarkov(Gen):
-
+    
+    # INITIAL_S, FINAL_S : dict[str, list[str]]
+    # structure-dependent initial and final states
     INITIAL_S = None
     FINAL_S = None
 
     def reset_to_struct(self, struct):
+        """Set INITIAL and FINAL to state lists associated to struct in 
+        INTIIAL_S / FINAL_S (if given)
+        """
         # Incompatible with ItemPitchMarkov
         # To be used with Func
         if self.INITIAL_S:
@@ -485,11 +490,15 @@ class ItemMarkov(Gen):
         self.transitions = self.TRANSITIONS
 
     def filter_state(self, state):
+        """Return whether state is legal
+        """
         if state is None:
             return False
         return True
 
     def item(self, gens_in=None, struct=None):
+        """Return a sequence of emitted states as Item
+        """
 
         self.reset_to_struct(struct)
         i = 0
@@ -497,6 +506,7 @@ class ItemMarkov(Gen):
 
         while i != n_min:
             # i == n_min : item has exact targeted length
+            # otherwise the final states constraint has led to a too long sequence
             i = 0
             state = pwchoice(self.initial)
             emits = []
@@ -569,7 +579,8 @@ class Scorer(object):
         return self.score_item(gen1, gen2, struct)
 
 class ScorerOne(Scorer):
-
+    """A scorer of one single model
+    """
     def __init__(self, mod):
         self.mod1 = mod
 
@@ -582,9 +593,8 @@ class ScorerOne(Scorer):
 
 
 class ScorerTwo(Scorer):
-    '''
-    A scorer of two models
-    '''
+    """A scorer of two models
+    """
     def __init__(self, mod1, mod2):
         self.mod1 = mod1
         self.mod2 = mod2
@@ -603,6 +613,8 @@ class ScorerTwo(Scorer):
 
 
 class ScorerTwoSequence(ScorerTwo):
+    """A scorer of two sequences with special first / last handling
+    """
 
     def span(self, g):
         return g
@@ -630,6 +642,9 @@ class ScorerTwoSequence(ScorerTwo):
         return sum(scores)/len(scores)
 
 class ScorerTwoSequenceAllPairs(ScorerTwoSequence):
+    """A scorer of two sequences without special first / last handling
+    """
+
     def score_item(self, gen1: Item, gen2: Item, struct=None):
         z = list(zip(self.span(gen1.one), self.span(gen2.one)))
         return self.score_all_pairs(z)
@@ -638,6 +653,9 @@ class ScorerTwoSequenceAllPairs(ScorerTwoSequence):
         raise NotImplemented
 
 class ScorerTwoSequenceIntervals(ScorerTwo):
+    """A two-sequence scorer which takes into account the relation between two
+    neighbouring notes
+    """
 
     def span(self, g):
         return g
@@ -657,12 +675,17 @@ class ScorerTwoSequenceIntervals(ScorerTwo):
 
 
 class ScorerTwoSpanSequence(ScorerTwoSequence):
+    # ?? better call that flatten
     def span(self, g):
         return ' '.join(g).split()
 
 class RelativeScorer(Scorer):
+    """Scores an item based on the comparison of its prescore to that of all
+    other items 
+    """
 
     def init(self):
+        # collection of all scores seen during generation
         self.scores = []
 
     def prescore_item(self, gen1, gen2, struct):
@@ -670,6 +693,8 @@ class RelativeScorer(Scorer):
         self.scores += [score]
 
     def postscore_item(self, gen1, gen2, struct):
+        """Evaluate gen1 and gen2 wrt how they score relatively to all scores
+        """
         bot = min(self.scores)
         top = max(self.scores)
         score = self.score_item(gen1, gen2, struct)
@@ -684,6 +709,8 @@ class RelativeScorerSection(RelativeScorer):
     TARGET = { None: (0.0, 1.0) }
 
     def score_ratio(self, ratio, struct):
+        """Return a value expressing how far ratio is from the interval under struct in TARGET
+        """
         bot, top = self.TARGET[struct] if struct in self.TARGET else self.TARGET[None]
         dist = tools.distance_to_interval(ratio, bot, top)
         norm = max(bot, 1.0-top)
