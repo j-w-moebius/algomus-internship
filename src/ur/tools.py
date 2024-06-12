@@ -35,8 +35,8 @@ def some_choices_int(choices, nb):
     return [i] + some_choices_int(choices, nb-1)
 
 def some_choices(choices, nb):
-    """Randomly select 'nb' elements from the list choices
-    """
+    '''Randomly select 'nb' elements from the list choices
+    '''
     return [choices[i] for i in some_choices_int(list(range(len(choices))), nb)]
 
 

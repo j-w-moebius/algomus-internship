@@ -50,7 +50,7 @@ def gen_sacred(woo, hh):
 
     key = random.choice(Key.CHOICES)
     print(f'Key: [blue]{key}')
-    mode = random.choice(['minor', 'minor', 'Major'])
+    mode = random.choice(['minor', 'minor', 'major'])
 
     # sh.add(ur.Or('func', [FuncMajor('Major'),
     #                       FuncMinor('minor')]))
@@ -59,7 +59,7 @@ def gen_sacred(woo, hh):
     sh.meter = '24/4' if woo else random.choice(['4/4', '6/8', '6/8'])
     print(f'Meter: [blue]{sh.meter}')
 
-    if mode == 'Major':
+    if mode == 'major':
         Func = FuncMajor
         # MelodyUp = MelodyMajorUp
         # MelodyDown = MelodyMajorDown

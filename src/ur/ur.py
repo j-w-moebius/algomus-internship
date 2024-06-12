@@ -64,8 +64,7 @@ class Data(object):
     '''
 
     def __init__(self, item=None, struct=None, data=None):
-        # self.data : defaultdict[str, list[Item]]
-        self.data = data if data is not None else defaultdict(list)
+        self.data : defaultdict[str, list[Item]] = data if data is not None else defaultdict(list)
         if item:
             self.data[struct if struct else ALL] = [ item ]
         self.context = ''
@@ -77,7 +76,7 @@ class Data(object):
         self.data[struct] = one
 
     def update(self, other):
-        """Add other to data."""
+        '''Add other to data.'''
         self.data.update(other.data)
 
     def str(self, indent=''):
@@ -147,7 +146,7 @@ class Gen(object):
         return Item(42)
 
     def len_to_gen(self, n=8, gens_in=None, struct=None):
-        """Return the length of the gens_in item under struct"""
+        '''Return the length of the gens_in item under struct'''
         if gens_in:
             s0 = gens_in[struct if struct else ALL]
             if s0:
@@ -155,13 +154,13 @@ class Gen(object):
         return n
 
     def one(self, gens_in=None, struct=None) -> Data:
-        """Return a single generated item"""
+        '''Return a single generated item'''
         item = self.item(gens_in, struct)
         return Data(item=item, struct=struct)
 
     def one_filtered(self, gens_in, struct, n=500) -> Data:
-        """Among n generated items, return the best according to filters
-        """
+        '''Among n generated items, return the best according to filters
+        '''
         if not self.filters:
             one = self.one(gens_in, struct)
             return one
@@ -200,14 +199,14 @@ class Gen(object):
         return one
 
     def gen(self, gens_in=None, common=False) -> Data:
-        """Generate some data, which is both returned and stored in self.gens
+        '''Generate some data, which is both returned and stored in self.gens
         Parameters
         ----------
         gens_in : Data
             generation constraints
         common : Bool
             if true, generated data is copied between structural elements (X to x)
-        """
+        '''
         new = Data()
 
         structures = set(self.structure)
@@ -245,8 +244,8 @@ class Gen(object):
         self.filters += [(scorer, weight)]
 
     def set_structure(self):
-        """Perform structure inheritance for all models in structurers
-        """
+        '''Perform structure inheritance for all models in structurers
+        '''
         for (s, mod) in self.structurers:
             s.structure_full = s.gens[ALL][0].one
             s.structure = s.structure_full.replace('-', '')
@@ -378,17 +377,17 @@ class Or(Gen):
         return gs
 
 
-class And(Gen):
+# class And(Gen):
 
-    # def __init__(self, mods):
-    #    super().__init__()
-    #    self.mods = mods
+#     # def __init__(self, mods):
+#     #    super().__init__()
+#     #    self.mods = mods
 
-    def one(self, gens_in=None, struct=None):
-        d = Data()
-        for m in self.mods:
-            d.update(m.gen(gens_in, struct))
-        return d
+#     def one(self, gens_in=None, struct=None):
+#         d = Data()
+#         for m in self.mods:
+#             d.update(m.gen(gens_in, struct))
+#         return d
 
 ### Item generators
 
@@ -475,9 +474,9 @@ class ItemMarkov(Gen):
     FINAL_S = None
 
     def reset_to_struct(self, struct):
-        """Set INITIAL and FINAL to state lists associated to struct in 
+        '''Set INITIAL and FINAL to state lists associated to struct in 
         INTIIAL_S / FINAL_S (if given)
-        """
+        '''
         # Incompatible with ItemPitchMarkov
         # To be used with Func
         if self.INITIAL_S:
@@ -490,15 +489,15 @@ class ItemMarkov(Gen):
         self.transitions = self.TRANSITIONS
 
     def filter_state(self, state):
-        """Return whether state is legal
-        """
+        '''Return whether state is legal
+        '''
         if state is None:
             return False
         return True
 
     def item(self, gens_in=None, struct=None):
-        """Return a sequence of emitted states as Item
-        """
+        '''Return a sequence of emitted states as Item
+        '''
 
         self.reset_to_struct(struct)
         i = 0
@@ -579,8 +578,8 @@ class Scorer(object):
         return self.score_item(gen1, gen2, struct)
 
 class ScorerOne(Scorer):
-    """A scorer of one single model
-    """
+    '''A scorer of one single model
+    '''
     def __init__(self, mod):
         self.mod1 = mod
 
@@ -593,8 +592,8 @@ class ScorerOne(Scorer):
 
 
 class ScorerTwo(Scorer):
-    """A scorer of two models
-    """
+    '''A scorer of two models
+    '''
     def __init__(self, mod1, mod2):
         self.mod1 = mod1
         self.mod2 = mod2
@@ -613,8 +612,8 @@ class ScorerTwo(Scorer):
 
 
 class ScorerTwoSequence(ScorerTwo):
-    """A scorer of two sequences with special first / last handling
-    """
+    '''A scorer of two sequences with special first / last handling
+    '''
 
     def span(self, g):
         return g
@@ -631,7 +630,7 @@ class ScorerTwoSequence(ScorerTwo):
         return self.score_first_last_element(e1, e2)
 
     def score_item(self, gen1: Item, gen2: Item, struct=None, verbose=False):
-        """Return average pair-wise score of zipped sequences"""
+        '''Return average pair-wise score of zipped sequences'''
         z = list(zip(self.span(gen1.one), self.span(gen2.one)))
         scores =  [self.score_first_element(z[0][0], z[0][1])]
         scores += [self.score_element(e1, e2) for (e1, e2) in z[1:-1]]
@@ -642,8 +641,8 @@ class ScorerTwoSequence(ScorerTwo):
         return sum(scores)/len(scores)
 
 class ScorerTwoSequenceAllPairs(ScorerTwoSequence):
-    """A scorer of two sequences without special first / last handling
-    """
+    '''A scorer of two sequences without special first / last handling
+    '''
 
     def score_item(self, gen1: Item, gen2: Item, struct=None):
         z = list(zip(self.span(gen1.one), self.span(gen2.one)))
@@ -653,9 +652,9 @@ class ScorerTwoSequenceAllPairs(ScorerTwoSequence):
         raise NotImplemented
 
 class ScorerTwoSequenceIntervals(ScorerTwo):
-    """A two-sequence scorer which takes into account the relation between two
+    '''A two-sequence scorer which takes into account the relation between two
     neighbouring notes
-    """
+    '''
 
     def span(self, g):
         return g
@@ -680,9 +679,9 @@ class ScorerTwoSpanSequence(ScorerTwoSequence):
         return ' '.join(g).split()
 
 class RelativeScorer(Scorer):
-    """Scores an item based on the comparison of its prescore to that of all
+    '''Scores an item based on the comparison of its prescore to that of all
     other items 
-    """
+    '''
 
     def init(self):
         # collection of all scores seen during generation
@@ -693,8 +692,8 @@ class RelativeScorer(Scorer):
         self.scores += [score]
 
     def postscore_item(self, gen1, gen2, struct):
-        """Evaluate gen1 and gen2 wrt how they score relatively to all scores
-        """
+        '''Evaluate gen1 and gen2 wrt how they score relatively to all scores
+        '''
         bot = min(self.scores)
         top = max(self.scores)
         score = self.score_item(gen1, gen2, struct)
@@ -709,8 +708,8 @@ class RelativeScorerSection(RelativeScorer):
     TARGET = { None: (0.0, 1.0) }
 
     def score_ratio(self, ratio, struct):
-        """Return a value expressing how far ratio is from the interval under struct in TARGET
-        """
+        '''Return a value expressing how far ratio is from the interval under struct in TARGET
+        '''
         bot, top = self.TARGET[struct] if struct in self.TARGET else self.TARGET[None]
         dist = tools.distance_to_interval(ratio, bot, top)
         norm = max(bot, 1.0-top)
@@ -719,7 +718,7 @@ class RelativeScorerSection(RelativeScorer):
 
 ### Model
 
-class Model(And):
+class Model(Gen):
 
     def __getitem__(self, name):
         for m in self:
@@ -728,11 +727,11 @@ class Model(And):
         raise KeyError(name)
 
     def add(self, mod):
-        self.mods += [mod]
+        self.mods += [mod] # viewpoints
 
     def scorer(self, scorer: Scorer, mod1, mod2=None, weight=1):
-        """Bind scorer to mod1 (and mod2 if it scores two models)
-        """
+        '''Bind scorer to mod1 (and mod2 if it scores two models)
+        '''
         if mod2:
             sco = scorer(self[mod1], self[mod2])
         else:

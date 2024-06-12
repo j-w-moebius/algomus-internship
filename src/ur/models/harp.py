@@ -31,7 +31,7 @@ class HHLyricsTernary(ur.ItemLyricsChoiceFiles):
 
 
 class Key(ur.ItemChoice):
-    CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4']
+    CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4', 'A4']
 
 class FuncMajor(ur.ItemMarkov):
 
@@ -431,8 +431,8 @@ class ScorerSectionsMelodyT(ur.ScorerOne):
         return -tools.distance_to_interval(mean, tdown, tup)
 
 class RelativeScorerSectionMelody(ur.ScorerOne, ur.RelativeScorerSection):
-    """ Relative Scorer for mean pitch in melody
-    """
+    ''' Relative Scorer for mean pitch in melody
+    '''
 
     # specify the intervals in which melodic means should be located
     TARGET = {
@@ -629,8 +629,8 @@ class ScorerMelodyMelodyAbove(ur.ScorerTwoSequence):
         return 0.2
 
 class ScorerMelodyMelodyCross(ur.ScorerTwoSequenceAllPairs):
-    """Rewards melody crossings, particularly those of length >= 3
-    """
+    '''Rewards melody crossings, particularly those of length >= 3
+    '''
 
     CROSS = {
         0: 0.0,
