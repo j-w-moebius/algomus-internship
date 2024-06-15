@@ -31,56 +31,91 @@ import glob
 import gabuzomeu
 import random
 import music
+from music import Note
 import music21
+from music21.stream import Part, Score
 from rich import print
 import argparse
+from typing import cast, Tuple
+import os
 
 from models.harp import *
 from models.woo import *
 
-parser = argparse.ArgumentParser(description = 'Fake Sacred Harp')
-parser.add_argument('--save', '-s', type=int, default=0, help='starting number to save generation, otherwise draft generations')
-parser.add_argument('--nb', '-n', type=int, default=0, help='number of generations with --save')
-parser.add_argument('--svg', action='store_true', help='generate and opens .svg (requires Verovio and Firefox)')
-parser.add_argument('--woo', action='store_true', help='experiment')
-parser.add_argument('--hh', action='store_true', help="Holly's lyrics")
+from trees import *
 
-def harm_sacred(mel: music21.stream.Part):
-    print('[yellow]### Init')
-
-    # determine key of melody
-    ks = mel.keySignature
-    if mel.notes[0] != ks.tonic: # first note is always tonic
+def key_from_part(p: Part) -> Tuple[str, str]:
+    '''Return key (in interval to C) and mode of a part
+    '''
+    ks = p.keySignature
+    if p.notes[0] != ks.tonic: # first note is always tonic in SH
         ks = ks.relative
 
     origin = music21.pitch.Pitch('C')
-    key = music21.interval.Interval(origin, ks.tonic).simpleName # or: random choice
+    key = music21.interval.Interval(origin, ks.tonic).simpleName
 
-    print(f'Key: [blue]{key}')
-    mode = ks.mode
+    return (key, ks.mode)
 
+def grid_from_part(mel: Part) -> Tuple[list[list[str]], list[list[str]]]:
+    '''Extract a rhythm and a pitch grid from mel
+    Returns nested lists, grouped by bars, of 1. durations and 2. pitches
+    '''
+    meter: str = mel.timeSignature.ratioString
+    rhythm: list[str] = []
+    pitches: list[str] = []
+    rh_buffer: list[str] = []
+    p_buffer: list[str] = []
+
+    for n in mel.notes:
+        if n.beat == 1 and not empty(rh_buffer):
+          rhythm.append(rh_buffer)
+          pitches.append(p_buffer)
+          rh_buffer = []
+          p_buffer = []
+        if n.beatStrength >= 0.5:
+            buffer.append(str(music.quantize_above(n.duration.quarterLength, meter)))
+            pitches.append(n.pitch.nameWithOctave)
+
+    return (rhythm, pitches)
+
+def fillin_from_part(mel: Part) -> list[Note]:
+
+    return [Note(n.pitch.name, n.duration.fullName) for n in mel.notes]
+    
+
+def load_melody(filename: str) -> Part:
+    c: Score = cast(Score, music21.converter.parse(filename))
+    mel: Part = c.parts['tenor'].flatten()
+
+    return mel
+
+
+def harm_sacred(mel: Part, structure: RefinementNode):
+    print('[yellow]### Init')
+    
     sh = ur.Model()
+
+    sh.key, sh.mode = key_from_part(mel) # or: random choices
+    print(f'Key: [blue]{sh.key}')
 
     # determine time signature of melody 
     sh.meter = mel.timeSignature.ratioString # or: random choice
     print(f'Meter: [blue]{sh.meter}')
 
-    if mode == 'major':
-        chords_gen = ChordsMajor
-        melody_s_gen = MelodyMajorS
-        melody_a_gen = MelodyMajorA
-        melody_t_gen = MelodyMajorT
-        melody_b_gen = MelodyMajorB
+    if sh.mode == 'major':
+        chords_gen: type = ChordsMajor
+        melody_s_gen: type = MelodyMajorS
+        melody_a_gen: type = MelodyMajorA
+        melody_b_gen: type = MelodyMajorB
     else:
         chords_gen = ChordsMinor
         melody_s_gen = MelodyMinorS
         melody_a_gen = MelodyMinorA
-        melody_t_gen = MelodyMinorT
         melody_b_gen = MelodyMinorB
 
     if sh.ternary():
-        rhythm_gen = TernaryRhythm
-        scorer_rhythm_met = ScorerRhythmMetricsTernary
+        rhythm_gen: type = TernaryRhythm
+        scorer_rhythm_met: type = ScorerRhythmMetricsTernary
     else:
         rhythm_gen = Rhythm
         scorer_rhythm_met = ScorerRhythmMetricsFour
@@ -93,140 +128,105 @@ def harm_sacred(mel: music21.stream.Part):
     # ------------------------------------------------------
     # block scheduling (done implicitly by addition order)
 
-    sh.add(StructureVP('struct'))
+    # sh.add(StructureVP('struct'))
+    # sh.add(ViewPoint('lyr'))
+    # sh.add(ViewPoint('rhy'))
+    # sh.add(ViewPoint('pitchGridT'))
+    # sh.add(ViewPoint('fillInT'))
+    # sh.add(ViewPoint('chords'), chords_gen)
+    # sh.add(ViewPoint('pitchGridB', melody_b_gen))
+    # sh.add(ViewPoint('pitchGridS', melody_s_gen))
+    # sh.add(ViewPoint('pitchGridA', melody_a_gen))
+    # sh.add(ViewPoint('fillInB'))
+    # sh.add(ViewPoint('fillInS'))
+    # sh.add(ViewPoint('fillInA'))
 
-    sh.add(ViewPoint('lyr'))
+    # sh.set_key(key)
 
-    sh.add(ViewPoint('rhy'))
+    # # equip viewpoints with rules
+    # sh.add_rule(ScorerFunc, 'chords')
 
-    sh.add(ViewPoint('pitchGridT'))
-    sh['pitchGridT'].set_key(key) # replace by central call on sh
+    # sh.add_rule(ScorerMelodyHarmT, 'pitchGridT', 'chords', 2)
+    # sh.add_rule(ScorerMelody, 'pitchGridT')
+    # sh.add_rule(RelativeScorerSectionMelody, 'pitchGridT', weight=10)
     
-    sh.add(ViewPoint('fillInT'))
+    # sh.add_rule(ScorerMelodyHarmB, 'pitchGridB', 'chords', 4)
+    # sh.add_rule(ScorerMelodyMelody, 'pitchGridB', 'pitchGridT')
+    # sh.add_rule(ScorerMelodyMelodyBelow, 'pitchGridB', 'pitchGridT')
 
-    sh.add(ViewPoint('chords'))
-    # sh.scorer(ScorerFunc, 'func')
-    # sh.structurer('struct', 'func')
+    # sh.add_rule(ScorerMelodyHarmS, 'pitchGridS', 'chords', 4)
+    # sh.add_rule(ScorerMelodySA, 'pitchGridS', weight=2)
+    # sh.add_rule(ScorerMelodyMelody, 'pitchGridS', 'pitchGrid')
+    # sh.add_rule(ScorerMelodyMelody, 'pitchGridS', 'pitchGridB')
+    # sh.add_rule(RelativeScorerSectionMelody, 'pitchGridS', weight=10)
 
-    #sh.scorer(zScorerMelodyHarmT, 'mel', 'func', 2)
-    #sh.scorer(ScorerMelody, 'mel')
+    # sh.add_rule(ScorerMelodyHarmA, 'pitchGridA', 'chords', 8)
+    # sh.add_rule(ScorerMelodySA, 'pitchGridA', weight=4)
+    # sh.add_rule(ScorerMelodyMelody, 'pitchGridA', 'pitchGrid')
+    # sh.add_rule(ScorerMelodyMelody, 'pitchGridA', 'pitchGridB')
+    # sh.add_rule(ScorerMelodyMelody, 'pitchGridA', 'pitchGridS')
+    # sh.add_rule(ScorerMelodyMelodyCross, 'pitchGridA', 'pitchGridS', 10)
+    # sh.add_rule(ScorerMelodyMelodyCross, 'pitchGridA', 'pitchGrid', 10)
+    # sh.add_rule(RelativeScorerSectionMelody, 'pitchGridA', weight=10)
 
-    #sh.scorer(RelativeScorerSectionMelody, 'mel', weight=10)
+    # sh.add_rule(ScorerRhythmLyrics, 'rhy', 'lyr')
+    # sh.add_rule(scorer_rhythm_met, 'rhy')
 
-    sh.add(ViewPoint('pitchGridB', melody_b_gen))
+    # # define tatums and which VPs share them
+    # # beat, measure
+    # # [pitchGridX, rhy, lyr?] (maybe one rhy atom can have several lyr atoms, with at most one stressed ?)
 
-    #sh.scorer(zScorerMelodyHarmB, 'pitchGridB', 'func', 4)
-
-    #sh.scorer(ScorerMelodyMelody, 'pitchGridB', 'pitchGridT')
-    #sh.scorer(ScorerMelodyMelodyBelow, 'pitchGridB', 'pitchGridT')
-
-    sh.add(ViewPoint('pitchGridS'), melody_s_gen)
-    # sh.scorer(zScorerMelodyHarmS, 'pitchGridS', 'func', 4)
-    # sh.scorer(ScorerMelodySA, 'pitchGridS', weight=2)
-    # sh.scorer(ScorerMelodyMelody, 'pitchGridS', 'pitchGrid')
-    # sh.scorer(ScorerMelodyMelody, 'pitchGridS', 'pitchGridB')
-    # sh.scorer(RelativeScorerSectionMelody, 'pitchGridS', weight=10)
-
-    sh.add(ViewPoint('pitchGridA'), melody_a_gen)
-    # sh.scorer(zScorerMelodyHarmA, 'pitchGridA', 'func', 8)
-    # sh.scorer(ScorerMelodySA, 'pitchGridA', weight=4)
-    # sh.scorer(ScorerMelodyMelody, 'pitchGridA', 'pitchGrid')
-    # sh.scorer(ScorerMelodyMelody, 'pitchGridA', 'pitchGridB')
-    # sh.scorer(ScorerMelodyMelody, 'pitchGridA', 'pitchGridS')
-    # sh.scorer(ScorerMelodyMelodyCross, 'pitchGridA', 'pitchGridS', 10)
-    # sh.scorer(ScorerMelodyMelodyCross, 'pitchGridA', 'pitchGrid', 10)
-    # sh.scorer(RelativeScorerSectionMelody, 'pitchGridA', weight=10)
-
-    sh.add(ViewPoint('fillInB'))
-    sh.add(ViewPoint('fillInS'))
-    sh.add(ViewPoint('fillInA'))
-
-    # sh.structurer('struct', 'lyr')
-    #sh['lyr'].load()
-    #sh.scorer(ScorerRhythmLyrics, 'rhy', 'lyr')
-    #sh.scorer(zScorerRhythmMetrics, 'rhy')
-    sh.set_key(key)
-
-    # define tatums and which VPs share them
-    # beat, measure
-    # [pitchGridX, rhy, lyr]
-
-    # define structure inheritance
-    sh.add_link('struct', 'lyr')
-    sh.add_link('lyr', 'rhy')
-    sh.add_link('rhy', 'pitchGridT')
-    sh.add_link('rhy', 'pitchGridS')
-    sh.add_link('rhy', 'pitchGridB')
-    sh.add_link('rhy', 'pitchGridA')
-    sh.add_link('rhy', 'chords')
+    # # define structure inheritance
+    # sh.add_link('struct', 'lyr')
+    # sh.add_link('lyr', 'rhy')
+    # sh.add_link('rhy', 'pitchGridT')
+    # sh.add_link('rhy', 'pitchGridS')
+    # sh.add_link('rhy', 'pitchGridB')
+    # sh.add_link('rhy', 'pitchGridA')
+    # sh.add_link('rhy', 'chords')
     
-    print()
+    # print()
 
-    # ------------------------------------------------------------
-    # generation
+    # # ------------------------------------------------------------
+    # # generation
 
-    print('[yellow]### Generating ')
-    sh.reset()
-    sh['struct'].set()
-    # sh.set_structure()
+    # print('[yellow]### Generating ')
+    # sh.reset()
+    # sh['struct'].set(structure)
 
-    r0 = sh['rhy'].gen(common=True)
-    print(r0)
+    # sh['lyr'].set(lyrics, fixedness=1)
+    # sh['rhy'].set(rhythm, fixedness=1)
+    # sh['pitchGridT'].set(melGrid, fixedness=1)
+    # sh['fillInT'].set(mel, fixedness=1)
+    
+    # sh.generate(start_at='chords')
 
-    d0 = sh['func'].gen(r0)
-    print("d0", d0)
-
-    m0 = sh['pitchGrid'].gen(d0)
-    m0 = sh['pitchGridB'].gen(d0)
-    m0 = sh['pitchGridS'].gen(d0)
-    m0 = sh['pitchGridA'].gen(d0)
-
-    print()
     return sh
 
 
-def sacred(code, f, woo, hh, svg):
-    sh = gen_sacred(woo, hh)
-
-    print('[yellow]### Generated ')
-    print(sh)
-
-    if hh:
-        title = sh['lyr'].gens['Z'][0].one
-        title = ' '.join(title).replace(' -', '').replace('>', '').replace('/', '').replace('.', '').replace(',', '').replace(';','')
-    else:
-        title = gabuzomeu.sentence(woo)
-
-    sh.export(
-        f,
-        f"{code}. {title} ({sh['struct'].structure})",
-        sh['struct'].structure_full,
-        sh['rhy'],
-        sh['lyr'],
-        ['pitchGridS', 'pitchGridA', 'pitchGrid', 'pitchGridB'],
-        ['func'],
-        svg
-        )
-
-import music21
-import os
-
-def extract_grid(mel: music21.stream.Part, cutoff: music21, struc: StrucTree) -> StrucTree((Rhythm, Pitch)):
-    return (null, null)
-    
-
-def load_melody(filename: str) -> music21.stream.Part:
-    c = music21.converter.parse(filename)
-
-    mel = c.parts['tenor'].flatten()
-
-    text = music21.text.assembleLyrics(mel)
-
-    return mel
-
 if __name__ == '__main__':
 
-    #sacred("", "", False, False, True)
     path = os.path.join(os.getcwd(), "data/1991-denson/56bd.mxl")
     mel = load_melody(path)
-    harm_sacred(mel)
+    struc: RefinementNode = \
+        RefinementNode(0, 16, "ALL", 
+          RefinementNode(0, 8, "A", 
+            RefinementNode(0, 4, "A.1",
+              RefinementNode(0, 2, "a"),
+              RefinementNode(2, 4, "b")),
+            RefinementNode(4, 8, "A.2",
+              RefinementNode(0, 2, "c"),
+              RefinementNode(2, 4, "d"))),
+          RefinementNode(8, 16, "B", 
+            RefinementNode(0, 4, "B.1",
+              RefinementNode(0, 2, "e"),
+              RefinementNode(2, 4, "b\'")),
+            RefinementNode(4, 8, "B.2",
+              RefinementNode(0, 2, "a\'"),
+              RefinementNode(0, 2, "f"))))
+    #harm_sacred(mel, struc)
+
+    struc_tree: StructureTree = StructureTree(struc)
+
+    rhythm: ViewPoint = ViewPoint("rhy", struc_tree)
+    pitches: ViewPoint = ViewPoint("pitchGridT", struc_tree)

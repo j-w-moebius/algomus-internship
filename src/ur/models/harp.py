@@ -8,6 +8,7 @@ import glob
 import music
 import math
 import tools
+from typing import Optional
 
 class Structure(ur.ItemChoice):
     # FuncMinorExtended
@@ -33,7 +34,7 @@ class HHLyricsTernary(ur.ItemLyricsChoiceFiles):
 class Key(ur.ItemChoice):
     CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4', 'A4']
 
-class FuncMajor(ur.ItemMarkov):
+class ChordsMajor(ur.ItemMarkov):
 
     SOURCE = '(Kelley 2016)'
 
@@ -55,7 +56,7 @@ class FuncMajor(ur.ItemMarkov):
         'D': {'iii': 0.21, 'V': 0.72, 'vii': 0.07},
     }
 
-class FuncMinor(ur.ItemMarkov):
+class ChordsMinor(ur.ItemMarkov):
 
     SOURCE = '(Kelley 2016)'
 
@@ -76,7 +77,7 @@ class FuncMinor(ur.ItemMarkov):
     }
 
 
-class FuncMinorExtended(FuncMinor):
+class ChordsExtended(ChordsMinor):
 
     STATES = ['i', 'j', 'T', 'S', 'D']
     INITIAL_S = {
@@ -557,7 +558,7 @@ class ScorerRhythmMetricsTernary(ur.ScorerOne):
 class ScorerMelodyHarm(ur.ScorerTwoSequence):
 
     # bottom-up index of voice in four-part setting
-    POSITION = None
+    POSITION: Optional[int] = None
     FIXED_POSITION = [ '*i9', '*III7', '*iv9']
 
     CHORDS = {

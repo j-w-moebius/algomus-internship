@@ -115,6 +115,8 @@ class Gen(object):
 
     def set_key(self, key):
         self.key = key
+        for v in self.viewpoints:
+            v.key = key
 
     def set_meter(self, meter):
         self.meter = meter

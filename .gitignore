@@ -2,3 +2,4 @@
 **/src/ur/models/__pycache__
 **/data/gen
 .vscode
+.mypy.ini
