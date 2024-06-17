@@ -36,11 +36,10 @@ import music21
 from music21.stream import Part, Score
 from rich import print
 import argparse
-from typing import cast, Tuple
+from typing import cast, Tuple, List
 import os
 
-from models.harp import *
-from models.woo import *
+# from models.harp import *
 
 from trees import *
 
@@ -56,31 +55,48 @@ def key_from_part(p: Part) -> Tuple[str, str]:
 
     return (key, ks.mode)
 
-def grid_from_part(mel: Part) -> Tuple[list[list[str]], list[list[str]]]:
-    '''Extract a rhythm and a pitch grid from mel
+def grid_from_part(mel: Part) -> Tuple[List[List[str]], List[List[str]]]:
+    '''Extract a rhythm and a pitch grid from a part
     Returns nested lists, grouped by bars, of 1. durations and 2. pitches
     '''
     meter: str = mel.timeSignature.ratioString
-    rhythm: list[str] = []
-    pitches: list[str] = []
-    rh_buffer: list[str] = []
-    p_buffer: list[str] = []
+    rhythm: List[List[str]] = []
+    pitches: List[List[str]] = []
+    rh_buffer: List[str] = []
+    p_buffer: List[str] = []
 
     for n in mel.notes:
-        if n.beat == 1 and not empty(rh_buffer):
+        if n.beat == 1 and len(rh_buffer) > 0:
           rhythm.append(rh_buffer)
           pitches.append(p_buffer)
           rh_buffer = []
           p_buffer = []
         if n.beatStrength >= 0.5:
-            buffer.append(str(music.quantize_above(n.duration.quarterLength, meter)))
-            pitches.append(n.pitch.nameWithOctave)
+            rh_buffer.append(str(music.quantize_above(n.duration.quarterLength, meter)))
+            p_buffer.append(n.pitch.nameWithOctave)
+
+    if len(rh_buffer) > 0:
+        rhythm.append(rh_buffer)
+        pitches.append(p_buffer)
 
     return (rhythm, pitches)
 
-def fillin_from_part(mel: Part) -> list[Note]:
+def fill_in_from_part(mel: Part) -> List[List[Note]]:
+    '''Extract a sequence of Notes from a Part, grouped by bars
+    ''' 
+    notes: List[List[Note]] = []
+    buffer: List[Note] = []
 
-    return [Note(n.pitch.name, n.duration.fullName) for n in mel.notes]
+    for n in mel.notes:
+        if n.beat == 1 and len(buffer) > 0:
+          notes.append(buffer)
+          buffer = []
+        buffer.append(Note(n.pitch.nameWithOctave, n.duration.quarterLength))
+        
+    if len(buffer) > 0:
+        notes.append(buffer)
+
+    return notes
     
 
 def load_melody(filename: str) -> Part:
@@ -90,49 +106,49 @@ def load_melody(filename: str) -> Part:
     return mel
 
 
-def harm_sacred(mel: Part, structure: RefinementNode):
+def harm_sacred(mel: Part, struct: RefinementNode):
     print('[yellow]### Init')
-    
-    sh = ur.Model()
 
-    sh.key, sh.mode = key_from_part(mel) # or: random choices
-    print(f'Key: [blue]{sh.key}')
+    key, mode = key_from_part(mel)
+    print(f'Key: [blue]{key}')
 
     # determine time signature of melody 
-    sh.meter = mel.timeSignature.ratioString # or: random choice
-    print(f'Meter: [blue]{sh.meter}')
+    meter = mel.timeSignature.ratioString
+    print(f'Meter: [blue]{meter}')
 
-    if sh.mode == 'major':
-        chords_gen: type = ChordsMajor
-        melody_s_gen: type = MelodyMajorS
-        melody_a_gen: type = MelodyMajorA
-        melody_b_gen: type = MelodyMajorB
-    else:
-        chords_gen = ChordsMinor
-        melody_s_gen = MelodyMinorS
-        melody_a_gen = MelodyMinorA
-        melody_b_gen = MelodyMinorB
+    sh = ur.Model(key, mode)
 
-    if sh.ternary():
-        rhythm_gen: type = TernaryRhythm
-        scorer_rhythm_met: type = ScorerRhythmMetricsTernary
-    else:
-        rhythm_gen = Rhythm
-        scorer_rhythm_met = ScorerRhythmMetricsFour
+    # if mode == 'major':
+    #     chords_gen: type = ChordsMajor
+    #     melody_s_gen: type = MelodyMajorS
+    #     melody_a_gen: type = MelodyMajorA
+    #     melody_b_gen: type = MelodyMajorB
+    # else:
+    #     chords_gen = ChordsMinor
+    #     melody_s_gen = MelodyMinorS
+    #     melody_a_gen = MelodyMinorA
+    #     melody_b_gen = MelodyMinorB
 
-    if sh.ternary():
-        Lyrics.MIN_LENGTH = 7 # changes class attribute
-    else:
-        Lyrics.MIN_LENGTH = 5
+    # if sh.ternary():
+    #     rhythm_gen: type = TernaryRhythm
+    #     scorer_rhythm_met: type = ScorerRhythmMetricsTernary
+    # else:
+    #     rhythm_gen = Rhythm
+    #     scorer_rhythm_met = ScorerRhythmMetricsFour
+
+    # if sh.ternary():
+    #     Lyrics.MIN_LENGTH = 7 # changes class attribute
+    # else:
+    #     Lyrics.MIN_LENGTH = 5
 
     # ------------------------------------------------------
     # block scheduling (done implicitly by addition order)
 
-    # sh.add(StructureVP('struct'))
+    sh.add(ViewPoint('struct'))
     # sh.add(ViewPoint('lyr'))
-    # sh.add(ViewPoint('rhy'))
-    # sh.add(ViewPoint('pitchGridT'))
-    # sh.add(ViewPoint('fillInT'))
+    sh.add(ViewPoint('rhy'))
+    sh.add(ViewPoint('pitchGridT'))
+    sh.add(ViewPoint('fillInT', use_copy=False))
     # sh.add(ViewPoint('chords'), chords_gen)
     # sh.add(ViewPoint('pitchGridB', melody_b_gen))
     # sh.add(ViewPoint('pitchGridS', melody_s_gen))
@@ -176,14 +192,30 @@ def harm_sacred(mel: Part, structure: RefinementNode):
     # # beat, measure
     # # [pitchGridX, rhy, lyr?] (maybe one rhy atom can have several lyr atoms, with at most one stressed ?)
 
-    # # define structure inheritance
+    # define structure inheritance
     # sh.add_link('struct', 'lyr')
-    # sh.add_link('lyr', 'rhy')
-    # sh.add_link('rhy', 'pitchGridT')
+    sh.add_link('struct', 'rhy')
+    sh.add_link('struct', 'pitchGridT')
+    # sh.add_link('rhy', 'pitchGridS')
+    # sh.add_link('rhy', 'pitchGridB')
+    # sh.add_link('rhy', 'pitchGridA')
+    sh.add_link('struct', 'fillInT')
     # sh.add_link('rhy', 'pitchGridS')
     # sh.add_link('rhy', 'pitchGridB')
     # sh.add_link('rhy', 'pitchGridA')
     # sh.add_link('rhy', 'chords')
+
+    # define 
+
+    # fix some viewpoints
+    rhythm, pitches = grid_from_part(mel)
+    fill_in = fill_in_from_part(mel)
+    sh['struct'].set_structure(struct)
+    # sh['lyr'].set(lyrics, fixedness=1)
+    sh['rhy'].set_to(rhythm)
+    sh['pitchGridT'].set_to(pitches)
+    sh['fillInT'].set_to(fill_in, fixedness=0.8)
+
     
     # print()
 
@@ -192,14 +224,8 @@ def harm_sacred(mel: Part, structure: RefinementNode):
 
     # print('[yellow]### Generating ')
     # sh.reset()
-    # sh['struct'].set(structure)
 
-    # sh['lyr'].set(lyrics, fixedness=1)
-    # sh['rhy'].set(rhythm, fixedness=1)
-    # sh['pitchGridT'].set(melGrid, fixedness=1)
-    # sh['fillInT'].set(mel, fixedness=1)
-    
-    # sh.generate(start_at='chords')
+    # sh.generate()
 
     return sh
 
@@ -224,9 +250,5 @@ if __name__ == '__main__':
             RefinementNode(4, 8, "B.2",
               RefinementNode(0, 2, "a\'"),
               RefinementNode(0, 2, "f"))))
-    #harm_sacred(mel, struc)
 
-    struc_tree: StructureTree = StructureTree(struc)
-
-    rhythm: ViewPoint = ViewPoint("rhy", struc_tree)
-    pitches: ViewPoint = ViewPoint("pitchGridT", struc_tree)
+    harm_sacred(mel, struc)

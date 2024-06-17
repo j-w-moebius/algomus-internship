@@ -7,6 +7,9 @@ class Note:
         self.duration: str = duration
         self.pitch: str = pitch
 
+    def __str__(self):
+        return u'(%s, %s)' % (self.duration, self.pitch)
+
 
 def quantize_above(duration: float, meter: str) -> float:
     '''Snap duration to above or equal multiple of meter unit'''
