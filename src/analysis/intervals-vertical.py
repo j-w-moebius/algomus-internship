@@ -3,8 +3,10 @@ import os
 
 # run this script to analyze vertical interval frequencies in "The Scared Harp" collection
 
-# takes score s as input and make it contribute to a dictionary of absolute interval frequencies, interval_freqs 
 def compute_interval_freqs(s: stream.base.Score, interval_freqs: dict[list[str], int]):
+    '''takes score s as input and make it contribute to a dictionary of absolute 
+    interval frequencies, interval_freqs
+    '''
     parts = [p.flatten() for p in s.parts]
 
     d = s.highestTime # get piece duration
@@ -43,9 +45,10 @@ def compute_interval_freqs(s: stream.base.Score, interval_freqs: dict[list[str],
             interval_freqs[intervals_immtbl] = interval_freqs[intervals_immtbl] + 1
 
 
-# compute dictionary of interval combinations and associated relative frequencies for a corpus 
-# stored in corpus_path
 def analyze_corpus(corpus_path: str) -> dict[list[str], float]:
+    '''compute dictionary of interval combinations and associated relative  
+    frequencies for a corpus stored in corpus_path
+    '''
     interval_freqs = {}
 
     print(corpus_path)
@@ -71,6 +74,6 @@ def pretty(freqs, nb=15):
 
     return s
 
-dir_path = os.path.join(os.path.dirname(__file__), '../../data/the-scared-harp')
+dir_path = os.path.join(os.path.dirname(__file__), 'data/the-scared-harp')
 freqs = analyze_corpus(dir_path)
 print(pretty(freqs))

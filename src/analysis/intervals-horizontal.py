@@ -25,8 +25,9 @@ def compute_interval_freqs(s: stream.base.Score, freqs_list: list[dict[str, dict
             else:
                 successors[next_pitch] = successors[next_pitch] + 1
 
-# transpose the piece to C Major or a minor, depending on its mode
 def normalize_key(s, mode, tonic):
+    '''transpose the piece to C Major or a minor, depending on its mode
+    '''
     target = pitch.Pitch('C')
     if mode == 'minor':
         target = pitch.Pitch('A')
@@ -37,10 +38,12 @@ def normalize_key(s, mode, tonic):
         i = i.complement
     return s.transpose(i)
 
-# analyze horizontal interval frequencies
-# conditioned on one predecessor
-# mode: restricts the pieces that contribute to frequencies ('Major' or 'Minor')
+
 def analyze_corpus(corpus_path: str, mode: str) -> list[dict[str, dict[str, float]]]:
+    '''analyze horizontal interval frequencies
+    conditioned on one predecessor
+    mode: restricts the pieces that contribute to frequencies ('Major' or 'Minor')
+    '''
     freqs_list = [{}, {}, {}, {}]
 
     print(corpus_path)
@@ -90,7 +93,7 @@ def pretty(class_name, freqs, nb=15):
 
 voice_names = ["S", "A", "T", "B"]
 
-dir_path = os.path.join(os.path.dirname(__file__), '../../data/the-scared-harp')
+dir_path = os.path.join(os.getcwd(), 'data/1991-denson')
 for mode in ["Major", "Minor"]:
     freqs_list = analyze_corpus(dir_path, mode.lower())
     for (i, freqs) in enumerate(freqs_list):

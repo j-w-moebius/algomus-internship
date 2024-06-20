@@ -10,7 +10,7 @@ class WStructure(ur.ItemChoice):
     CHOICES = ['A-A-C', 'A-B-A', 'Q-A-A' ]
 
 class WLyrics(ur.ItemLyricsChoiceFiles):
-    FILES = glob.glob('../../data/lyrics-w/*.txt')
+    FILES = glob.glob('data/lyrics-w/*.txt')
     MIN_LENGTH = 9
 
 class WRhythm(ur.ItemSpanSequence):

@@ -8,6 +8,7 @@ import glob
 import music
 import math
 import tools
+from typing import Optional
 
 class Structure(ur.ItemChoice):
     # FuncMinorExtended
@@ -19,21 +20,21 @@ class Structure(ur.ItemChoice):
 
 
 class Lyrics(ur.ItemLyricsChoiceFiles):
-    FILES = glob.glob('../../data/lyrics-s/*.txt')
+    FILES = glob.glob('data/lyrics-s/*.txt')
     STRESS_WORDS = ['Lord', 'God', 'Christ', 'Son']
 
 
 class HHLyrics(ur.ItemLyricsChoiceFiles):
-    FILES = ['../../data/lyrics-hh/6-4.txt']
+    FILES = ['data/lyrics-hh/6-4.txt']
 
 class HHLyricsTernary(ur.ItemLyricsChoiceFiles):
-    FILES = ['../../data/lyrics-hh/3-2.txt', '../../data/lyrics-hh/6-8.txt']
+    FILES = ['data/lyrics-hh/3-2.txt', 'data/lyrics-hh/6-8.txt']
 
 
 class Key(ur.ItemChoice):
-    CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4']
+    CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4', 'A4']
 
-class FuncMajor(ur.ItemMarkov):
+class ChordsMajor(ur.ItemMarkov):
 
     SOURCE = '(Kelley 2016)'
 
@@ -55,7 +56,7 @@ class FuncMajor(ur.ItemMarkov):
         'D': {'iii': 0.21, 'V': 0.72, 'vii': 0.07},
     }
 
-class FuncMinor(ur.ItemMarkov):
+class ChordsMinor(ur.ItemMarkov):
 
     SOURCE = '(Kelley 2016)'
 
@@ -76,7 +77,7 @@ class FuncMinor(ur.ItemMarkov):
     }
 
 
-class FuncMinorExtended(FuncMinor):
+class ChordsExtended(ChordsMinor):
 
     STATES = ['i', 'j', 'T', 'S', 'D']
     INITIAL_S = {
@@ -98,6 +99,7 @@ class FuncMinorExtended(FuncMinor):
         'D': { 'i': 0.20, 'T': 0.29, 'S': 0.08, 'D': 0.43 },
     }
 
+    # stars mark enrichened chords
     EMISSIONS = {
         'j': {'i': 0.50, 'i3': 0.20,  'i8': 0.15 },
         'i': {'i': 1.00 },
@@ -395,7 +397,7 @@ class ScorerMelody(ur.ScorerOne):
         ambitus = music.ambitus(gen.one)
         if ambitus < self.AMBITUS_LOW or ambitus > self.AMBITUS_HIGH:
             score -= 1
-        elif ambitus > self.AMBITUS_GOOD:
+        elif ambitus > self.AMBITUS_GOOD: # ?? Why not == ?
             score += 0.5
 
         for i in range(len(gen.one)-2):
@@ -430,7 +432,10 @@ class ScorerSectionsMelodyT(ur.ScorerOne):
         return -tools.distance_to_interval(mean, tdown, tup)
 
 class RelativeScorerSectionMelody(ur.ScorerOne, ur.RelativeScorerSection):
+    ''' Relative Scorer for mean pitch in melody
+    '''
 
+    # specify the intervals in which melodic means should be located
     TARGET = {
         'A': (0.0, 0.4), 'a': (0.6, 1.0),
         'B': (0.6, 1.0), 'b': (0.0, 0.4),
@@ -552,7 +557,8 @@ class ScorerRhythmMetricsTernary(ur.ScorerOne):
 
 class ScorerMelodyHarm(ur.ScorerTwoSequence):
 
-    POSITION = None
+    # bottom-up index of voice in four-part setting
+    POSITION: Optional[int] = None
     FIXED_POSITION = [ '*i9', '*III7', '*iv9']
 
     CHORDS = {
@@ -609,7 +615,7 @@ class ScorerMelodyHarm(ur.ScorerTwoSequence):
         if mel[0].lower() in self.CHORDS[harm]:
             return 1.0
         else:
-            return -20
+            return -20 # arbitrary ?? 
 
 class ScorerMelodyMelodyBelow(ur.ScorerTwoSequence):
     def score_element(self, mel1, mel2):
@@ -624,6 +630,8 @@ class ScorerMelodyMelodyAbove(ur.ScorerTwoSequence):
         return 0.2
 
 class ScorerMelodyMelodyCross(ur.ScorerTwoSequenceAllPairs):
+    '''Rewards melody crossings, particularly those of length >= 3
+    '''
 
     CROSS = {
         0: 0.0,
@@ -645,7 +653,7 @@ class ScorerMelodyMelodyCross(ur.ScorerTwoSequenceAllPairs):
     def score_all_pairs(self, mel1mel2):
         crossings = 0
         long_crossings = 0 # at least three notes
-        ss = 0
+        ss = 0 # sign of last seen interval
         ii = 0 # index of last crossing
 
         # Count the number of crossings
@@ -654,7 +662,7 @@ class ScorerMelodyMelodyCross(ur.ScorerTwoSequenceAllPairs):
             if s:
                 if ss and ss != s:
                     crossings += 1
-                    if i >= ii + 3:
+                    if i >= ii + 3:           # ?? ignoring natural voice order
                         long_crossings += 1
                     ii = i
                 ss = s

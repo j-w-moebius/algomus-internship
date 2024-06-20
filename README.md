@@ -9,6 +9,7 @@ Prototype code for modular procedural generation with flexible constraints (Ur),
 Python librairies
 - music21
 - rich
+- [anytree](https://anytree.readthedocs.io/en/latest/)
 
 ## Usage
 

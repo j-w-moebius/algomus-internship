@@ -1,13 +1,63 @@
 
 import music21
 
+from typing import NewType, Protocol
+
+Pitch = NewType("Pitch", str)
+
+class Temporal(Protocol):
+    def quarter_length(self) -> float:
+        pass
+
+class Duration(float):
+
+    def quarter_length(self) -> float:
+        return self
+
+class Note:
+
+    def __init__(self, duration: Duration, pitch: str):
+        self.duration: Duration = duration
+        self.pitch: str = pitch
+
+    def __str__(self):
+        return u'(%s, %s)' % (self.duration, self.pitch)
+
+    def quarter_length(self):
+        return self.duration
+
+
+def quarters_per_bar(ts_str: str) -> float:
+    ts: music21.meter.TimeSignature = music21.meter.TimeSignature(ts_str)
+    return ts.beatDuration.quarterLength * ts.beatCount
+
+def quantize_above(duration: float, meter: str) -> float:
+    '''Snap duration to above or equal multiple of meter unit'''
+    # metric unit in quarter notes
+    metric_unit_quarters: float
+    if meter[-1] == '4':
+        metric_unit_quarters = 1
+    elif meter [-1] == '8':
+        metric_unit_quarters = 1.5
+    
+    multiple: float = metric_unit_quarters
+    while multiple < duration:
+        multiple += metric_unit_quarters
+
+    return multiple
+
 def in_range(note, ambitus, key=None):
+    '''return true iff note is in ambitus (with inclusive bounds)
+    '''
     n = music21.pitch.Pitch(note)
     if key:
         n = n.transpose(key)
     return (n.midi >= music21.pitch.Pitch(ambitus[0]).midi) and (n.midi <= music21.pitch.Pitch(ambitus[1]).midi)
+    
 
 def ambitus(mel):
+    '''return ambitus as pitch difference
+    '''
     mnotes = [music21.pitch.Pitch(n) for n in mel]
     return(max(mnotes).midi - min(mnotes).midi)
 
