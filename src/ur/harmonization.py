@@ -26,12 +26,11 @@
 #  along with "Ur". If not, see <http://www.gnu.org/licenses/>
 
 
-import ur
 import glob
 import gabuzomeu
 import random
 import music
-from music import Note
+from music import Note, Pitch, Duration
 import music21
 from music21.stream import Part, Score
 from rich import print
@@ -39,9 +38,9 @@ import argparse
 from typing import cast, Tuple, List
 import os
 
-# from models.harp import *
-
+import ur
 from trees import *
+# from models.harp import *
 
 def key_from_part(p: Part) -> Tuple[str, str]:
     '''Return key (in interval to C) and mode of a part
@@ -55,25 +54,25 @@ def key_from_part(p: Part) -> Tuple[str, str]:
 
     return (key, ks.mode)
 
-def grid_from_part(mel: Part) -> Tuple[List[List[str]], List[List[str]]]:
+def grid_from_part(mel: Part) -> Tuple[List[List[Duration]], List[List[Pitch]]]:
     '''Extract a rhythm and a pitch grid from a part
     Returns nested lists, grouped by bars, of 1. durations and 2. pitches
     '''
     meter: str = mel.timeSignature.ratioString
-    rhythm: List[List[str]] = []
-    pitches: List[List[str]] = []
-    rh_buffer: List[str] = []
-    p_buffer: List[str] = []
+    rhythm: List[List[Duration]] = []
+    pitches: List[List[Pitch]] = []
+    rh_buffer: List[Duration] = []
+    p_buffer: List[Pitch] = []
 
     for n in mel.notes:
         if n.beat == 1 and len(rh_buffer) > 0:
-          rhythm.append(rh_buffer)
-          pitches.append(p_buffer)
-          rh_buffer = []
-          p_buffer = []
+            rhythm.append(rh_buffer)
+            pitches.append(p_buffer)
+            rh_buffer = []
+            p_buffer = []
         if n.beatStrength >= 0.5:
-            rh_buffer.append(str(music.quantize_above(n.duration.quarterLength, meter)))
-            p_buffer.append(n.pitch.nameWithOctave)
+            rh_buffer.append(Duration(music.quantize_above(n.duration.quarterLength, meter)))
+            p_buffer.append(Pitch(n.pitch.nameWithOctave))
 
     if len(rh_buffer) > 0:
         rhythm.append(rh_buffer)
@@ -89,9 +88,9 @@ def fill_in_from_part(mel: Part) -> List[List[Note]]:
 
     for n in mel.notes:
         if n.beat == 1 and len(buffer) > 0:
-          notes.append(buffer)
-          buffer = []
-        buffer.append(Note(n.pitch.nameWithOctave, n.duration.quarterLength))
+            notes.append(buffer)
+            buffer = []
+        buffer.append(Note(n.duration.quarterLength, n.pitch.nameWithOctave))
         
     if len(buffer) > 0:
         notes.append(buffer)
@@ -106,7 +105,7 @@ def load_melody(filename: str) -> Part:
     return mel
 
 
-def harm_sacred(mel: Part, struct: RefinementNode):
+def harm_sacred(mel: Part, struct: StructureNode):
     print('[yellow]### Init')
 
     key, mode = key_from_part(mel)
@@ -116,7 +115,7 @@ def harm_sacred(mel: Part, struct: RefinementNode):
     meter = mel.timeSignature.ratioString
     print(f'Meter: [blue]{meter}')
 
-    sh = ur.Model(key, mode)
+    sh = ur.Model(key, mode, meter)
 
     # if mode == 'major':
     #     chords_gen: type = ChordsMajor
@@ -144,20 +143,17 @@ def harm_sacred(mel: Part, struct: RefinementNode):
     # ------------------------------------------------------
     # block scheduling (done implicitly by addition order)
 
-    sh.add(ViewPoint('struct'))
-    # sh.add(ViewPoint('lyr'))
-    sh.add(ViewPoint('rhy'))
-    sh.add(ViewPoint('pitchGridT'))
-    sh.add(ViewPoint('fillInT', use_copy=False))
-    # sh.add(ViewPoint('chords'), chords_gen)
-    # sh.add(ViewPoint('pitchGridB', melody_b_gen))
-    # sh.add(ViewPoint('pitchGridS', melody_s_gen))
-    # sh.add(ViewPoint('pitchGridA', melody_a_gen))
-    # sh.add(ViewPoint('fillInB'))
-    # sh.add(ViewPoint('fillInS'))
-    # sh.add(ViewPoint('fillInA'))
-
-    # sh.set_key(key)
+    sh.add_vp('lyr')
+    sh.add_vp('rhy')
+    sh.add_vp('pitchGridT', follow=True, lead_name='rhy')
+    sh.add_vp('fillInT', use_copy=False)
+    # sh.add_vp('chords', follow, chords_gen)
+    # sh.add_vp('pitchGridB', melody_b_gen)
+    # sh.add_vp('pitchGridS', melody_s_gen)
+    # sh.add_vp('pitchGridA', melody_a_gen)
+    # sh.add_vp('fillInB')
+    # sh.add_vp('fillInS')
+    # sh.add_vp('fillInA')
 
     # # equip viewpoints with rules
     # sh.add_rule(ScorerFunc, 'chords')
@@ -188,39 +184,23 @@ def harm_sacred(mel: Part, struct: RefinementNode):
     # sh.add_rule(ScorerRhythmLyrics, 'rhy', 'lyr')
     # sh.add_rule(scorer_rhythm_met, 'rhy')
 
-    # # define tatums and which VPs share them
-    # # beat, measure
-    # # [pitchGridX, rhy, lyr?] (maybe one rhy atom can have several lyr atoms, with at most one stressed ?)
-
-    # define structure inheritance
-    # sh.add_link('struct', 'lyr')
-    sh.add_link('struct', 'rhy')
-    sh.add_link('struct', 'pitchGridT')
-    # sh.add_link('rhy', 'pitchGridS')
-    # sh.add_link('rhy', 'pitchGridB')
-    # sh.add_link('rhy', 'pitchGridA')
-    sh.add_link('struct', 'fillInT')
-    # sh.add_link('rhy', 'pitchGridS')
-    # sh.add_link('rhy', 'pitchGridB')
-    # sh.add_link('rhy', 'pitchGridA')
-    # sh.add_link('rhy', 'chords')
-
-    # define 
-
     # fix some viewpoints
     rhythm, pitches = grid_from_part(mel)
     fill_in = fill_in_from_part(mel)
-    sh['struct'].set_structure(struct)
+
+    sh.set_structure(struc)
     # sh['lyr'].set(lyrics, fixedness=1)
     sh['rhy'].set_to(rhythm)
     sh['pitchGridT'].set_to(pitches)
     sh['fillInT'].set_to(fill_in, fixedness=0.8)
 
+    test = sh['pitchGridT']['B'][0.0:4.0]
+
     
     # print()
 
-    # # ------------------------------------------------------------
-    # # generation
+    # ------------------------------------------------------------
+    # generation
 
     # print('[yellow]### Generating ')
     # sh.reset()
@@ -232,23 +212,32 @@ def harm_sacred(mel: Part, struct: RefinementNode):
 
 if __name__ == '__main__':
 
-    path = os.path.join(os.getcwd(), "data/1991-denson/56bd.mxl")
-    mel = load_melody(path)
-    struc: RefinementNode = \
-        RefinementNode(0, 16, "ALL", 
-          RefinementNode(0, 8, "A", 
-            RefinementNode(0, 4, "A.1",
-              RefinementNode(0, 2, "a"),
-              RefinementNode(2, 4, "b")),
-            RefinementNode(4, 8, "A.2",
-              RefinementNode(0, 2, "c"),
-              RefinementNode(2, 4, "d"))),
-          RefinementNode(8, 16, "B", 
-            RefinementNode(0, 4, "B.1",
-              RefinementNode(0, 2, "e"),
-              RefinementNode(2, 4, "b\'")),
-            RefinementNode(4, 8, "B.2",
-              RefinementNode(0, 2, "a\'"),
-              RefinementNode(0, 2, "f"))))
+    mel_path = os.path.join(os.getcwd(), "data/1991-denson/56bd.mxl")
+
+    mel = load_melody(mel_path)
+
+    struc: StructureNode = \
+        StructureNode(0.0, 48.0, "ALL", [
+            StructureNode(0.0, 24.0, "A", [
+                StructureNode(0.0, 12.0, "A.1", [
+                    StructureNode(0.0, 6.0, "a"),
+                    StructureNode(6.0, 12.0, "b")
+                ]),
+                StructureNode(12.0, 24.0, "A.2", [
+                    StructureNode(0.0, 6.0, "c"),
+                    StructureNode(6.0, 12.0, "d")
+                ])
+            ]),
+            StructureNode(24.0, 48.0, "B", [
+                StructureNode(0.0, 12.0, "B.1", [
+                    StructureNode(0.0, 6.0, "e"),
+                    StructureNode(6.0, 12.0, "b\'")
+                ]),
+                StructureNode(12.0, 24.0, "B.2", [
+                    StructureNode(0.0, 6.0, "a\'"),
+                    StructureNode(6.0, 12.0, "f")
+                ])
+            ])
+        ])
 
     harm_sacred(mel, struc)

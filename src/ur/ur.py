@@ -720,13 +720,16 @@ ALL = '0'
 #         return -dist/norm if norm else 0
 
 
+
 ### Model
 
 class Model:#(Gen):
 
-    def __init__(self, key: str, mode: str):
+    def __init__(self, key: str, mode: str, meter: str):
         self.key = key
         self.mode = mode
+        self.meter = meter
+        self.quarters_per_bar: float = music.quarters_per_bar(meter)
         self.vps: List[ViewPoint] = []
 
     # iterate through models      
@@ -740,11 +743,20 @@ class Model:#(Gen):
                 return vp
         raise KeyError(name)
 
-    def add(self, vp: ViewPoint) -> None:
-        self.vps.append(vp) # viewpoints
+    def add_vp(self, name: str, use_copy: bool = True, follow: bool = False, lead_name: Optional[str] = None) -> None:
 
-    def add_link(self, vp1: str, vp2: str) -> None:
-        self[vp2].set_structurer(self[vp1])
+        if follow:
+            if lead_name and lead_name in [vp.name for vp in self]:
+                lead: ViewPoint = self[lead_name]
+                if isinstance(lead, ViewPointLead):
+                    self.vps.append(ViewPointFollow(name, use_copy, self, lead))
+                    return
+            raise RuntimeError("Need to specify existing Lead ViewPoint when creating a Follow ViewPoint.")
+        else:
+            self.vps.append(ViewPointLead(name, use_copy, self))
+
+    def set_structure(self, struc: StructureNode):
+        self.structure: StructureNode = struc
 
     # def scorer(self, scorer: Scorer, mod1, mod2=None, weight=1):
     #     '''Bind scorer to mod1 (and mod2 if it scores two models)

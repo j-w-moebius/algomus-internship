@@ -1,15 +1,35 @@
 
 import music21
 
+from typing import NewType, Protocol
+
+Pitch = NewType("Pitch", str)
+
+class Temporal(Protocol):
+    def quarter_length(self) -> float:
+        pass
+
+class Duration(float):
+
+    def quarter_length(self) -> float:
+        return self
+
 class Note:
 
-    def __init__(self, duration: str, pitch: str):
-        self.duration: str = duration
+    def __init__(self, duration: Duration, pitch: str):
+        self.duration: Duration = duration
         self.pitch: str = pitch
 
     def __str__(self):
         return u'(%s, %s)' % (self.duration, self.pitch)
 
+    def quarter_length(self):
+        return self.duration
+
+
+def quarters_per_bar(ts_str: str) -> float:
+    ts: music21.meter.TimeSignature = music21.meter.TimeSignature(ts_str)
+    return ts.beatDuration.quarterLength * ts.beatCount
 
 def quantize_above(duration: float, meter: str) -> float:
     '''Snap duration to above or equal multiple of meter unit'''
