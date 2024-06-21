@@ -147,13 +147,13 @@ def harm_sacred(mel: Part, struct: StructureNode):
     sh.add_vp('rhy')
     sh.add_vp('pitchGridT', follow=True, lead_name='rhy')
     sh.add_vp('fillInT', use_copy=False)
-    # sh.add_vp('chords', follow, chords_gen)
-    # sh.add_vp('pitchGridB', melody_b_gen)
-    # sh.add_vp('pitchGridS', melody_s_gen)
-    # sh.add_vp('pitchGridA', melody_a_gen)
-    # sh.add_vp('fillInB')
-    # sh.add_vp('fillInS')
-    # sh.add_vp('fillInA')
+    # sh.add_vp('chords', follow=True, lead_name='rhy', chords_gen)
+    # sh.add_vp('pitchGridB', follow=True, lead_name='rhy', melody_b_gen)
+    # sh.add_vp('pitchGridS', follow=True, lead_name='rhy', melody_s_gen)
+    # sh.add_vp('pitchGridA', follow=True, lead_name='rhy', melody_a_gen)
+    sh.add_vp('fillInB')
+    sh.add_vp('fillInS')
+    sh.add_vp('fillInA')
 
     # # equip viewpoints with rules
     # sh.add_rule(ScorerFunc, 'chords')
@@ -212,9 +212,9 @@ def harm_sacred(mel: Part, struct: StructureNode):
 
 if __name__ == '__main__':
 
-    mel_path = os.path.join(os.getcwd(), "data/1991-denson/56bd.mxl")
+    mel_path: str = os.path.join(os.getcwd(), "data/1991-denson/56bd.mxl")
 
-    mel = load_melody(mel_path)
+    mel: Part = load_melody(mel_path)
 
     struc: StructureNode = \
         StructureNode(0.0, 48.0, "ALL", [
@@ -240,4 +240,7 @@ if __name__ == '__main__':
             ])
         ])
 
-    harm_sacred(mel, struc)
+    sh: ur.Model = harm_sacred(mel, struc)
+
+    sh.export('test','test', '', ['fillInT'], False)
+    # ['fillInS', 'fillInA', 'fillInT', 'fillInB']

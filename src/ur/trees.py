@@ -42,18 +42,14 @@ class CumuList(Generic[C]):
         return len(self.elements)
 
     @overload
-    def __getitem__(self, i: PosIndex) -> C:
-        pass
-
-    @overload
-    def __getitem__(self, i: QuarterIndex) -> C:
+    def __getitem__(self, i: Numeric) -> C:
         pass
 
     @overload
     def __getitem__(self, i: slice) -> List[C]:
         pass
 
-    def __getitem__(self, i: Union[int, float, slice]) -> C | List[C]:
+    def __getitem__(self, i: Numeric | slice) -> C | List[C]:
         if self.elements == []:
             return []
         if isinstance(i, int):
@@ -61,8 +57,8 @@ class CumuList(Generic[C]):
         if isinstance(i, float):
             return self.elements[self.get_pos_index(i)]
         if isinstance(i, slice):
-            start = 0
-            end = len(self.elements)
+            start:int = 0
+            end: int = len(self.elements)
             if isinstance(i.start, int):
                 start = i.start
             elif isinstance(i.start, float):
@@ -72,8 +68,10 @@ class CumuList(Generic[C]):
             elif isinstance(i.stop, float):
                 end = self.get_pos_index(i.stop)
             return self.elements[start:end]
+        else:
+            raise RuntimeError("Index must be of type Numeric or slice")
 
-    def __str__(self):
+    def __str__(self) -> str:
         return '[' + ', '.join([str(e) for e in self.elements]) + ']'
 
     def __iadd__(self, other: List[C]) -> Self:
@@ -152,22 +150,18 @@ class RefinementNode(Node[I], Generic[C, I]):
             yield e
 
     @overload
-    def __getitem__(self, i: PosIndex) -> C:
-        pass
-
-    @overload
-    def __getitem__(self, i: QuarterIndex) -> C:
+    def __getitem__(self, i: Numeric) -> C:
         pass
 
     @overload
     def __getitem__(self, i: slice) -> List[C]:
         pass
 
-    def __getitem__(self, i: PosIndex | QuarterIndex | slice) -> C | List[C]:
+    def __getitem__(self, i: Numeric | slice) -> C | List[C]:
         self.update_buffer()
         return self.buffer[i]
 
-    def get_duration(self) -> QuarterIndex:
+    def get_duration(self) -> float:
         raise NotImplementedError() # overwritten in subclasses
 
     def update_buffer(self) -> None:
@@ -263,7 +257,7 @@ class RefinementNodeFollow(RefinementNode[C, PosIndex]):
     def zero_index(self) -> PosIndex:
         return PosIndex(0)
 
-    def get_duration(self) -> QuarterIndex:
+    def get_duration(self) -> float:
         if self.structure:
             return self.lead.get_duration()
         else:
@@ -278,7 +272,7 @@ class RefinementNodeLead(RefinementNode[T, QuarterIndex]):
     def zero_index(self) -> QuarterIndex:
         return QuarterIndex(0.0)
 
-    def get_duration(self) -> QuarterIndex:
+    def get_duration(self) -> float:
         return self.end - self.start
 
 

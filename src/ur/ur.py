@@ -562,24 +562,24 @@ ALL = '0'
 
 
 
-# ### Scores
+### Scores
 
-# class Scorer(object):
+class Scorer(object):
 
-#     def two(self):
-#         return False
+    def two(self):
+        return False
 
-#     def score_item(self, gen1, gen2, struct):
-#         raise NotImplemented
+    def score_item(self, gen1, gen2, struct):
+        raise NotImplemented
 
-#     def init(self):
-#         pass
+    def init(self):
+        pass
 
-#     def prescore_item(self, gen1, gen2, struct):
-#         pass
+    def prescore_item(self, gen1, gen2, struct):
+        pass
 
-#     def postscore_item(self, gen1, gen2, struct):
-#         return self.score_item(gen1, gen2, struct)
+    def postscore_item(self, gen1, gen2, struct):
+        return self.score_item(gen1, gen2, struct)
 
 # class ScorerOne(Scorer):
 #     '''A scorer of one single model
@@ -726,9 +726,9 @@ ALL = '0'
 class Model:#(Gen):
 
     def __init__(self, key: str, mode: str, meter: str):
-        self.key = key
-        self.mode = mode
-        self.meter = meter
+        self.key: str = key
+        self.mode: str = mode
+        self.meter: str = meter
         self.quarters_per_bar: float = music.quarters_per_bar(meter)
         self.vps: List[ViewPoint] = []
 
@@ -755,7 +755,7 @@ class Model:#(Gen):
         else:
             self.vps.append(ViewPointLead(name, use_copy, self))
 
-    def set_structure(self, struc: StructureNode):
+    def set_structure(self, struc: StructureNode) -> None:
         self.structure: StructureNode = struc
 
     # def scorer(self, scorer: Scorer, mod1, mod2=None, weight=1):
@@ -772,8 +772,8 @@ class Model:#(Gen):
     # def structurer(self, struct, mod):
     #     self.structurers += [(self[struct], self[mod])]
 
-    # def export(self, code, title, structure, rhythms, lyrics, mods_melodies, mods_annots, svg):
-    #     print('[yellow]## Exporting')
-    #     melodies = [(mod, self[mod].export(structure, rhythms, lyrics=lyrics, meter=self.meter, modes=self.modes)) for mod in mods_melodies]
-    #     annots   = [(mod, self[mod].export(structure, rhythms, annotation=True)) for mod in mods_annots]
-    #     export.export(code, title, melodies, annots, self.key, self.meter, svg)
+    def export(self, filename: str, title: str, lyrics: str, melody_vps: List[str], svg: bool) -> None:
+        print('[yellow]## Exporting')
+        melodies = [(self[vp].name, self[vp]['ALL'][:]) for vp in melody_vps]
+        # annots   = [(mod, self[mod].export(structure, rhythms, annotation=True)) for mod in mods_annots]
+        export.export(filename, title, melodies, self.key, self.meter, svg)
