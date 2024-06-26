@@ -252,4 +252,4 @@ if __name__ == '__main__':
 
     sh: ur.Model = harm_sacred(mel, lyr, struc)
 
-    sh.export('test','Villulia reharmonized', 'lyr', ['fillInS', 'fillInA', 'fillInT', 'fillInB'], 'chords', False)
+    sh.export('test','Villulia reharmonized', 'lyr', ['fillInS', 'fillInA', 'fillInT', 'fillInB'], ['chords'], False)

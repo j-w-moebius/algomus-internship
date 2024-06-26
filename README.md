@@ -14,19 +14,18 @@ Python librairies
 ## Usage
 
 ```
-cd src/ur
 
 # Generate some draft songs
-python3 sacred.py 
+python3 src/ur/sacred.py 
 
 # Generate some draft songs, weird model
-python3 sacred.py --woo
+python3 src/ur/sacred.py --woo
 
 # Generate ome draft songs, also with .svg (needs Verovio + Firefox)
-python3 sacred.py --open
+python3 src/ur/sacred.py --open
 
 # Generate 20 songs in /data/gen/200-219, starting from 200
-python3 sacred.py -s 200 -n 20
+python3 src/ur/sacred.py -s 200 -n 20
 ```
 
 ## Credits

@@ -25,7 +25,7 @@
 #  along with "Ur". If not, see <http://www.gnu.org/licenses/>
 
 from __future__ import annotations
-from typing import Any, List, Generic, TypeVarTuple, get_origin
+from typing import Any, List, Generic
 from tools import *
 from collections import defaultdict
 from rich import print
@@ -37,67 +37,8 @@ import tools
 
 from trees import *
 
-
-ALL = '0'
-
 # Content type
 C = TypeVar('C')
-
-# class Item(object):
-#     '''
-#     One generation item
-#     '''
-#     def __init__(self, one, context=None):
-#         self.one = one
-#         self.context = context
-
-#     def __len__(self):
-#         return len(self.one)
-
-#     def __repr__(self):
-#         s = ''
-#         if self.context:
-#             s += f'<{self.context}>'
-#         if type(self.one) == type([]):
-#             s += '[%s]' % ' '.join(map(str, self.one))
-#         else:
-#             s += str(self.one)
-
-#         return s
-
-# class Data(object):
-#     '''
-#     A collection of generation items, indexed by structure
-#     '''
-
-#     def __init__(self, item=None, struct=None, data=None):
-#         self.data : defaultdict[str, list[Item]] = data if data is not None else defaultdict(list)
-#         if item:
-#             self.data[struct if struct else ALL] = [ item ]
-#         self.context = ''
-
-#     def __getitem__(self, struct: str) -> list[Item]:
-#         return self.data[struct]
-
-#     def __setitem__(self, struct: str, one: Item):
-#         self.data[struct] = one
-
-#     def update(self, other):
-#         '''Add other to data.'''
-#         self.data.update(other.data)
-
-#     def str(self, indent=''):
-#         s = ''
-#         for k in sorted(self.data.keys()):
-#             ind2 = indent + '>%s ' % k + self.context
-#             if len(self.data[k]) <= 1:
-#                 s += ind2 + str(self.data[k]) + '\n'
-#             else:
-#                 s += ellipsis_str(self.data[k], lines=True, indent=ind2)
-#         return s
-
-#     def __repr__(self):
-#         return self.str()
 
 class Interval:
     def __init__(self, min: int = 0, max: Optional[int] = None):
@@ -132,7 +73,6 @@ class Rule(Generic[C]):
 
     def __init__(self, vps: List[ViewPoint]) -> None:
         self.vps: List[ViewPoint] = vps
-        self.fixed_count: Optional[int] = None
 
     def __call__(self, *args: List[T]) -> C:
         if len(args) != len(self.ARGS):
@@ -282,13 +222,6 @@ class Generator(Generic[C]):
 
         return (self.gens[0][0], self.producers[0].fixedness) # TODO: choose the right producer
 
-#     def ternary(self):
-#         if '/8' in self.meter:
-#             return True
-#         return False
-
-#     def beat(self):
-#         return '4.' if self.ternary() else '4'
 
 #     def setup(self):
 #         pass
@@ -304,133 +237,6 @@ class Generator(Generic[C]):
 #         for m in self.mods:
 #             for mm in m:
 #                 yield mm
-
-#     def item(self, gens_in=None, struct=None) -> Item:
-#         return Item(42)
-
-#     def len_to_gen(self, n=8, gens_in=None, struct=None):
-#         '''Return the length of the gens_in item under struct'''
-#         if gens_in:
-#             s0 = gens_in[struct if struct else ALL]
-#             if s0:
-#                 n = len(s0[0])
-#         return n
-
-#     def one(self, gens_in=None, struct=None) -> Data:
-#         '''Return a single generated item'''
-#         item = self.item(gens_in, struct)
-#         return Data(item=item, struct=struct)
-
-#     def one_filtered(self, gens_in, struct, n=500) -> Data:
-#         '''Among n generated items, return the best according to filters
-#         '''
-#         if not self.filters:
-#             one = self.one(gens_in, struct)
-#             return one
-
-#         # Initialize filters:
-#         for filter, _ in self.filters:
-#             filter.init()
-
-#         # Generate
-#         ones = []
-#         for i in range(n):
-#             one = self.one(gens_in, struct)
-#             ones += [one]
-
-#             # Pre-score (so far, only relevant for relative scorer)
-#             for filter, weight in self.filters:
-#                 # get corresponding element from model linked in scorer, if any
-#                 v2 = filter.mod2.gens[struct][0] if filter.two() else None
-#                 filter.prescore_item(one[struct][0], v2, struct)
-
-#         # Score
-#         sp = []
-#         for one in ones:
-#             score = 0
-#             for filter, weight in self.filters:
-#                 v2 = filter.mod2.gens[struct][0] if filter.two() else None
-#                 score += filter.postscore_item(one[struct][0], v2, struct) * weight
-#             sp += [ (score, one) ]
-#         average = sum(map (lambda x:x[0], sp)) / len(sp)
-#         sp.sort(key = lambda x:x[0])
-#         one = sp[-1][1]
-#         firsts = ' '.join([f'{x[0]:.3f}' for x in sp[-5:]])
-#         print(f'<{self.name}> struct {struct}, nb {n}, avg {average:.3f}, best {sp[-1][0]:.3f}, firsts {firsts}')
-#         one.context += f'={sp[-1][0]:.3f}'
-#         one[struct][0].context += '=' + f'={sp[-1][0]:.3f}'
-#         return one
-
-#     def gen(self, gens_in=None, common=False) -> Data:
-#         '''Generate some data, which is both returned and stored in self.gens
-#         Parameters
-#         ----------
-#         gens_in : Data
-#             generation constraints
-#         common : Bool
-#             if true, generated data is copied between structural elements (X to x)
-#         '''
-#         new = Data()
-
-#         structures = set(self.structure)
-#         if gens_in:
-#             structures = structures.union(set(gens_in.data.keys()))
-#         if len(structures) >= 2 and ALL in structures:
-#             structures.remove(ALL)
-
-#         for struct in structures:
-#             if common and struct.islower():
-#                 # Skip x
-#                 continue
-
-#             # Main generation
-#             one = self.one_filtered(gens_in if gens_in else None, struct)
-#             for struct_child in one.data.keys():
-#                 struct_dest = struct_child if struct_child != ALL else struct
-#                 self.gens[struct_dest] += one[struct_child]
-#                 new[struct_dest] += one[struct_child]
-
-#         # Copy X into x
-#         if common:
-#             for struct in structures:
-#                 if struct.islower():
-#                     self.gens[struct] = self.gens[struct.upper()].copy()
-#                     new[struct] = new[struct.upper()].copy()
-
-#         return new
-
-#     def generate(self, n=20):
-#         for i in range(n):
-#             self.gen()
-
-#     def add_filter(self, scorer, weight):
-#         self.filters += [(scorer, weight)]
-
-#     def set_structure(self):
-#         '''Perform structure inheritance for all models in structurers
-#         '''
-#         for (s, mod) in self.structurers:
-#             s.structure_full = s.gens[ALL][0].one
-#             s.structure = s.structure_full.replace('-', '')
-#             mod.structure = s.structure
-#     def str_score(self, s):
-#         return f'{s:0.3f}'
-
-#     def score(self):
-#         for s in self.scorers:
-#             s.init()
-#             if not s.two():
-#                 continue
-#             structures = set(s.mod1.gens.data.keys()).intersection(set(s.mod2.gens.data.keys()))
-#             print(f'Scoring {s}') # {structures}')
-#             for struct in structures:
-#                 for (d1, d2) in zip(s.mod1.gens[struct], s.mod2.gens[struct]):
-#                     s.prescore_item(d1, d2, struct)
-#             for struct in structures:
-#                 for (d1, d2) in zip(s.mod1.gens[struct], s.mod2.gens[struct]):
-#                     ss = s.postscore_item(d1, d2, struct)
-#                     d2.context += ',' + self.str_score(ss)
-#                     # print("  ", struct, ss, d1, d2)
 
 #     def learn(self):
 #         raise NotImplemented
@@ -506,51 +312,6 @@ class Generator(Generic[C]):
 
 #         return out, lyr
 
-#     def str(self, indent=0):
-#         ind = '    ' * indent
-#         s = ind
-#         s += f'<{self.id()}>\n'
-#         if self.gens:
-#             s += self.gens.str(ind)
-#             s += '\n'
-#         for m in self.mods:
-#             if indent < 6:
-#                 s += m.str(indent + 1)
-#             else:
-#                 s += '<...>'
-
-#         for sc in self.scorers:
-#             s += ind + str(sc) + '\n'
-#         return s
-
-#     def __str__(self):
-#         return self.str()
-
-
-# class Or(Gen):
-
-#     # def __init__(self, mods):
-#     #    super().__init__()
-#     #    self.mods = mods
-
-#     def one(self, gens_in=None, struct=None):
-#         m = pwchoice(self.mods)
-#         gs = m.gen(gens_in, struct)
-#         gs.context = self.id() + '/' + gs.context
-#         return gs
-
-
-# # class And(Gen):
-
-# #     # def __init__(self, mods):
-# #     #    super().__init__()
-# #     #    self.mods = mods
-
-# #     def one(self, gens_in=None, struct=None):
-# #         d = Data()
-# #         for m in self.mods:
-# #             d.update(m.gen(gens_in, struct))
-# #         return d
 
 # ### Item generators
 
@@ -666,7 +427,8 @@ class HiddenMarkov(Producer[C], Generic[S, C]):
         super().__init__(vp_out, vps_in, fixedness)
 
         # TODO: avoid this barbary (but type annotations system makes it difficult)
-        self.TRANSITIONS = dict([(m.Pitch(s1), dict([(m.Pitch(s2), p) for s2, p in d.items()])) for s1, d in self.TRANSITIONS.items()])
+        self.TRANSITIONS = dict([(m.Pitch(s1), dict([(m.Pitch(s2), p) for s2, p in d.items()])) \
+                                 for s1, d in self.TRANSITIONS.items()])
         self.STATES = [m.Pitch(s) for s in self.STATES]
         self.INITIAL = [m.Pitch(s) for s in self.INITIAL]
         self.FINAL = [m.Pitch(s) for s in self.FINAL]
@@ -978,25 +740,11 @@ class Model:#(Gen):
     # def structurer(self, struct, mod):
     #     self.structurers += [(self[struct], self[mod])]
 
-    def export(self, filename: str, title: str, lyr_vp: str, melody_vps: List[str], annots_vp: str, svg: bool) -> None:
+    def export(self, filename: str, title: str, lyr_vp: str, melody_vp_names: List[str], annot_vp_names: List[str], svg: bool) -> None:
         print('[yellow]## Exporting')
-        melodies = [(self[vp].name, self.zip_lyrics_melody(lyr_vp, vp)) for vp in melody_vps]
-        # annots   = [(mod, self[mod].export(structure, rhythms, annotation=True)) for mod in mods_annots]
-        export.export(filename, title, melodies, self[annots_vp]['ALL'][:], self.key, self.meter, svg)
-
-    def zip_lyrics_melody(self, lyr_vp: str, mel_vp: str) -> List[Tuple[m.Note, str]]:
-        lyr = list(zip(self[lyr_vp]['ALL'][:], self[lyr_vp].get_lead()['ALL'][:]))
-        mel = self[mel_vp]['ALL'][:]
-
-        acc_mel: float = 0.0
-        acc_lyr: float = 0.0
-        result: List[Tuple[m.Note, str]] = []
-        for (i, n) in enumerate(mel):
-            if acc_mel == acc_lyr:
-                acc_lyr += lyr[0][1].quarter_length()
-                result.append((n, lyr.pop(0)[0]))
-            else:
-                result.append((n, '-'))
-            acc_mel += n.quarter_length()
-            
-        return result
+        melodies = [(vp,
+                     self[vp]['ALL'][:],
+                     self[lyr_vp].export(self[vp])) for vp in melody_vp_names]
+        annots   = [(vp, \
+                     self[vp].export(self[melody_vp_names[-1]])) for vp in annot_vp_names]
+        export.export(filename, title, melodies, annots, self.key, self.meter, svg)

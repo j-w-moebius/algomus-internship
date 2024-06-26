@@ -398,6 +398,25 @@ class ViewPoint(Generic[C, I]):
     def set_to(self, bars: list[C], fixedness: float = 1.0) -> None:
         raise NotImplementedError()
 
+    def export(self, lead: ViewPoint) -> List[str]:
+        assert isinstance(lead, ViewPointLead)
+        self_content = self['ALL'][:]
+        self_durations = [e.quarter_length() for e in self.get_lead()['ALL'][:]]
+        lead_content = lead['ALL'][:]
+
+        acc_lead: float = 0.0
+        acc_self: float = 0.0
+        result: List[str] = []
+        for e in lead_content:
+            if acc_lead == acc_self:
+                acc_self += self_durations.pop(0)
+                result.append(str(self_content.pop(0)))
+            else:
+                result.append('-')
+            acc_lead += e.quarter_length()
+            
+        return result
+
 class ViewPointLead(ViewPoint[T, QuarterIndex]):
     def __init__(self, name: str, use_copy: bool, model: ur.Model):
         super().__init__(name, use_copy, model)
