@@ -5,36 +5,37 @@ and by (Kelley 2016) models.
 
 import ur
 import glob
-import music
+import music as m
 import math
 import tools
-from typing import Optional
+from typing import Optional, List, Dict
 
-class Structure(ur.ItemChoice):
-    # FuncMinorExtended
-    # A/a begin on T,     end on T/S/D
-    # B/b begin on T/S/D, end on T/S/D
-    # Z/z begin on S/D,   end on T
-    CHOICES = ['AB-aZ', 'AB-bZ', 'A-aZ-z', 'A-aB-Z-z' ]
-               # 'AQ-RA', 'AQ-AC', 'BA-QA' ]
-
-
-class Lyrics(ur.ItemLyricsChoiceFiles):
-    FILES = glob.glob('data/lyrics-s/*.txt')
-    STRESS_WORDS = ['Lord', 'God', 'Christ', 'Son']
+# class Structure(ur.ItemChoice):
+#     # FuncMinorExtended
+#     # A/a begin on T,     end on T/S/D
+#     # B/b begin on T/S/D, end on T/S/D
+#     # Z/z begin on S/D,   end on T
+#     CHOICES = ['AB-aZ', 'AB-bZ', 'A-aZ-z', 'A-aB-Z-z' ]
+#                # 'AQ-RA', 'AQ-AC', 'BA-QA' ]
 
 
-class HHLyrics(ur.ItemLyricsChoiceFiles):
-    FILES = ['data/lyrics-hh/6-4.txt']
-
-class HHLyricsTernary(ur.ItemLyricsChoiceFiles):
-    FILES = ['data/lyrics-hh/3-2.txt', 'data/lyrics-hh/6-8.txt']
+# class Lyrics(ur.ItemLyricsChoiceFiles):
+#     FILES = glob.glob('data/lyrics-s/*.txt')
+#     STRESS_WORDS = ['Lord', 'God', 'Christ', 'Son']
 
 
-class Key(ur.ItemChoice):
-    CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4', 'A4']
+# class HHLyrics(ur.ItemLyricsChoiceFiles):
+#     FILES = ['data/lyrics-hh/6-4.txt']
 
-class ChordsMajor(ur.ItemMarkov):
+# class HHLyricsTernary(ur.ItemLyricsChoiceFiles):
+#     FILES = ['data/lyrics-hh/3-2.txt', 'data/lyrics-hh/6-8.txt']
+
+
+# class Key(ur.ItemChoice):
+#     CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4', 'A4']
+
+class ChordsMajor(ur.Producer):
+
 
     SOURCE = '(Kelley 2016)'
 
@@ -56,7 +57,7 @@ class ChordsMajor(ur.ItemMarkov):
         'D': {'iii': 0.21, 'V': 0.72, 'vii': 0.07},
     }
 
-class ChordsMinor(ur.ItemMarkov):
+class ChordsMinor(ur.HiddenMarkov[str, m.Chord]):#(ur.ItemMarkov):
 
     SOURCE = '(Kelley 2016)'
 
@@ -70,45 +71,45 @@ class ChordsMinor(ur.ItemMarkov):
         'D': { 'T': 0.49, 'S': 0.08, 'D': 0.43 },
     }
 
-    EMISSIONS = {
-        'T': {'i': 1.00},
-        'S': {'iim': 0.19, 'iv': 0.53, 'VI': 0.28},
-        'D': {'III': 0.35, 'v': 0.32, 'VII': 0.33},
+    EMISSIONS: Dict[str, Dict[m.Chord, float]] = {
+        'T': {m.Chord('i'): 1.00},
+        'S': {m.Chord('iim'): 0.19, m.Chord('iv'): 0.53, m.Chord('VI'): 0.28},
+        'D': {m.Chord('III'): 0.35, m.Chord('v'): 0.32, m.Chord('VII'): 0.33},
     }
 
 
-class ChordsExtended(ChordsMinor):
+# class ChordsExtended(ChordsMinor):
 
-    STATES = ['i', 'j', 'T', 'S', 'D']
-    INITIAL_S = {
-                 None: ['j'],
-                 'B': ['T', 'S', 'D'],
-                 'Z': ['S', 'D'],
-                 }
-    FINAL_S = {
-               None: ['i'],
-               'A': ['i', 'D', 'S'],
-               'B': ['i', 'D', 'S'],
-               }
+#     STATES = ['i', 'j', 'T', 'S', 'D']
+#     INITIAL_S = {
+#                  None: ['j'],
+#                  'B': ['T', 'S', 'D'],
+#                  'Z': ['S', 'D'],
+#                  }
+#     FINAL_S = {
+#                None: ['i'],
+#                'A': ['i', 'D', 'S'],
+#                'B': ['i', 'D', 'S'],
+#                }
 
-    TRANSITIONS = {
-        'j': { 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 },
-        'i': { 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 },
-        'T': { 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 },
-        'S': { 'i': 0.10, 'T': 0.21, 'S': 0.14, 'D': 0.55 },
-        'D': { 'i': 0.20, 'T': 0.29, 'S': 0.08, 'D': 0.43 },
-    }
+#     TRANSITIONS = {
+#         'j': { 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 },
+#         'i': { 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 },
+#         'T': { 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 },
+#         'S': { 'i': 0.10, 'T': 0.21, 'S': 0.14, 'D': 0.55 },
+#         'D': { 'i': 0.20, 'T': 0.29, 'S': 0.08, 'D': 0.43 },
+#     }
 
-    # stars mark enrichened chords
-    EMISSIONS = {
-        'j': {'i': 0.50, 'i3': 0.20,  'i8': 0.15 },
-        'i': {'i': 1.00 },
-        'T': {'i': 0.30, 'i3': 0.20, '*i9': 0.25 },
-        'S': {'iim': 0.19, 'iv': 0.33, '*iv9': 0.10, 'VI': 0.28},
-        'D': {'III': 0.20, '*III7': 0.08, 'v': 0.15, 'v3': 0.7, 'v8': 0.05, 'VII': 0.33},
-    }
+#     # stars mark enrichened chords
+#     EMISSIONS = {
+#         'j': {'i': 0.50, 'i3': 0.20,  'i8': 0.15 },
+#         'i': {'i': 1.00 },
+#         'T': {'i': 0.30, 'i3': 0.20, '*i9': 0.25 },
+#         'S': {'iim': 0.19, 'iv': 0.33, '*iv9': 0.10, 'VI': 0.28},
+#         'D': {'III': 0.20, '*III7': 0.08, 'v': 0.15, 'v3': 0.7, 'v8': 0.05, 'VII': 0.33},
+#     }
 
-class Rhythm(ur.ItemSpanSequence):
+class Rhythm(ur.Producer):#ur.ItemSpanSequence):
     ITEMS_LAST = [
         ('2', 0.8),
         ('4', 0.5),
@@ -121,7 +122,7 @@ class Rhythm(ur.ItemSpanSequence):
                 ('4. 8', 0.05),
             ]
 
-class TernaryRhythm(ur.ItemSpanSequence):
+class TernaryRhythm(ur.Producer):#ur.ItemSpanSequence):
     ITEMS_LAST = [
         ('1.', 0.2),
         ('2.', 0.8),
@@ -141,12 +142,12 @@ class TernaryRhythm(ur.ItemSpanSequence):
             ]
 
 
-class Melody0(ur.ItemSequence):
-    ITEMS = 'cdefgab'
+# class Melody0(ur.ItemSequence):
+#     ITEMS = 'cdefgab'
 
-class MelodyMajorS(ur.ItemPitchMarkov):
-    AMBITUS = ['C4', 'A5']
-    AMBITUS_INITIAL = ['E4', 'E5']
+class MelodyMajorS(ur.Producer):
+    AMBITUS = ('C4', 'A5')
+    AMBITUS_INITIAL = ('E4', 'E5')
     STATES = ['C4', 'D4', 'E4', 'F4', 'B3', 'G4', 'A4', 'A3', 'C5', 'B4', 'G3', 'D5', 'E5', 'F5', 'A5', 'G5', 'A-5', 'F#5', 'D3', 'F3']
     INITIAL = ['C4', 'E4', 'G4', 'C5', 'E5']
     FINAL = STATES
@@ -174,9 +175,9 @@ class MelodyMajorS(ur.ItemPitchMarkov):
         'F3': {'G3': 1.000},
     }
 
-class MelodyMajorA(ur.ItemPitchMarkov):
-    AMBITUS = ['G3', 'D5']
-    AMBITUS_INITIAL = ['A3', 'C5']
+class MelodyMajorA(ur.PitchMarkov):
+    AMBITUS = ('G3', 'D5')
+    AMBITUS_INITIAL = ('A3', 'C5')
     STATES = ['G3', 'B3', 'C4', 'D4', 'A3', 'E3', 'F3', 'G4', 'F4', 'A4', 'F#4', 'B4', 'C5', 'D5', 'E4', 'E5', 'F5', 'A-4', 'D3']
     INITIAL = ['G3', 'C4', 'E4', 'G4', 'C4']
     FINAL = STATES
@@ -203,9 +204,9 @@ class MelodyMajorA(ur.ItemPitchMarkov):
         'D3': {'G3': 1.000},
     }
 
-class MelodyMajorT(ur.ItemPitchMarkov):
-    AMBITUS = ['B2', 'A4']
-    AMBITUS_INITIAL = ['E3', 'E4']
+class MelodyMajorT(ur.PitchMarkov):
+    AMBITUS = ('B2', 'A4')
+    AMBITUS_INITIAL = ('E3', 'E4')
     STATES = ['E3', 'G3', 'A3', 'F3', 'D3', 'B3', 'C3', 'B2', 'A2', 'E4', 'C4', 'D4', 'C#4', 'G4', 'F4', 'A4', 'B-4', 'F#4', 'E-4', 'G#3', 'F#3']
     INITIAL = ['C3', 'E3', 'G3', 'C4', 'E4']
     FINAL = STATES
@@ -234,9 +235,9 @@ class MelodyMajorT(ur.ItemPitchMarkov):
         'F#3': {'F#3': 0.500, 'G3': 0.500},
     }
 
-class MelodyMajorB(ur.ItemPitchMarkov):
-    AMBITUS = ['E2', 'D4']
-    AMBITUS_INITIAL = ['A2', 'C4']
+class MelodyMajorB(ur.PitchMarkov):
+    AMBITUS = ('E2', 'D4')
+    AMBITUS_INITIAL = ('A2', 'C4')
     STATES = ['C3', 'G2', 'F3', 'B2', 'D3', 'E3', 'A2', 'G3', 'F2', 'E2', 'D2', 'C2', 'F#3', 'C4', 'E4', 'D4', 'F4', 'B3', 'A3', 'E-4', 'B-2', 'C#3']
     INITIAL = ['C3', 'C4']
     FINAL = STATES
@@ -266,9 +267,9 @@ class MelodyMajorB(ur.ItemPitchMarkov):
         'C#3': {'D3': 1.000},
     }
 
-class MelodyMinorS(ur.ItemPitchMarkov):
-    AMBITUS = ['C4', 'A5']
-    AMBITUS_INITIAL = ['E4', 'E5']
+class MelodyMinorS(ur.PitchMarkov):
+    AMBITUS = ('C4', 'A5')
+    AMBITUS_INITIAL = ('E4', 'E5')
     STATES = ['E4', 'A4', 'B4', 'C5', 'G4', 'F4', 'D5', 'E5', 'G5', 'F5', 'A5', 'F#5', 'E-5', 'B-4', 'B-5', 'D4', 'C4']
     INITIAL = ['E4', 'A4', 'C5', 'E5']
     FINAL = STATES
@@ -293,9 +294,9 @@ class MelodyMinorS(ur.ItemPitchMarkov):
         'C4': {'C4': 1.000},
     }
 
-class MelodyMinorA(ur.ItemPitchMarkov):
-    AMBITUS = ['G3', 'D5']
-    AMBITUS_INITIAL = ['A3', 'C5']
+class MelodyMinorA(ur.PitchMarkov):
+    AMBITUS = ('G3', 'D5')
+    AMBITUS_INITIAL = ('A3', 'C5')
     STATES = ['E4', 'A4', 'F4', 'G4', 'D4', 'B4', 'C5', 'D5', 'A-4', 'F#4', 'E5', 'B-4', 'E-4', 'G#4', 'G5', 'F5', 'C4', 'B3', 'C#4']
     INITIAL = ['C4', 'E4', 'A4', 'C5']
     FINAL = STATES
@@ -322,9 +323,9 @@ class MelodyMinorA(ur.ItemPitchMarkov):
         'C#4': {'D4': 1.000},
     }
 
-class MelodyMinorT(ur.ItemPitchMarkov):
-    AMBITUS = ['B2', 'A4']
-    AMBITUS_INITIAL = ['C3', 'E4']
+class MelodyMinorT(ur.PitchMarkov):
+    AMBITUS = ('B2', 'A4')
+    AMBITUS_INITIAL = ('C3', 'E4')
     STATES = ['E4', 'C4', 'D4', 'B3', 'A3', 'A-3', 'G4', 'A-4', 'A4', 'G3', 'F3', 'E3', 'F#4', 'B-3', 'E-4', 'F4', 'B-4', 'F#3', 'G#3', 'D3']
     INITIAL = ['E3', 'A3', 'C4', 'E4']
     FINAL = STATES
@@ -352,9 +353,9 @@ class MelodyMinorT(ur.ItemPitchMarkov):
         'D3': {'G3': 1.000},
     }
 
-class MelodyMinorB(ur.ItemPitchMarkov):
-    AMBITUS = ['E2', 'D4']
-    AMBITUS_INITIAL = ['A2', 'C4']
+class MelodyMinorB(ur.PitchMarkov):
+    AMBITUS = ('E2', 'D4')
+    AMBITUS_INITIAL = ('A2', 'C4')
     STATES = ['E4', 'A3', 'F3', 'D3', 'E3', 'A-3', 'G3', 'C4', 'D4', 'B3', 'C3', 'F#3', 'B-3', 'C#3', 'E-3', 'E-4', 'A2', 'B2', 'G2', 'F2', 'E2']
     INITIAL = ['A2', 'C3', 'E3', 'A3', 'C3']
     FINAL = STATES
@@ -384,184 +385,188 @@ class MelodyMinorB(ur.ItemPitchMarkov):
     }
 
 
-class ScorerMelody(ur.ScorerOne):
+# class ScorerMelody(ur.ScorerOne):
 
-    AMBITUS_LOW = 5
-    AMBITUS_HIGH = 14
-    AMBITUS_GOOD = 7
+#     AMBITUS_LOW = 5
+#     AMBITUS_HIGH = 14
+#     AMBITUS_GOOD = 7
 
-    def score_item(self, gen, _, __):
-        score = 0
+#     def score_item(self, gen, _, __):
+#         score = 0
 
-        # Ambitus
-        ambitus = music.ambitus(gen.one)
-        if ambitus < self.AMBITUS_LOW or ambitus > self.AMBITUS_HIGH:
-            score -= 1
-        elif ambitus > self.AMBITUS_GOOD: # ?? Why not == ?
-            score += 0.5
+#         # Ambitus
+#         ambitus = music.ambitus(gen.one)
+#         if ambitus < self.AMBITUS_LOW or ambitus > self.AMBITUS_HIGH:
+#             score -= 1
+#         elif ambitus > self.AMBITUS_GOOD: # ?? Why not == ?
+#             score += 0.5
 
-        for i in range(len(gen.one)-2):
-            a, b, c = gen.one[i:i+3]
+#         for i in range(len(gen.one)-2):
+#             a, b, c = gen.one[i:i+3]
 
-            # Large intervals, then short contrary motion
-            if music.interval(a, b) > 7 and music.interval(b, c) in [-1, -2]:
-                score += 0.2
-            if music.interval(a, b) < -7 and music.interval(b, c) in [1, 2]:
-                score += 0.2
+#             # Large intervals, then short contrary motion
+#             if music.interval(a, b) > 7 and music.interval(b, c) in [-1, -2]:
+#                 score += 0.2
+#             if music.interval(a, b) < -7 and music.interval(b, c) in [1, 2]:
+#                 score += 0.2
 
-            # Too many repeated notes
-            if a == b and b == c:
-                score -= 0.2
+#             # Too many repeated notes
+#             if a == b and b == c:
+#                 score -= 0.2
 
-        return score
+#         return score
 
 
-class ScorerSectionsMelodyT(ur.ScorerOne):
+# class ScorerSectionsMelodyT(ur.ScorerOne):
 
-    # Target some mean pitch, according to section
-    # Not used now, RelativeScorerSectionMelody is better
-    TARGET = {
-        'A': (50, 57), 'a': (59, 70),
-        'B': (59, 70), 'b': (50, 57),
-        None: (50, 70),
-    }
+#     # Target some mean pitch, according to section
+#     # Not used now, RelativeScorerSectionMelody is better
+#     TARGET = {
+#         'A': (50, 57), 'a': (59, 70),
+#         'B': (59, 70), 'b': (50, 57),
+#         None: (50, 70),
+#     }
 
-    def score_item(self, gen, _, struct):
-        mean = music.mean(gen.one)
-        tdown, tup = self.TARGET[struct] if struct in self.TARGET else self.TARGET[None]
-        return -tools.distance_to_interval(mean, tdown, tup)
+#     def score_item(self, gen, _, struct):
+#         mean = music.mean(gen.one)
+#         tdown, tup = self.TARGET[struct] if struct in self.TARGET else self.TARGET[None]
+#         return -tools.distance_to_interval(mean, tdown, tup)
 
-class RelativeScorerSectionMelody(ur.ScorerOne, ur.RelativeScorerSection):
-    ''' Relative Scorer for mean pitch in melody
-    '''
+# class RelativeScorerSectionMelody(ur.ScorerOne, ur.RelativeScorerSection):
+#     ''' Relative Scorer for mean pitch in melody
+#     '''
 
-    # specify the intervals in which melodic means should be located
-    TARGET = {
-        'A': (0.0, 0.4), 'a': (0.6, 1.0),
-        'B': (0.6, 1.0), 'b': (0.0, 0.4),
-        'Z': (0.0, 0.6), 'z': (0.65, 1.0),
-        None: (0.0, 1.0),
-    }
+#     # specify the intervals in which melodic means should be located
+#     TARGET = {
+#         'A': (0.0, 0.4), 'a': (0.6, 1.0),
+#         'B': (0.6, 1.0), 'b': (0.0, 0.4),
+#         'Z': (0.0, 0.6), 'z': (0.65, 1.0),
+#         None: (0.0, 1.0),
+#     }
 
-    def score_item(self, gen, _, struct):
-        return music.mean(gen.one)
+#     def score_item(self, gen, _, struct):
+#         return music.mean(gen.one)
 
-class ScorerFunc(ur.ScorerOne):
+class ScorerFunc(ur.Scorer):
+    ARGS = [(m.Chord, ur.Interval(1))]
 
-    def score_item(self, gen, _, __):
+    def function(self, chords: List[m.Chord]):
 
-        different = len(set(gen.one))
-        stars = len(list(filter(lambda x: '*' in x, gen.one)))
+        different = len(set(chords))
+        stars = len(list(filter(lambda x: '*' in x, chords)))
 
-        score = different/len(gen.one)
+        score = different/len(chords)
         if stars in [1, 2, 3]:
             score += 0.5
         return score
 
 
-class ScorerMelodySA(ScorerMelody):
-    AMBITUS_LOW = 5
-    AMBITUS_HIGH = 12
-    AMBITUS_GOOD = 5
+# class ScorerMelodySA(ScorerMelody):
+#     AMBITUS_LOW = 5
+#     AMBITUS_HIGH = 12
+#     AMBITUS_GOOD = 5
 
 
-S2 = {
-        '1': 2, '2': 2, '2.': 2, '4.': 2, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 2, '8 8': 0, '8. 16': 2,
-        '1.': 2, '2.': 2, '4.': 2, '8 8 8': 0, '8. 16 8': 0, '4 8': 0, '2 8 8': 0, '4 16 16': 0, '8 8 16 16': 0, '8 16 16 8': 0,
-     }
-S1 = {
-        '1': 2, '2': 2, '2.': 2, '4.': 1, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 1, '8 8': 0, '8. 16': 1,
-        '1.': 0, '2.': 2, '4.': 2, '8 8 8': 0, '8. 16 8': 2, '4 8': 2, '2 8 8': 2, '4 16 16': 2, '8 8 16 16': 1, '8 16 16 8': 2,
-     }
-S0 = {
-        '1': 0, '2': 0, '2.': 0, '4.': 0, '8.': 0, '4': 1, '8': 1, '16': 1, '4. 8': 0, '8 8': 1, '8. 16': 0,
-        '1.': 0, '2.': 0, '4.': 1, '8 8 8': 1, '8. 16 8': 0, '4 8': 1, '2 8 8': 0, '4 16 16': 0, '8 8 16 16': 1, '8 16 16 8': 1,
-      }
+# S2 = {
+#         '1': 2, '2': 2, '2.': 2, '4.': 2, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 2, '8 8': 0, '8. 16': 2,
+#         '1.': 2, '2.': 2, '4.': 2, '8 8 8': 0, '8. 16 8': 0, '4 8': 0, '2 8 8': 0, '4 16 16': 0, '8 8 16 16': 0, '8 16 16 8': 0,
+#      }
+# S1 = {
+#         '1': 2, '2': 2, '2.': 2, '4.': 1, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 1, '8 8': 0, '8. 16': 1,
+#         '1.': 0, '2.': 2, '4.': 2, '8 8 8': 0, '8. 16 8': 2, '4 8': 2, '2 8 8': 2, '4 16 16': 2, '8 8 16 16': 1, '8 16 16 8': 2,
+#      }
+# S0 = {
+#         '1': 0, '2': 0, '2.': 0, '4.': 0, '8.': 0, '4': 1, '8': 1, '16': 1, '4. 8': 0, '8 8': 1, '8. 16': 0,
+#         '1.': 0, '2.': 0, '4.': 1, '8 8 8': 1, '8. 16 8': 0, '4 8': 1, '2 8 8': 0, '4 16 16': 0, '8 8 16 16': 1, '8 16 16 8': 1,
+#       }
 
-class ScorerRhythmLyrics(ur.ScorerTwoSpanSequence):
+# class ScorerRhythmLyrics(ur.Scorer):#ur.ScorerTwoSpanSequence):
 
-    STRESSES = [
-        ('!', S2),
-        ('>>', S1),
-        ('>',  S1),
+#     STRESSES = [
+#         ('!', S2),
+#         ('>>', S1),
+#         ('>',  S1),
 
-        ('/', S1),
-        ('.', S1),
+#         ('/', S1),
+#         ('.', S1),
 
-        (';', S1),
-        (',', S1),
+#         (';', S1),
+#         (',', S1),
 
-        ('',  S0),
-    ]
-
-
-    def score_element(self, rhy, lyr):
-        for (symbol, scores) in self.STRESSES:
-            if symbol in lyr:
-                if rhy in scores:
-                    return scores[rhy]
-                # return 0
-        print('!', lyr, rhy)
-        return 0
+#         ('',  S0),
+#     ]
 
 
-class ScorerRhythmMetricsFour(ur.ScorerOne):
-
-    def score_item(self, gen, _, __):
-        score = 0
-
-        # music.duration(gen.one)
-        pos = 0
-        for r in gen.one:
-            d = int(music.duration(r))
-            if pos + d > 4:
-                score -= .5
-            if d > 1 and pos == 1:
-                score -= .2
-            if d == 1 and r != '4' and pos == 3:
-                score += .2
-            pos = (pos + d) % 4
-
-        if pos in [0, 2]:
-            score -= .5
-
-        return score
+#     def score_element(self, rhy, lyr):
+#         for (symbol, scores) in self.STRESSES:
+#             if symbol in lyr:
+#                 if rhy in scores:
+#                     return scores[rhy]
+#                 # return 0
+#         print('!', lyr, rhy)
+#         return 0
 
 
-class ScorerRhythmMetricsTernary(ur.ScorerOne):
+# class ScorerRhythmMetricsFour(ur.ScorerOne):
 
-    def score_item(self, gen, _, __):
-        score = 0
+#     def score_item(self, gen, _, __):
+#         score = 0
 
-        # music.duration(gen.one)
-        pos = 0
-        for r in gen.one:
-            d = int(music.duration(r)*2)/2
-            if pos + d > 3:
-                score -= .5
-            if d > 1.5 and pos == 1.5:
-                score -= .2
-            #if d > 1.5 and pos == 0:
-            #    score += .2
-            #if d == 1.5 and r != '4' and pos == 3:
-            #    score += .2
-            pos = (pos + d) % 3
+#         # music.duration(gen.one)
+#         pos = 0
+#         for r in gen.one:
+#             d = int(music.duration(r))
+#             if pos + d > 4:
+#                 score -= .5
+#             if d > 1 and pos == 1:
+#                 score -= .2
+#             if d == 1 and r != '4' and pos == 3:
+#                 score += .2
+#             pos = (pos + d) % 4
 
-        # if pos in [0, 2]:
-        #    score -= .5
+#         if pos in [0, 2]:
+#             score -= .5
 
-        return score
+#         return score
 
 
+# class ScorerRhythmMetricsTernary(ur.ScorerOne):
+
+#     def score_item(self, gen, _, __):
+#         score = 0
+
+#         # music.duration(gen.one)
+#         pos = 0
+#         for r in gen.one:
+#             d = int(music.duration(r)*2)/2
+#             if pos + d > 3:
+#                 score -= .5
+#             if d > 1.5 and pos == 1.5:
+#                 score -= .2
+#             #if d > 1.5 and pos == 0:
+#             #    score += .2
+#             #if d == 1.5 and r != '4' and pos == 3:
+#             #    score += .2
+#             pos = (pos + d) % 3
+
+#         # if pos in [0, 2]:
+#         #    score -= .5
+
+#         return score
 
 
-class ScorerMelodyHarm(ur.ScorerTwoSequence):
+
+
+class ScorerMelodyHarm(ur.Scorer):#(ur.ScorerTwoSequence):
+
+    ARGS = [(m.Pitch, ur.Interval(1,1)),
+            (m.Chord, ur.Interval(1,1))]
 
     # bottom-up index of voice in four-part setting
     POSITION: Optional[int] = None
-    FIXED_POSITION = [ '*i9', '*III7', '*iv9']
+    FIXED_POSITION: List[m.Chord] = [ '*i9', '*III7', '*iv9']
 
-    CHORDS = {
+    CHORDS: Dict[m.Chord, str]= {
         'I': 'ceg',
         'ii': 'dfa',
         'iii': 'egb',
@@ -597,11 +602,13 @@ class ScorerMelodyHarm(ur.ScorerTwoSequence):
         3: 1.0,
     }
 
-    def score_element(self, mel, harm):
+    def function(self, mel: List[m.Pitch], chords: List[m.Chord]) -> float:
         # print (mel, harm, self.CHORDS[harm])
-        if mel[0].lower() in self.CHORDS[harm]:
-            ind = self.CHORDS[harm].index(mel[0].lower())
-            if self.POSITION and harm in self.FIXED_POSITION:
+        pc: m.Pitch = mel[0].pc()
+        chord: m.Chord = chords[0]
+        if pc in self.CHORDS[chord]:
+            ind = self.CHORDS[chord].index(pc)
+            if self.POSITION and chord in self.FIXED_POSITION:
                 if ind == self.POSITION:
                     return 20.0
             if ind in self.SCORES:
@@ -611,117 +618,119 @@ class ScorerMelodyHarm(ur.ScorerTwoSequence):
         else:
             return self.SCORES[None]
 
-    def score_first_last_element(self, mel, harm):
-        if mel[0].lower() in self.CHORDS[harm]:
-            return 1.0
-        else:
-            return -20 # arbitrary ?? 
+    # TODO: cadences, first, last, etc. ?
 
-class ScorerMelodyMelodyBelow(ur.ScorerTwoSequence):
-    def score_element(self, mel1, mel2):
-        if music.interval(mel1, mel2) < 0:
-            return 0.0
-        return 0.2
+    # def score_first_last_element(self, mel, harm):
+    #     if mel[0].lower() in self.CHORDS[harm]:
+    #         return 1.0
+    #     else:
+    #         return -20 # arbitrary ?? 
 
-class ScorerMelodyMelodyAbove(ur.ScorerTwoSequence):
-    def score_element(self, mel1, mel2):
-        if music.interval(mel1, mel2) > 0:
-            return 0.0
-        return 0.2
+# class ScorerMelodyMelodyBelow(ur.ScorerTwoSequence):
+#     def score_element(self, mel1, mel2):
+#         if music.interval(mel1, mel2) < 0:
+#             return 0.0
+#         return 0.2
 
-class ScorerMelodyMelodyCross(ur.ScorerTwoSequenceAllPairs):
-    '''Rewards melody crossings, particularly those of length >= 3
-    '''
+# class ScorerMelodyMelodyAbove(ur.ScorerTwoSequence):
+#     def score_element(self, mel1, mel2):
+#         if music.interval(mel1, mel2) > 0:
+#             return 0.0
+#         return 0.2
 
-    CROSS = {
-        0: 0.0,
-        1: 0.5,
-        2: 1.0,
-        3: 1.0,
-        4: 0.0,
-        None: 0.0
-    }
+# class ScorerMelodyMelodyCross(ur.ScorerTwoSequenceAllPairs):
+#     '''Rewards melody crossings, particularly those of length >= 3
+#     '''
 
-    LONGCROSS = {
-        0: 0.0,
-        1: 1.0,
-        2: 1.0,
-        3: 1.0,
-        None: 0.0
-    }
+#     CROSS = {
+#         0: 0.0,
+#         1: 0.5,
+#         2: 1.0,
+#         3: 1.0,
+#         4: 0.0,
+#         None: 0.0
+#     }
 
-    def score_all_pairs(self, mel1mel2):
-        crossings = 0
-        long_crossings = 0 # at least three notes
-        ss = 0 # sign of last seen interval
-        ii = 0 # index of last crossing
+#     LONGCROSS = {
+#         0: 0.0,
+#         1: 1.0,
+#         2: 1.0,
+#         3: 1.0,
+#         None: 0.0
+#     }
 
-        # Count the number of crossings
-        for (i, (n1, n2)) in enumerate(mel1mel2):
-            s = math.copysign(1, music.interval(n1, n2))
-            if s:
-                if ss and ss != s:
-                    crossings += 1
-                    if i >= ii + 3:           # ?? ignoring natural voice order
-                        long_crossings += 1
-                    ii = i
-                ss = s
+#     def score_all_pairs(self, mel1mel2):
+#         crossings = 0
+#         long_crossings = 0 # at least three notes
+#         ss = 0 # sign of last seen interval
+#         ii = 0 # index of last crossing
 
-        # Score
-        score = self.CROSS[crossings] if crossings in self.CROSS else self.CROSS[None]
-        score += self.LONGCROSS[long_crossings] if long_crossings in self.LONGCROSS else self.LONGCROSS[None]
+#         # Count the number of crossings
+#         for (i, (n1, n2)) in enumerate(mel1mel2):
+#             s = math.copysign(1, music.interval(n1, n2))
+#             if s:
+#                 if ss and ss != s:
+#                     crossings += 1
+#                     if i >= ii + 3:           # ?? ignoring natural voice order
+#                         long_crossings += 1
+#                     ii = i
+#                 ss = s
 
-        return score
+#         # Score
+#         score = self.CROSS[crossings] if crossings in self.CROSS else self.CROSS[None]
+#         score += self.LONGCROSS[long_crossings] if long_crossings in self.LONGCROSS else self.LONGCROSS[None]
 
-
-class ScorerMelodyMelody(ur.ScorerTwoSequenceIntervals):
-
-    def score_element(self,
-                      mel1a, mel1b,
-                      mel2a, mel2b):
+#         return score
 
 
-        # Detect doubling of voices
-        if (music.interval(mel1a, mel2a) % 12) == 0:
-            int1 = music.interval(mel1a, mel1b) % 12
-            int2 = music.interval(mel2a, mel2b) % 12
-            if int1 == int2:
-                return -1.0
+# class ScorerMelodyMelody(ur.ScorerTwoSequenceIntervals):
 
-        return 1.0
+#     def score_element(self,
+#                       mel1a, mel1b,
+#                       mel2a, mel2b):
+
+
+#         # Detect doubling of voices
+#         if (music.interval(mel1a, mel2a) % 12) == 0:
+#             int1 = music.interval(mel1a, mel1b) % 12
+#             int2 = music.interval(mel2a, mel2b) % 12
+#             if int1 == int2:
+#                 return -1.0
+
+#         return 1.0
 
 class ScorerMelodyHarmRoot(ScorerMelodyHarm):
 
     '''Favors 5 and 6, but still allows 6 and 64'''
     SCORES = {
         None: -5.0,
-        0: 1.0,
+        0: 5.0,
         1: 1.0,
         2: 0.5,
     }
 
-    '''Last element has to be 5'''
-    def score_last_element(self, mel, harm):
-        if mel[0].lower() == self.CHORDS[harm][0]:
-            return 0.0
-        else:
-            return -20.0
+#     '''Last element has to be 5'''
+#     def score_last_element(self, mel, harm):
+#         if mel[0].lower() == self.CHORDS[harm][0]:
+#             return 0.0
+#         else:
+#             return -20.0
 
-class ScorerFifthInBass(ScorerMelodyHarm):
-    SCORES = {
-        None: -5.0,
-        0: 0.2,
-        1: 0.2,
-        2: 1.0,
-    }
+# class ScorerFifthInBass(ScorerMelodyHarm):
+#     SCORES = {
+#         None: -5.0,
+#         0: 0.2,
+#         1: 0.2,
+#         2: 1.0,
+#     }
 
-    def score_element(self, mel, harm):
+#     def score_element(self, mel, harm):
         
-        if mel[0].lower() in self.CHORDS[harm]:
-            i = self.CHORDS[harm].index(mel[0].lower())
-            return self.SCORES[i]
-        else:
-            return self.SCORES[None]
+#         if mel[0].lower() in self.CHORDS[harm]:
+#             i = self.CHORDS[harm].index(mel[0].lower())
+#             return self.SCORES[i]
+#         else:
+#             return self.SCORES[None]
 
 class ScorerMelodyHarmS(ScorerMelodyHarm):
     POSITION = 3
@@ -731,3 +740,17 @@ class ScorerMelodyHarmT(ScorerMelodyHarm):
     POSITION = 1
 class ScorerMelodyHarmB(ScorerMelodyHarmRoot):
     POSITION = 0
+
+
+class Flourisher(ur.Producer[m.Note]):
+
+    ARGS = [(m.Duration, ur.Interval(1)),
+            (m.Pitch, ur.Interval(1))]
+
+    RANDOMIZED = False
+
+    def function(self, rhy: List[m.Duration], mel: List[m.Pitch]) -> List[m.Note]:
+        if len(rhy) != len(mel):
+            raise RuntimeError("Rhythm and Pitch lists must be of same length for flourishing")
+        
+        return [m.Note(d, p) for d,p in zip(rhy, mel)]

@@ -24,11 +24,12 @@
 #  You should have received a copy of the GNU General Public License
 #  along with "Ur". If not, see <http://www.gnu.org/licenses/>
 
-from typing import Any, List
+from __future__ import annotations
+from typing import Any, List, Generic, TypeVarTuple, get_origin
 from tools import *
 from collections import defaultdict
 from rich import print
-import music
+import music as m
 import flourish
 import nonchord
 import export
@@ -36,7 +37,11 @@ import tools
 
 from trees import *
 
+
 ALL = '0'
+
+# Content type
+C = TypeVar('C')
 
 # class Item(object):
 #     '''
@@ -94,34 +99,188 @@ ALL = '0'
 #     def __repr__(self):
 #         return self.str()
 
-# class Gen(object):
+class Interval:
+    def __init__(self, min: int = 0, max: Optional[int] = None):
+        self.min: int = min
+        self.max: Optional[int] = max
 
-#     def __init__(self, name = None, mods = None):
-#         # the generated data
-#         self.gens = Data()
-#         self.mods= mods if mods else []
-#         self.meter = '4/4'
-#         # key expressed as transposing interval (string) wrt C
-#         self.key: str = None
-#         self.modes = None
-#         self.scorers = []
-#         # structure-dependent models
-#         # listed as pairs (struc, mod), where the model mod will inherit the structure from struc
-#         self.structurers = []
-#         self.structure = [ ALL ]
-#         # list of scorers and associated weights
-#         self.filters = []
-#         self.name = name if name else self.hash()
-#         self.flourish = flourish.FLOURISH
-#         self.setup()
+    @overload
+    def __contains__(self, item: Interval) -> bool:
+        pass
 
-#     def set_key(self, key):
-#         self.key = key
-#         for v in self.viewpoints:
-#             v.key = key
+    @overload
+    def __contains__(self, item: int) -> bool:
+        pass
 
-#     def set_meter(self, meter):
-#         self.meter = meter
+    def __contains__(self, item: Interval | int) -> bool:
+        if isinstance(item, int):
+            if (item < self.min) or \
+               (self.max and item > self.max):
+                return False
+        elif isinstance(item, slice):
+            if (item.min < self.min) or \
+               (self.max and item.max and item.max > self.max) or \
+                (self.max and not item.max):
+                return False 
+        return True
+
+
+class Rule(Generic[C]):
+    ARGS: List[Tuple[type, Interval]] = []
+
+    T = TypeVar('T')
+
+    def __init__(self, vps: List[ViewPoint]) -> None:
+        self.vps: List[ViewPoint] = vps
+        self.fixed_count: Optional[int] = None
+
+    def __call__(self, *args: List[T]) -> C:
+        if len(args) != len(self.ARGS):
+            raise RuntimeError("Number of specified and of passed arguments do not match")
+        for (a, (t, s)) in zip(args, self.ARGS):
+            assert len(a) > 0
+            if not isinstance(a[0], t):
+                raise RuntimeError("Passed argument is not of specified type")
+            if len(a) not in s:
+                raise RuntimeError("Passed lists are not of specified length")
+        return self.function(*args)
+
+    def function(self, *args: List[T]) -> C:
+        raise NotImplementedError()
+
+    def get_range(self, _vp: ViewPoint) -> Optional[Interval]:
+        for (i, vp) in enumerate(self.vps):
+            if vp == _vp:
+                return self.ARGS[i][1]
+        raise None
+
+### Producers
+
+class Producer(Rule[List[C]]):
+
+    RANDOMIZED: bool
+
+    def __init__(self, vp_out: ViewPoint, vps_in: List[ViewPoint], fixedness: float):
+        self.vp = vp_out
+        self.fixedness = fixedness
+        self.out_count: Interval
+        super().__init__(vps_in)
+
+### Constraints
+
+class Evaluator(Rule[C]):
+    COUNT: Interval
+
+
+class Constraint(Evaluator[bool]):
+    pass
+
+### Scores
+
+class Scorer(Evaluator[float]):
+    def __init__(self, vps: List[ViewPoint], weight: float = 1.0):
+        self.weight: float = weight
+        super().__init__(vps)
+
+
+class Generator(Generic[C]):
+
+    BATCH_SIZE = 100
+    S = TypeVar('S')
+
+    def __init__(self, node: RefinementNode) -> None:
+        # the generated data
+        self.gens: List[Tuple[List[C], float]] = [] # TODO: Maybe CumuList ?
+        self.node: RefinementNode = node
+        self.producers: List[Producer] = []
+        self.constraints: List[Constraint] = []
+        self.scorers: List[Scorer] = []
+        # self.setup()
+
+    def call_prod(self, prod: Producer[S], max_length: Optional[int] = None) -> List[S]:
+        struc_parent: RefinementNode = self.node.get_structure_parent()
+        start: float = self.node.relative_start_q(struc_parent)
+        end: float = self.node.relative_start_q(struc_parent) + self.node.get_duration()
+        args = [vp[struc_parent.name][start:end] for vp in prod.vps]
+        return prod(*args)
+
+    def call_eval(self, eval: Evaluator[S], generated: List[C], offset: int = 0, max_length: Optional[int] = None) -> S:
+        struc_parent: RefinementNode = self.node.get_structure_parent()
+        start: int = self.node.relative_start_p(struc_parent) + offset
+        end: int = self.node.relative_start_p(struc_parent) + self.node.elt_count
+        if max_length:
+            end = min(end, start + max_length)
+        struc_parent.update_buffer()
+        start_q: float = struc_parent.buffer.get_q_index(start)
+        end_q: float = struc_parent.buffer.get_q_index(end)
+        args = []
+        for vp in eval.vps:
+            if self.node.vp == vp:
+                if generated:
+                    args.append(generated)
+                else:
+                    raise RuntimeError("Need to pass generated content as argument")
+            else: 
+                args.append(vp[struc_parent.name][start_q:end_q])
+        return eval(*args)
+
+    def generate(self) -> Tuple[List[C], float]:
+
+        # call producers
+        self.producers = self.node.vp.producers
+        gens: List[List[C]] = []
+        succeeding: List[List[C]] = []
+        failing: List[Tuple[List[C], int]] = []
+        for p in self.producers:
+            p.out_count = Interval(self.node.elt_count, self.node.elt_count)
+            for i in range(self.BATCH_SIZE if p.RANDOMIZED else 1):
+                gens.append(self.call_prod(p))
+
+        # call constraints
+        self.constraints = [c for c in self.node.vp.constraints if len(gens[0]) in c.COUNT]
+        for g in gens:
+            fail_count: int = 0
+            for c in self.constraints:
+                possible_positions = list(range(len(g)))
+                for pos in possible_positions:
+                    if not self.call_eval(c, g, pos):
+                        fail_count += 1
+            if fail_count == 0:
+                succeeding.append(g)
+            else:
+                failing.append((g, fail_count))
+        
+        if len(succeeding) == 0:
+            failing.sort(key = lambda x: x[1])
+            # TODO: refine
+            raise NotImplementedError()
+
+        # call scorers
+        self.scorers = [s for s in self.node.vp.scorers \
+                        if all([vp.initialized for vp in s.vps])]
+        for g in succeeding:
+            score: float = 0.0
+            for s in self.scorers:
+                r = s.get_range(self.node.vp)
+                assert r
+                subscore: float = 0.0
+                if len(g) in r:
+                    subscore += self.call_eval(s, g)
+                elif len(g) < r.min:
+                    pass # s only scores longer sequences; is not of interest
+                else: # len(g) > r.max
+                    assert r.max
+                    possible_positions = list(range(0, len(g) - r.max, r.max))
+                    for pos in possible_positions:
+                        subscore += self.call_eval(s, g[pos:pos + r.max], pos, r.max)
+                    subscore = subscore / len(possible_positions)  
+                score += subscore * s.weight
+            self.gens.append((g, score))
+
+        # sort
+        self.gens.sort(key = lambda x: x[1], reverse = True)
+
+        return (self.gens[0][0], self.producers[0].fixedness) # TODO: choose the right producer
 
 #     def ternary(self):
 #         if '/8' in self.meter:
@@ -468,118 +627,131 @@ ALL = '0'
 #             i += nn
 #         return Item(seq, self.id() + f':{n/len(seq)}')  # ??
 
+# Hidden State Type
+S = TypeVar("S")
 
-
-# class ItemMarkov(Gen):
+class HiddenMarkov(Producer[C], Generic[S, C]):
     
-#     # INITIAL_S, FINAL_S : dict[str, list[str]]
-#     # structure-dependent initial and final states
-#     INITIAL_S = None
-#     FINAL_S = None
+    # INITIAL_S, FINAL_S : dict[str, list[str]]
+    # structure-dependent initial and final states
+    # INITIAL_S: Dict[str, List[str]]
+    # FINAL_S: Dict[str, List[str]]
 
-#     def reset_to_struct(self, struct):
-#         '''Set INITIAL and FINAL to state lists associated to struct in 
-#         INTIIAL_S / FINAL_S (if given)
-#         '''
-#         # Incompatible with ItemPitchMarkov
-#         # To be used with Func
-#         if self.INITIAL_S:
-#             self.INITIAL = self.INITIAL_S[struct if struct in self.INITIAL_S else None]
-#         if self.FINAL_S:
-#             self.FINAL = self.FINAL_S[struct if struct in self.FINAL_S else None]
+    RANDOMIZED = True
 
-#     def setup(self):
-#         self.initial = self.INITIAL
-#         self.transitions = self.TRANSITIONS
+    STATES: List[S]
+    INITIAL: List[S]
+    FINAL: List[S]
 
-#     def filter_state(self, state):
-#         '''Return whether state is legal
-#         '''
-#         if state is None:
-#             return False
-#         return True
-
-#     def item(self, gens_in=None, struct=None):
-#         '''Return a sequence of emitted states as Item
-#         '''
-
-#         self.reset_to_struct(struct)
-#         i = 0
-#         n_min = self.len_to_gen(gens_in=gens_in, struct=struct)
-
-#         while i != n_min:
-#             # i == n_min : item has exact targeted length
-#             # otherwise the final states constraint has led to a too long sequence
-#             i = 0
-#             state = pwchoice(self.initial)
-#             emits = []
-
-#             emit = pwchoice(self.EMISSIONS[state])
-#             emits += [emit]
-#             i += 1
-#             while i < n_min or state not in self.FINAL:
-#                 next_state = None
-#                 while not self.filter_state(next_state):
-#                     try:
-#                         next_state = pwchoice(self.transitions[state])
-#                     except KeyError:
-#                         print(f"[red]! No transition for [yellow]{self.__class__.__name__} {state}")
-#                         raise
-#                 state = next_state
-#                 emit = pwchoice(self.EMISSIONS[state])
-#                 emits += [emit]
-#                 i += 1
-
-#         return Item(emits, self.id() + ':' + str(i))
-
-# class ItemPitchMarkov(ItemMarkov):
-
-#     def filter_state(self, pitch):
-#         # Redundant, but we may here implement melodic rules
-#         if pitch is None:
-#             return False
-#         return music.in_range(pitch, self.AMBITUS)
-
-#     def set_key(self, key: str):
-#         self.EMISSIONS = {
-#             x: {x: 1.00} for x in self.STATES
-#         }    
-#         self.key = key
-#         self.initial = self.INITIAL.copy()
-#         self.transitions = self.TRANSITIONS.copy()
-
-#         for n1 in list(self.transitions):
-#             for n2 in list(self.transitions[n1]):
-#                 if not music.in_range(n2, self.AMBITUS, self.key) or '#' in n2 or '-' in n2:
-#                     # print(self.key, 'del', n1, n2)
-#                     del self.transitions[n1][n2]
-#                     if len(self.transitions[n1]) == 0:
-#                         del self.transitions[n1]
-#         for n in list(self.initial):
-#             if not music.in_range(n, self.AMBITUS_INITIAL, self.key):
-#                 self.initial.remove(n)
+    TRANSITIONS: Dict[S, Dict[S, float]]
+    EMISSIONS: Dict[S, Dict[C, float]]
 
 
+    # def reset_to_struct(self, struct) -> None:
+    #     '''Set INITIAL and FINAL to state lists associated to struct in 
+    #     INTIIAL_S / FINAL_S (if given)
+    #     '''
+    #     # Incompatible with ItemPitchMarkov
+    #     # To be used with Func
+    #     if self.INITIAL_S:
+    #         self.INITIAL = self.INITIAL_S[struct if struct in self.INITIAL_S else None]
+    #     if self.FINAL_S:
+    #         self.FINAL = self.FINAL_S[struct if struct in self.FINAL_S else None]
+
+    # def setup(self):
+    #     self.initial = self.INITIAL
+    #     self.transitions = self.TRANSITIONS
+
+    def __init__(self, vp_out: ViewPoint, vps_in: List[ViewPoint], fixedness: float):
+        super().__init__(vp_out, vps_in, fixedness)
+
+        # TODO: avoid this barbary (but type annotations system makes it difficult)
+        self.TRANSITIONS = dict([(m.Pitch(s1), dict([(m.Pitch(s2), p) for s2, p in d.items()])) for s1, d in self.TRANSITIONS.items()])
+        self.STATES = [m.Pitch(s) for s in self.STATES]
+        self.INITIAL = [m.Pitch(s) for s in self.INITIAL]
+        self.FINAL = [m.Pitch(s) for s in self.FINAL]
 
 
-### Scores
+        self.transitions: Dict[S, Dict[S, float]] = self.TRANSITIONS
+        self.initial: List[S] = self.INITIAL
 
-class Scorer(object):
+    def state_legal(self, state: Optional[S]) -> bool:
+        '''Return whether state is legal
+        '''
+        return state is not None
 
-    def two(self):
-        return False
+    def function(self) -> List[C]:
+        '''Return a sequence of emitted states
+        '''
 
-    def score_item(self, gen1, gen2, struct):
-        raise NotImplemented
+        i: int = 0
 
-    def init(self):
-        pass
+        while i not in self.out_count:
+            # otherwise the final states constraint has led to a too long sequence
+            i = 0
+            state: S = pwchoice(self.initial)
+            emits: List[C] = []
 
-    def prescore_item(self, gen1, gen2, struct):
-        pass
+            emit: C = pwchoice(self.EMISSIONS[state])
+            emits.append(emit)
+            i += 1
+            while i < self.out_count.min or state not in self.FINAL:
+                next_state: Optional[S] = None
+                while not self.state_legal(next_state):
+                    try:
+                        next_state = pwchoice(self.transitions[state])
+                    except KeyError:
+                        print(f"[red]! No transition for [yellow]{self.__class__.__name__} {state}")
+                        raise
+                assert next_state
+                state = next_state
+                emit = pwchoice(self.EMISSIONS[state])
+                emits += [emit]
+                i += 1
 
-    def postscore_item(self, gen1, gen2, struct):
-        return self.score_item(gen1, gen2, struct)
+        return emits
+
+class Markov(HiddenMarkov[C, C]):
+    
+    def __init__(self, vp_out: ViewPoint, vps_in: List[ViewPoint], fixedness: float):
+        super().__init__(vp_out, vps_in, fixedness)
+        self.EMISSIONS = {
+            x: {x: 1.00} for x in self.STATES
+        }
+
+class PitchMarkov(Markov[m.Pitch]):
+
+    AMBITUS: Tuple[m.Pitch, m.Pitch]
+    INITIAL_AMBITUS: Tuple[m.Pitch, m.Pitch]
+
+    def __init__(self, vp_out: ViewPoint, vps_in: List[ViewPoint], fixedness: float):
+        super().__init__(vp_out, vps_in, fixedness)
+        self.set_key(vp_out.model.key)
+
+    def state_legal(self, pitch: m.Pitch) -> bool:
+        # Redundant, but we may here implement melodic rules
+        if pitch is None:
+            return False
+        return music.in_range(pitch, self.AMBITUS, self.key)
+
+    def set_key(self, key: str) -> None:
+        ''' Adapt transitions and states to key
+        '''
+        self.key = key
+        self.initial = self.INITIAL.copy()
+        self.transitions = self.TRANSITIONS.copy()
+
+        for n1 in list(self.transitions):
+            for n2 in list(self.transitions[n1]):
+                if not music.in_range(n2, self.AMBITUS, self.key) or '#' in n2 or '-' in n2:
+                    # print(self.key, 'del', n1, n2)
+                    del self.transitions[n1][n2]
+                    if len(self.transitions[n1]) == 0:
+                        del self.transitions[n1]
+        for n in list(self.initial):
+            if not music.in_range(n, self.AMBITUS_INITIAL, self.key):
+                self.initial.remove(n)
+
 
 # class ScorerOne(Scorer):
 #     '''A scorer of one single model
@@ -720,7 +892,6 @@ class Scorer(object):
 #         return -dist/norm if norm else 0
 
 
-
 ### Model
 
 class Model:#(Gen):
@@ -731,6 +902,7 @@ class Model:#(Gen):
         self.meter: str = meter
         self.quarters_per_bar: float = music.quarters_per_bar(meter)
         self.vps: List[ViewPoint] = []
+        
 
     # iterate through models      
     def __iter__(self):
@@ -743,21 +915,55 @@ class Model:#(Gen):
                 return vp
         raise KeyError(name)
 
-    def add_vp(self, name: str, use_copy: bool = True, follow: bool = False, lead_name: Optional[str] = None) -> None:
+    def add_vp(self, name: str, before: List[str] = [], use_copy: bool = True, lead_name: Optional[str] = None) -> None:
 
-        if follow:
-            if lead_name and lead_name in [vp.name for vp in self]:
+        error_msg: str = "Need to specify existing Lead ViewPoint when creating a Follow ViewPoint."
+        new_vp: ViewPoint
+        if lead_name:
+            if lead_name in [vp.name for vp in self]:
                 lead: ViewPoint = self[lead_name]
                 if isinstance(lead, ViewPointLead):
-                    self.vps.append(ViewPointFollow(name, use_copy, self, lead))
-                    return
-            raise RuntimeError("Need to specify existing Lead ViewPoint when creating a Follow ViewPoint.")
+                    new_vp = ViewPointFollow(name, use_copy, self, lead)
+                else:
+                    raise RuntimeError(error_msg)
+            else:
+                raise RuntimeError(error_msg)
         else:
-            self.vps.append(ViewPointLead(name, use_copy, self))
+            new_vp = ViewPointLead(name, use_copy, self)
+        if before:
+            ind: int = min([self.vps.index(self[vp]) for vp in before])
+            self.vps.insert(ind, new_vp)
+        else:
+            self.vps.append(new_vp)
 
     def set_structure(self, struc: StructureNode) -> None:
         self.structure: StructureNode = struc
 
+    def add_producer(self, _producer: type, vp: str, *vp_in_names: str, fixedness: float = 0.5) -> None:
+        vps_in: List[ViewPoint] = [self[n] for n in vp_in_names]
+        if issubclass(_producer, Producer):
+            producer = _producer(self[vp], vps_in, fixedness)
+            self[vp].producers.append(producer)
+    
+    def add_evaluator(self, evaluator: type, *vp_names: str, weight: float = 1.0) -> None:
+        vps: List[ViewPoint] = [self[n] for n in vp_names]
+        if issubclass(evaluator, Constraint):
+            constraint = evaluator(vps)
+            for v in vps:
+                v.constraints.append(constraint)
+        elif issubclass(evaluator, Scorer):
+            scorer = evaluator(vps, weight)
+            for v in vps:
+                v.scorers.append(scorer)
+
+    def generate(self) -> None:
+        for vp in self.vps:
+            print(f'[yellow]### generate VP \'{vp.name}\'')
+            if not vp.initialized:
+                vp.initialize_structure()
+            vp.root.generate()
+            vp.root.print()
+    
     # def scorer(self, scorer: Scorer, mod1, mod2=None, weight=1):
     #     '''Bind scorer to mod1 (and mod2 if it scores two models)
     #     '''
@@ -772,8 +978,25 @@ class Model:#(Gen):
     # def structurer(self, struct, mod):
     #     self.structurers += [(self[struct], self[mod])]
 
-    def export(self, filename: str, title: str, lyrics: str, melody_vps: List[str], svg: bool) -> None:
+    def export(self, filename: str, title: str, lyr_vp: str, melody_vps: List[str], annots_vp: str, svg: bool) -> None:
         print('[yellow]## Exporting')
-        melodies = [(self[vp].name, self[vp]['ALL'][:]) for vp in melody_vps]
+        melodies = [(self[vp].name, self.zip_lyrics_melody(lyr_vp, vp)) for vp in melody_vps]
         # annots   = [(mod, self[mod].export(structure, rhythms, annotation=True)) for mod in mods_annots]
-        export.export(filename, title, melodies, self.key, self.meter, svg)
+        export.export(filename, title, melodies, self[annots_vp]['ALL'][:], self.key, self.meter, svg)
+
+    def zip_lyrics_melody(self, lyr_vp: str, mel_vp: str) -> List[Tuple[m.Note, str]]:
+        lyr = list(zip(self[lyr_vp]['ALL'][:], self[lyr_vp].get_lead()['ALL'][:]))
+        mel = self[mel_vp]['ALL'][:]
+
+        acc_mel: float = 0.0
+        acc_lyr: float = 0.0
+        result: List[Tuple[m.Note, str]] = []
+        for (i, n) in enumerate(mel):
+            if acc_mel == acc_lyr:
+                acc_lyr += lyr[0][1].quarter_length()
+                result.append((n, lyr.pop(0)[0]))
+            else:
+                result.append((n, '-'))
+            acc_mel += n.quarter_length()
+            
+        return result

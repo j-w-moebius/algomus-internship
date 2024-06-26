@@ -1,9 +1,16 @@
 
 import music21
 
-from typing import NewType, Protocol
+from typing import NewType, Protocol, Tuple, Optional
 
-Pitch = NewType("Pitch", str)
+class Pitch(str):
+    def pc(self) -> str:
+        ''' The Pitch class as English lower name
+        '''
+        return self[0].lower()
+
+class Chord(str):
+    pass
 
 class Temporal(Protocol):
     def quarter_length(self) -> float:
@@ -46,7 +53,7 @@ def quantize_above(duration: float, meter: str) -> float:
 
     return multiple
 
-def in_range(note, ambitus, key=None):
+def in_range(note, ambitus: Tuple[Pitch, Pitch], key: Optional[str] = None) -> bool:
     '''return true iff note is in ambitus (with inclusive bounds)
     '''
     n = music21.pitch.Pitch(note)
