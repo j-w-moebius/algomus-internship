@@ -1,7 +1,7 @@
 
 import music21
 
-from typing import NewType, Protocol, Tuple, Optional
+from typing import NewType, Protocol, Tuple, Optional, Self
 
 class Pitch(str):
     def pc(self) -> str:
@@ -9,10 +9,28 @@ class Pitch(str):
         '''
         return self[0].lower()
 
-class Chord(str):
-    pass
+    @classmethod
+    def undefined(cls) -> Self:
+        return cls('~')
 
-class Temporal(Protocol):
+class Syllable(str):
+    @classmethod
+    def undefined(cls) -> Self:
+        return cls('~')
+
+class Chord(str):
+    @classmethod
+    def undefined(cls) -> Self:
+        return cls('~')
+
+class Content(Protocol):
+
+    @classmethod
+    def undefined(cls) -> Self:
+        pass
+
+class Temporal(Content, Protocol):
+
     def quarter_length(self) -> float:
         pass
 
@@ -21,17 +39,25 @@ class Duration(float):
     def quarter_length(self) -> float:
         return self
 
+    @classmethod
+    def undefined(cls) -> Self:
+        return cls(0.0)
+
 class Note:
 
-    def __init__(self, duration: Duration, pitch: str):
+    def __init__(self, duration: Duration, pitch: Pitch):
         self.duration: Duration = duration
-        self.pitch: str = pitch
+        self.pitch: Pitch = pitch
 
     def __str__(self):
         return u'(%s, %s)' % (self.duration, self.pitch)
 
     def quarter_length(self):
         return self.duration
+
+    @classmethod
+    def undefined(cls) -> Self:
+        return cls(Duration.undefined(), Pitch.undefined())
 
 
 def quarters_per_bar(ts_str: str) -> float:

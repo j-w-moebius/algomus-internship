@@ -25,7 +25,7 @@
 #  along with "Ur". If not, see <http://www.gnu.org/licenses/>
 
 from __future__ import annotations
-from typing import Any, List, Generic
+from typing import Any, List, Generic, Type
 from tools import *
 from collections import defaultdict
 from rich import print
@@ -37,8 +37,8 @@ import tools
 
 from trees import *
 
-# Content type
-C = TypeVar('C')
+# Result type
+R = TypeVar('R')
 
 class Interval:
     def __init__(self, min: int = 0, max: Optional[int] = None):
@@ -66,32 +66,42 @@ class Interval:
         return True
 
 
-class Rule(Generic[C]):
-    ARGS: List[Tuple[type, Interval]] = []
+class Rule(Generic[R]):
+    LIST_ARGS: List[Tuple[type, Interval]] = []
+    ARGS: List[type] = []
 
     T = TypeVar('T')
 
     def __init__(self, vps: List[ViewPoint]) -> None:
         self.vps: List[ViewPoint] = vps
 
-    def __call__(self, *args: List[T]) -> C:
-        if len(args) != len(self.ARGS):
+    def __call__(self, *args: T) -> R:
+        if len(args) != len(self.LIST_ARGS) + len(self.ARGS):
             raise RuntimeError("Number of specified and of passed arguments do not match")
-        for (a, (t, s)) in zip(args, self.ARGS):
-            assert len(a) > 0
-            if not isinstance(a[0], t):
-                raise RuntimeError("Passed argument is not of specified type")
-            if len(a) not in s:
+        for (i, (a, (t, s))) in enumerate(zip(args, self.LIST_ARGS)):
+            if not isinstance(a, List):
+                raise RuntimeError("Passed argument is not a list")
+
+            if len(a) not in s or len(a) == 0:
                 raise RuntimeError("Passed lists are not of specified length")
+            if not isinstance(a[0], t):
+                raise RuntimeError("Passed argument list is not of specified type")
+        if len(self.LIST_ARGS) == 0:
+            i = 0
+        else:
+            i += 1
+        for (a, t) in zip(args[i:], self.ARGS):
+            if not isinstance(a, t):
+                raise RuntimeError("Passed argument is not of specified type")
         return self.function(*args)
 
-    def function(self, *args: List[T]) -> C:
+    def function(self, *args: T) -> R:
         raise NotImplementedError()
 
     def get_range(self, _vp: ViewPoint) -> Optional[Interval]:
         for (i, vp) in enumerate(self.vps):
             if vp == _vp:
-                return self.ARGS[i][1]
+                return self.LIST_ARGS[i][1]
         raise None
 
 ### Producers
@@ -99,17 +109,22 @@ class Rule(Generic[C]):
 class Producer(Rule[List[C]]):
 
     RANDOMIZED: bool
+    OUT_COUNT: Interval
+    ARGS = [Interval]
 
     def __init__(self, vp_out: ViewPoint, vps_in: List[ViewPoint], fixedness: float):
         self.vp = vp_out
         self.fixedness = fixedness
-        self.out_count: Interval
         super().__init__(vps_in)
+
+    def function(self, *list_args: List[T], len_to_gen: Interval) -> List[C]:
+        raise NotImplementedError()
+
 
 ### Constraints
 
-class Evaluator(Rule[C]):
-    COUNT: Interval
+class Evaluator(Rule[R]):
+    pass
 
 
 class Constraint(Evaluator[bool]):
@@ -126,7 +141,7 @@ class Scorer(Evaluator[float]):
 class Generator(Generic[C]):
 
     BATCH_SIZE = 100
-    S = TypeVar('S')
+   # S = TypeVar('S', bound=m.Content)
 
     def __init__(self, node: RefinementNode) -> None:
         # the generated data
@@ -137,31 +152,30 @@ class Generator(Generic[C]):
         self.scorers: List[Scorer] = []
         # self.setup()
 
-    def call_prod(self, prod: Producer[S], max_length: Optional[int] = None) -> List[S]:
-        struc_parent: RefinementNode = self.node.get_structure_parent()
-        start: float = self.node.relative_start_q(struc_parent)
-        end: float = self.node.relative_start_q(struc_parent) + self.node.get_duration()
-        args = [vp[struc_parent.name][start:end] for vp in prod.vps]
-        return prod(*args)
+    def call_prod(self, prod: Producer[C], max_length: Optional[int] = None) -> List[C]:
+        list_args = [vp[self.node.start:self.node.end] for vp in prod.vps]
+        len_to_gen: Interval
+        if self.node.vp.fixed_count():
+            len_to_gen = Interval(self.node.get_elt_count(), self.node.get_elt_count()) 
+        else:
+            len_to_gen = Interval(1)
+        if len_to_gen not in prod.OUT_COUNT:
+            raise RuntimeError(f"Producer {prod.__class__.__name__} can't generate the specified number of elements.")
+        return prod(*list_args, len_to_gen)
 
-    def call_eval(self, eval: Evaluator[S], generated: List[C], offset: int = 0, max_length: Optional[int] = None) -> S:
-        struc_parent: RefinementNode = self.node.get_structure_parent()
-        start: int = self.node.relative_start_p(struc_parent) + offset
-        end: int = self.node.relative_start_p(struc_parent) + self.node.elt_count
-        if max_length:
-            end = min(end, start + max_length)
-        struc_parent.update_buffer()
-        start_q: float = struc_parent.buffer.get_q_index(start)
-        end_q: float = struc_parent.buffer.get_q_index(end)
+    def call_eval(self, eval: Evaluator[R], generated: List[C], window_start: Optional[Index] = None, window_end: Optional[Index] = None) -> R:
+        if window_start is None:
+            window_start = self.node.start
+        if window_end is None:
+            window_end = self.node.end
         args = []
         for vp in eval.vps:
             if self.node.vp == vp:
-                if generated:
-                    args.append(generated)
-                else:
-                    raise RuntimeError("Need to pass generated content as argument")
+                start: int = window_start.pos - self.node.start.pos
+                end: int = window_end.pos - self.node.start.pos
+                args.append(generated[start:end])
             else: 
-                args.append(vp[struc_parent.name][start_q:end_q])
+                args.append(vp[window_start:window_end])
         return eval(*args)
 
     def generate(self) -> Tuple[List[C], float]:
@@ -172,18 +186,20 @@ class Generator(Generic[C]):
         succeeding: List[List[C]] = []
         failing: List[Tuple[List[C], int]] = []
         for p in self.producers:
-            p.out_count = Interval(self.node.elt_count, self.node.elt_count)
             for i in range(self.BATCH_SIZE if p.RANDOMIZED else 1):
                 gens.append(self.call_prod(p))
 
+        window_start: Index = self.node.index()
+        window_end: Index = self.node.index()
+
         # call constraints
-        self.constraints = [c for c in self.node.vp.constraints if len(gens[0]) in c.COUNT]
+        self.constraints = [c for c in self.node.vp.constraints]
         for g in gens:
             fail_count: int = 0
             for c in self.constraints:
                 possible_positions = list(range(len(g)))
                 for pos in possible_positions:
-                    if not self.call_eval(c, g, pos):
+                    if not self.call_eval(c, g):
                         fail_count += 1
             if fail_count == 0:
                 succeeding.append(g)
@@ -211,8 +227,10 @@ class Generator(Generic[C]):
                 else: # len(g) > r.max
                     assert r.max
                     possible_positions = list(range(0, len(g) - r.max, r.max))
-                    for pos in possible_positions:
-                        subscore += self.call_eval(s, g[pos:pos + r.max], pos, r.max)
+                    for offset in possible_positions:
+                        window_start.set_offset(offset)
+                        window_end.set_offset(offset + r.max)
+                        subscore += self.call_eval(s, g, window_start, window_end)
                     subscore = subscore / len(possible_positions)  
                 score += subscore * s.weight
             self.gens.append((g, score))
@@ -399,6 +417,7 @@ class HiddenMarkov(Producer[C], Generic[S, C]):
     # FINAL_S: Dict[str, List[str]]
 
     RANDOMIZED = True
+    OUT_COUNT = Interval(1)
 
     STATES: List[S]
     INITIAL: List[S]
@@ -442,13 +461,13 @@ class HiddenMarkov(Producer[C], Generic[S, C]):
         '''
         return state is not None
 
-    def function(self) -> List[C]:
+    def function(self, len_to_gen: Interval) -> List[C]:
         '''Return a sequence of emitted states
         '''
 
         i: int = 0
 
-        while i not in self.out_count:
+        while i not in len_to_gen:
             # otherwise the final states constraint has led to a too long sequence
             i = 0
             state: S = pwchoice(self.initial)
@@ -457,7 +476,7 @@ class HiddenMarkov(Producer[C], Generic[S, C]):
             emit: C = pwchoice(self.EMISSIONS[state])
             emits.append(emit)
             i += 1
-            while i < self.out_count.min or state not in self.FINAL:
+            while i < len_to_gen.min or state not in self.FINAL:
                 next_state: Optional[S] = None
                 while not self.state_legal(next_state):
                     try:
@@ -677,7 +696,7 @@ class Model:#(Gen):
                 return vp
         raise KeyError(name)
 
-    def add_vp(self, name: str, before: List[str] = [], use_copy: bool = True, lead_name: Optional[str] = None) -> None:
+    def add_vp(self, name: str, content_cls: Type[C], before: List[str] = [], use_copy: bool = True, lead_name: Optional[str] = None) -> None:
 
         error_msg: str = "Need to specify existing Lead ViewPoint when creating a Follow ViewPoint."
         new_vp: ViewPoint
@@ -685,21 +704,32 @@ class Model:#(Gen):
             if lead_name in [vp.name for vp in self]:
                 lead: ViewPoint = self[lead_name]
                 if isinstance(lead, ViewPointLead):
-                    new_vp = ViewPointFollow(name, use_copy, self, lead)
+                    new_vp = ViewPointFollow(name, content_cls, use_copy, self, lead)
                 else:
                     raise RuntimeError(error_msg)
             else:
                 raise RuntimeError(error_msg)
         else:
-            new_vp = ViewPointLead(name, use_copy, self)
+            new_vp = ViewPointLead(name, content_cls, use_copy, self)
         if before:
             ind: int = min([self.vps.index(self[vp]) for vp in before])
             self.vps.insert(ind, new_vp)
         else:
             self.vps.append(new_vp)
 
+    def setup(self) -> None:
+        ''' Set up fixed count dependency
+        '''
+        for (i, vp1) in enumerate(self.vps):
+            for vp2 in self.vps[i + 1:]:
+                if vp1.get_leader() == vp2.get_leader():
+                    vp1.fixed_count_out.append(vp2)
+                    vp2.fixed_count_in = vp1
+
     def set_structure(self, struc: StructureNode) -> None:
         self.structure: StructureNode = struc
+        for vp in self.vps:
+            vp.initialize_structure()
 
     def add_producer(self, _producer: type, vp: str, *vp_in_names: str, fixedness: float = 0.5) -> None:
         vps_in: List[ViewPoint] = [self[n] for n in vp_in_names]
@@ -721,10 +751,7 @@ class Model:#(Gen):
     def generate(self) -> None:
         for vp in self.vps:
             print(f'[yellow]### generate VP \'{vp.name}\'')
-            if not vp.initialized:
-                vp.initialize_structure()
-            vp.root.generate()
-            vp.root.print()
+            vp.generate()
     
     # def scorer(self, scorer: Scorer, mod1, mod2=None, weight=1):
     #     '''Bind scorer to mod1 (and mod2 if it scores two models)
@@ -743,8 +770,8 @@ class Model:#(Gen):
     def export(self, filename: str, title: str, lyr_vp: str, melody_vp_names: List[str], annot_vp_names: List[str], svg: bool) -> None:
         print('[yellow]## Exporting')
         melodies = [(vp,
-                     self[vp]['ALL'][:],
-                     self[lyr_vp].export(self[vp])) for vp in melody_vp_names]
+                     self[vp][:],
+                     self[lyr_vp].export_text(self[vp])) for vp in melody_vp_names]
         annots   = [(vp, \
-                     self[vp].export(self[melody_vp_names[-1]])) for vp in annot_vp_names]
+                     self[vp].export_text(self[melody_vp_names[-1]])) for vp in annot_vp_names]
         export.export(filename, title, melodies, annots, self.key, self.meter, svg)

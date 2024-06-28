@@ -11,7 +11,7 @@ import ur
 from abc import ABC, abstractmethod
 
 # Content type
-C = TypeVar('C')
+C = TypeVar('C', bound=music.Content)
 # Content type with Temporality
 T = TypeVar('T', bound=music.Temporal)
 # Index type
@@ -24,95 +24,47 @@ class Numeric(Protocol):
 
     def __sub__(self, other: Self) -> Self:
         pass
-    
 
-class QuarterIndex(float):
-    pass
 
-class PosIndex(int):
-    pass
+class Index:
+    def __init__(self, quarter: float, pos: int):
+        self.quarter: float = quarter
+        self.pos: int = pos
+        self.node: RefinementNode
 
-class CumuList(Generic[C]):
+    def __add__(self, other: Self) -> Self:
+        return self.__init__(0)
 
-    def __init__(self, elements: List[C], node: RefinementNode):
-        self.elements: List[C] = elements
-        self.node: RefinementNode = node
-
-    def __len__(self) -> int:
-        return len(self.elements)
-
-    @overload
-    def __getitem__(self, i: Numeric) -> C:
-        pass
-
-    @overload
-    def __getitem__(self, i: slice) -> List[C]:
-        pass
-
-    def __getitem__(self, i: Numeric | slice) -> C | List[C]:
-        if self.elements == []:
-            return []
-        if isinstance(i, int):
-            return self.elements[i]
-        if isinstance(i, float):
-            return self.elements[self.get_pos_index(i)]
-        if isinstance(i, slice):
-            start:int = 0
-            end: int = len(self.elements)
-            if isinstance(i.start, int):
-                start = i.start
-            elif isinstance(i.start, float):
-                start = self.get_pos_index(i.start)
-            if isinstance(i.stop, int):
-                end = i.stop
-            elif isinstance(i.stop, float):
-                end = self.get_pos_index(i.stop)
-            return self.elements[start:end]
-        else:
-            raise RuntimeError("Index must be of type Numeric or slice")
+    def __sub__(self, other: Self) -> Self:
+        return self.__init__(0)
 
     def __str__(self) -> str:
-        return '[' + ', '.join([str(e) for e in self.elements]) + ']'
+        return f"({self.quarter}, {self.pos})"
 
-    def __iadd__(self, other: List[C]) -> Self:
-        self.elements += other
-        return self
+    def relative_p(self, label = 'ALL') -> int:
+        if self.node.name == label:
+            return self.pos - self.node.start.pos
+        elif self.node.parent is not None:
+            return self.pos + self.node.parent.start.relative_p(label)
+        else:
+            raise RuntimeError("n is not a parent of current node")
+
+    def relative_q(self, label = 'ALL') -> float:
+        if self.node.name == label:
+            return self.quarter - self.node.start.quarter
+        elif self.node.parent is not None:
+            return self.quarter + self.parent.start.relative_q(label)
+        else:
+            raise RuntimeError("n is not a parent of current node")
+
+    def set_offset(self, offset: int) -> None:
+        ''' Offset wrt to self.node.start '''
+        offset = min(offset, self.node.get_elt_count())
+        node_content: list = self.node.vp.get_leader()[self.node.start:self.node.end]
+        durations = [e.quarter_length() for e in node_content[:offset]]
+        self.quarter = sum(durations)
+        self.pos = offset + self.node.start.pos
     
-    def get_pos_index(self, val: float) -> int:
-        durations: RefinementNodeLead
-        rel_start: int = 0
-        if isinstance(self.node, RefinementNodeLead):
-            durations = self.node
-        elif isinstance(self.node, RefinementNodeFollow):
-            structure_parent = self.node.get_structure_parent()
-            rel_start = self.node.relative_start_p(structure_parent)
-            assert(structure_parent.lead)
-            durations = structure_parent.lead
-        acc: float = 0.0
-        for (i, e) in enumerate(durations, rel_start):
-            if acc >= val:
-                return i
-            acc += e.quarter_length()
-        return len(durations)
-    
-    def get_q_index(self, i: int) -> float:
-        durations: RefinementNodeLead
-        rel_start: int = 0
-        if isinstance(self.node, RefinementNodeLead):
-            durations = self.node
-        elif isinstance(self.node, RefinementNodeFollow):
-            structure_parent = self.node.get_structure_parent()
-            rel_start = self.node.relative_start_p(structure_parent)
-            assert(structure_parent.lead)
-            durations = structure_parent.lead
-        acc: float = 0.0
-        for e in durations[:i]:
-            acc += e.quarter_length()
-        return acc
-
-
-    def set(self, _elements: List[C]):
-        self.elements = _elements
 
 class Node(NodeMixin, Generic[I]):
 
@@ -123,110 +75,42 @@ class Node(NodeMixin, Generic[I]):
         # ORDERED list of children
         self.children: List[Self] = children
 
-    def zero_index(self) -> I:
-        raise NotImplementedError() # overwritten in subclasses
-
-    def relative_start_p(self, n: Node) -> int:
-        raise NotImplementedError()
-
-    def relative_start_q(self, n: Node) -> float:
-        raise NotImplementedError()
-
     def export_to_dot(self, filename: str) -> None:
         with open(filename, 'w') as file:
             file.writelines(DotExporter(self))
 
-class StructureNode(Node[QuarterIndex]):
+class StructureNode(Node[float]):
     def __init__(self, start: float, end: float, name: str, children: List[Self] = []):
-        super().__init__(QuarterIndex(start), QuarterIndex(end), name, children)
-
-class RefinementNode(Node[I], Generic[C, I]):
-
-    def __init__(self, start: I, end: I, name: str, vp: ViewPoint, children: List[Self] = [], structure: bool = False):
         super().__init__(start, end, name, children)
-        self.generator_content: Optional[List[C]] = None
+
+class RefinementNode(Node[Index]):
+
+    def __init__(self, start: Index, end: Index, name: str, vp: ViewPoint, children: List[Self] = [], structure: bool = False):
+        super().__init__(start, end, name, children)
+        self.start.node = self
+        self.end.node = self
         self.copy_of: Optional[Self] = None
         self.generatable: bool = True
         self.generator: Optional[ur.Generator] = None
-        self.elt_count: int = 0
         self.fixedness: float = .0
-        self.buffer: CumuList[C] = CumuList([], self)
-        self.buffer_above: CumuList[C] = CumuList([], self)
-        self.buffer_below: List[Tuple[I, I, List[C]]] = []
-        self.buffer_valid: bool = True
-        self.buffer_above_valid: bool = True
-        self.buffer_below_valid: bool = True
+        
         self.structure: bool = structure
         self.vp: ViewPoint = vp
 
     def __iter__(self):
-        self.update_buffer()
-        for e in self.buffer.elements:
+        for e in self.vp.out[self.start.pos:self.end.pos]:
             yield e
 
-    def __len__(self):
-        self.update_buffer()
-        return len(self.buffer)
-
-    @overload
-    def __getitem__(self, i: Numeric) -> C:
-        pass
-
-    @overload
-    def __getitem__(self, i: slice) -> List[C]:
-        pass
-
-    def __getitem__(self, i: Numeric | slice) -> C | List[C]:
-        self.update_buffer()
-        return self.buffer[i]
+    def index(self) -> Index:
+        i = Index(0.0, 0)
+        i.node = self
+        return i
 
     def get_duration(self) -> float:
-        raise NotImplementedError() # overwritten in subclasses
+        return self.end.quarter - self.start.quarter
 
-    def update_buffer(self) -> None:
-        if self.buffer_valid:
-            return
-        self.fetch_above()
-        self.fetch_below()
-        self.buffer.set([])
-
-        ctr: I = self.zero_index()
-        for (s, e, seq) in self.buffer_below:
-            self.buffer += self.buffer_above[ctr:s]
-            self.buffer += seq
-            ctr = e
-        self.buffer += self.buffer_above[ctr:]
-        self.buffer_valid = True
-
-    def fetch_above(self) -> None:
-        if self.buffer_above_valid:
-            return
-        self.parent.fetch_above()
-        self.buffer_above_valid = True
-        self.buffer_above.set(self.parent.buffer_above[self.start, self.end])
-
-    def fetch_below(self) -> None:
-        if self.buffer_below_valid:
-            return
-        self.buffer_below = []
-        for c in self.children:
-            c.fetch_below()
-            self.buffer_below += [(s + c.start, e + c.start, seq) for (s, e, seq) in c.buffer_below]
-
-    def invalidate_buffer_upward(self) -> None:
-        self.buffer_below_valid = False
-        self.buffer_valid = False
-        if self.parent is not None:
-            self.parent.invalidate_buffer_upward()
-
-    def invalidate_buffer_downward(self) -> None:
-        self.buffer_above_valid = False
-        self.buffer_valid
-        for c in self.children:
-            c.invalidate_buffer_downward()
-
-    def update_elt_count(self) -> None:
-        raise NotImplementedError()
+    def get_elt_count(self) -> int:
+        return self.end.pos - self.start.pos
 
     def unset_generatable(self) -> None:
         self.generatable = False
@@ -243,131 +127,66 @@ class RefinementNode(Node[I], Generic[C, I]):
         if self.parent is not None:
             self.parent.update_fixedness()
 
+    def increase_size(self, delta: int) -> None:
+        self.end.pos = self.end.pos + delta
+        if self.parent is not None:
+            ind: int = self.parent.children.index(self)
+            for c in self.parent.children[ind + 1:]:
+                c.start.pos += delta
+                c.end.pos += delta
+            self.parent.increase_size(delta)
+
+
     def set_to(self, content: List[C], fixedness: float) -> None:
         self.fixedness = fixedness
-        self.buffer.set(content)
-        self.buffer_above.set(content)
-        self.buffer_below = [(self.zero_index(), self.end - self.start, content)]
-        self.buffer_valid = True
-        self.buffer_above_valid = True
-        self.buffer_below_valid = True
-        if self.parent is not None:
-            self.parent.invalidate_buffer_upward()
-        for c in self.children:
-            c.invalidate_buffer_downward()
+
+        self.vp.out[self.start.relative_p():self.end.relative_p()] = content
+        old_length = self.end.pos - self.start.pos
+        self.increase_size(len(content) - old_length)
 
         if self.parent is not None:
             self.parent.update_fixedness()
+        
+        for vp in self.vp.fixed_count_out:
+            # for now:
+            assert self.structure
+            vp.nodes[self.name].set_to([vp.undefined()] * len(content), 0.0)
 
     def generate(self) -> None:
         if self.fixedness > 0.0:
             return
         if self.copy_of is not None:
-            start = self.copy_of.relative_start_p(self.vp['A']) # TODO: replace this ugly hack
-            self.set_to(self.vp['A'][start:start + self.copy_of.elt_count], 1.0) # TODO: not sure if sensible
+            self.set_to(self.vp[self.copy_of.start:self.copy_of.end], 1.0) # TODO: not sure if sensible
         if not self.generatable:
             for c in self.children:
                 c.generate()
             return 
         if not self.generator:
             self.generator = ur.Generator(self)
-        self.update_elt_count()
         new_content, fixedness = self.generator.generate()
         self.set_to(new_content, fixedness)
 
-    def print(self) -> None:
+    def __str__(self) -> str:
+        out: str = ""
         for pre, _, node in RenderTree(self):
             treestr = u"%s%s" % (pre, node.name)
-            content_str: str = '[' + ' '.join([str(c) for c in node]) + ']'
-            if node.copy_of:
+            content_str = ""
+            if node.copy_of is not None:
                 content_str += f' (same as {node.copy_of.name})'
-            print(treestr.ljust(8), node.start, node.end, content_str)
+            out += treestr.ljust(8) + str(node.start) + str(node.end) + content_str + "\n"
+        return out
 
 
-class RefinementNodeFollow(RefinementNode[C, PosIndex]):
-
-    def __init__(self, start: int, end: int, name: str, vp: ViewPointFollow, children: List[Self] = [], structure: bool = False, lead: Optional[RefinementNodeLead] = None):
-        super().__init__(PosIndex(start), PosIndex(end), name, vp, children, structure)
-        self.lead: Optional[RefinementNodeLead] = lead
-
-    def update_elt_count(self) -> None:
-        if self.lead:
-            self.elt_count = self.lead.elt_count
-        else:
-            raise NotImplementedError()
-    
-    def zero_index(self) -> PosIndex:
-        return PosIndex(0)
-
-    def get_duration(self) -> float:
-        if self.structure:
-            return self.lead.get_duration()
-        else:
-            raise NotImplementedError()
-
-    def relative_start_p(self, n: Node) -> int:
-        if self == n:
-            return 0
-        elif self.parent is not None:
-            self.parent.update_buffer()
-            return self.start + self.parent.relative_start_p(n)
-        else:
-            raise RuntimeError("n is not a parent of current node")
-
-    def relative_start_q(self, n: Node) -> float:
-        if self == n:
-            return 0.0
-        elif self.parent is not None:
-            self.parent.update_buffer()
-            start_index = self.parent.buffer.get_pos_index(self.start)
-            return start_index + self.parent.relative_start_q(n)
-        else:
-            raise RuntimeError("n is not a parent of current node")
+class RefinementNodeFollow(RefinementNode):
+    pass
         
 
-class RefinementNodeLead(RefinementNode[T, QuarterIndex]):
+class RefinementNodeLead(RefinementNode):
+    pass
 
-    def __init__(self, start: float, end: float, name: str, vp: ViewPointLead, children: List[Self] = [], structure: bool = False):
-        super().__init__(QuarterIndex(start), QuarterIndex(end), name, vp, children, structure)
+class ViewPoint(Generic[C]):
 
-    def update_elt_count(self) -> None:
-        if self.buffer_valid:
-            self.elt_count = len(self.buffer)
-            return
-        self.elt_count = 0
-        for c in self.children:
-            c.update_elt_count()
-            self.elt_count += c.elt_count
-
-    def zero_index(self) -> QuarterIndex:
-        return QuarterIndex(0.0)
-
-    def get_duration(self) -> float:
-        return self.end - self.start
-
-    def relative_start_p(self, n: Node) -> int:
-        if self == n:
-            return 0
-        elif self.parent is not None:
-            self.parent.update_buffer()
-            start_p = self.parent.buffer.get_pos_index(self.start)
-            return start_p + self.parent.relative_start_p(n)
-        else:
-            raise RuntimeError("n is not a parent of current node")
-
-    def relative_start_q(self, n: Node) -> float:
-        if self == n:
-            return 0.0
-        elif self.parent is not None:
-            self.parent.update_buffer()
-            return self.start + self.parent.relative_start_q(n)
-        else:
-            raise RuntimeError("n is not a parent of current node")
-
-
-class ViewPoint(Generic[C, I]):
-
-    def __init__(self, name: str, use_copy: bool, model: ur.Model):
+    def __init__(self, name: str, content_cls: Type[C], use_copy: bool, model: ur.Model):
         self.name: str = name
         self.use_copy: bool = use_copy
         self.model: ur.Model = model
@@ -375,34 +194,103 @@ class ViewPoint(Generic[C, I]):
         self.constraints: List[ur.Constraint] = []
         self.scorers: List[ur.Scorer] = []
         self.initialized: bool = False
+        self.out: List[C] = []
+        self.content_cls: Type[C] = content_cls
+        self.fixed_count_out: List[ViewPoint] = []
+        self.fixed_count_in: Optional[ViewPoint] = None
+        self.generated: bool = False
+    
+    def get_pos(self, i: Index) -> int:
+        if i.node.vp.get_leader() == self.get_leader():
+            return i.relative_p()
 
-    def __getitem__(self, name: str) -> RefinementNode[C, I]:
-        return self.nodes[name]
+        struc_parent: RefinementNode = i.node.get_structure_parent()
+        ind_q: float = i.relative_q(struc_parent.name)
+        acc: float = 0.0
+        for (ctr, e) in enumerate(self.get_leader()[self.nodes[struc_parent.name].start:]):
+            if acc >= ind_q:
+                return ctr
+            acc += e.quarter_length()
+        return ctr + 1
 
-    def get_lead(self) -> ViewPointLead:
+    @overload
+    def __getitem__(self, i: Index) -> C:
+        pass
+
+    @overload
+    def __getitem__(self, s: slice) -> C:
+        pass
+
+    def __getitem__(self, val: Index | slice) -> C | List[C]:
+        if isinstance(val, Index):
+            return self.out[self.get_pos(val)]
+        if isinstance(val, slice):
+            start:int = 0
+            end: int = len(self.out)
+            if val.start is not None and isinstance(val.start, Index):
+                start = self.get_pos(val.start)
+            if val.stop is not None and isinstance(val.stop, Index):
+                end = self.get_pos(val.stop)  
+            return self.out[start:end]
+        else:
+            raise RuntimeError("Index must be of type Index or slice")
+
+    def __str__(self) -> str:
+        out: str = f"ViewPoint {self.name}:\n"
+        out += ' '.join([str(e) for e in self.out])
+        out += "\n\n" + str(self.root) + "\n\n"
+        return out
+
+    def fixed_count(self) -> bool:
+        return self.fixed_count_in is not None and self.fixed_count_in.generated
+
+    def get_leader(self) -> ViewPointLead:
         raise NotImplementedError()
 
     def initialize_structure(self) -> None:
         self.initialized = True
-        self.nodes: Dict[str, RefinementNode[C, I]] = {}
+        self.nodes: Dict[str, RefinementNode] = {}
+        self.root: RefinementNode = self.copy_struc_node(self.model.structure)
+        i: int = 0
         for n in PreOrderIter(self.root):
             self.nodes[n.name] = n
             if not self.use_copy or n.name[-1] != '\'':
                 continue
             to_copy: str = n.name[:-1]
             if to_copy in self.nodes.keys():
-                n.copy_of = self[to_copy]
+                n.copy_of = self.nodes[to_copy]
                 n.unset_generatable()
-
 
     def set_to(self, bars: list[C], fixedness: float = 1.0) -> None:
         raise NotImplementedError()
 
-    def export(self, lead: ViewPoint) -> List[str]:
+    def undefined(self) -> C:
+        return self.content_cls.undefined()
+
+    def copy_struc_node(self, n: StructureNode, offset: int = 0) -> RefinementNode:
+        '''Construct a RefinementNode by copying a StructureNode 
+        '''
+        if not n.children:
+            self.out.append(self.undefined())
+            return RefinementNode(Index(n.start, offset), Index(n.end, offset + 1), n.name, self, structure=True)
+        children = []
+        offset_children = 0
+        for c in n.children:
+            child_node = self.copy_struc_node(c, offset_children)
+            children.append(child_node)
+            offset_children = child_node.end.pos
+        return RefinementNode(Index(n.start, offset), Index(n.end, offset + offset_children), n.name, self, children=children, structure=True)
+
+    def generate(self) -> None:
+        self.generated = True
+        self.root.generate()
+        print(self)
+
+    def export_text(self, lead: ViewPoint) -> List[str]:
         assert isinstance(lead, ViewPointLead)
-        self_content = self['ALL'][:]
-        self_durations = [e.quarter_length() for e in self.get_lead()['ALL'][:]]
-        lead_content = lead['ALL'][:]
+        self_content = self[:]
+        self_durations = [e.quarter_length() for e in self.get_leader()[:]]
+        lead_content = lead[:]
 
         acc_lead: float = 0.0
         acc_self: float = 0.0
@@ -417,16 +305,14 @@ class ViewPoint(Generic[C, I]):
             
         return result
 
-class ViewPointLead(ViewPoint[T, QuarterIndex]):
-    def __init__(self, name: str, use_copy: bool, model: ur.Model):
-        super().__init__(name, use_copy, model)
-        self.follows: List[ViewPointFollow] = []
+class ViewPointLead(ViewPoint[T]):
+    def __init__(self, name: str, content_cls: Type[T], use_copy: bool, model: ur.Model):
+        super().__init__(name, content_cls, use_copy, model)
+        self.followers: List[ViewPointFollow] = []
 
-    def set_to(self, l: list[T], fixedness: float = 1.0) -> None:
-        
-        if not self.initialized:
-            self.initialize_structure()
-
+    def initialize_to(self, l: list[T], fixedness: float = 1.0) -> None:
+        ''' For now, lead needs to be set first'''
+        self.generated = True
         new_content: list[T] = []
         for n in PreOrderIter(self.root):
 
@@ -442,74 +328,39 @@ class ViewPointLead(ViewPoint[T, QuarterIndex]):
                     l = l[i + 1:]
                     break
             if n.copy_of and self.use_copy:
-                n.set_to(n.copy_of.buffer.elements, fixedness)
+                n.set_to(self[n.copy_of.start:n.copy_of.end], fixedness)
             else:
                 n.set_to(new_content, fixedness)
             new_content = []
 
-        self.root.update_elt_count()
-        self.root.print()
+        print(self)
 
-    def get_lead(self) -> ViewPointLead:
+    def get_leader(self) -> ViewPointLead:
         return self
 
-    def copy_struc_node(self, n: StructureNode) -> RefinementNodeLead[T]:
-        '''Construct a RefinementNode by copying a StructureNode 
-        '''
-        new_node = RefinementNodeLead[T](n.start, n.end, n.name, self, structure=True)
-        new_node.children = [self.copy_struc_node(c) for c in n.children]
-        return new_node
+class ViewPointFollow(ViewPoint[C]):
+    def __init__(self, name: str, content_cls: Type[C], use_copy: bool, model: ur.Model, lead: ViewPointLead):
+        super().__init__(name, content_cls, use_copy, model)
+        self.leader: ViewPointLead = lead
+        lead.followers.append(self)
 
-    def initialize_structure(self) -> None:
-        self.root: RefinementNodeLead[T] = self.copy_struc_node(self.model.structure)
-        super().initialize_structure()
-
-class ViewPointFollow(ViewPoint[C, PosIndex]):
-    def __init__(self, name: str, use_copy: bool, model: ur.Model, lead: ViewPointLead):
-        super().__init__(name, use_copy, model)
-        self.lead: ViewPointLead = lead
-        lead.follows.append(self)
-
-    def set_to(self, l: list[C], fixedness: float = 1.0) -> None:
-        # needs lead VP to be set first
-        
-        if not self.initialized:
-            self.initialize_structure()
-
+    def initialize_to(self, l: list[C], fixedness: float = 1.0) -> None:
+        ''' assume that lead VP is set first''' 
+        assert self.fixed_count_in is not None and self.fixed_count_in.generated
+        self.generated = True
         for n in PreOrderIter(self.root):
 
             # only set content of leafs
             if n.children:
                 continue
-            n.update_elt_count()
-            new_content: list[C] = l[:n.elt_count]
-            l = l[n.elt_count:]
+            new_content: list[C] = l[:n.get_elt_count()]
+            l = l[n.get_elt_count():]
             if n.copy_of and self.use_copy:
-                n.set_to(n.copy_of.buffer.elements, fixedness)
+                n.set_to(self[n.copy_of.start:n.copy_of.end], fixedness)
             else:
                 n.set_to(new_content, fixedness)
 
-        self.root.print()
+        print(self)
 
-    def get_lead(self) -> ViewPointLead:
-        return self.lead
-
-    def copy_lead_node(self, n: RefinementNodeLead[T], offset: int) -> RefinementNodeFollow[C]:
-
-        new_node = RefinementNodeFollow[C](offset, offset + n.elt_count, n.name, self, structure=True, lead=n)
-        new_node.elt_count = n.elt_count
-        children: List[RefinementNodeFollow[C]] = []
-        acc: int = 0
-        for c in n.children:
-            if c.structure:
-                pass
-            children.append(self.copy_lead_node(c, acc))
-            acc += c.elt_count
-        new_node.children = children
-        return new_node
-
-    def initialize_structure(self) -> None:
-        self.root: RefinementNodeFollow[C] = self.copy_lead_node(self.lead.root, 0)
-        super().initialize_structure()
-
-
+    def get_leader(self) -> ViewPointLead:
+        return self.leader

@@ -30,7 +30,7 @@ import glob
 import gabuzomeu
 import random
 import music
-from music import Note, Pitch, Duration
+from music import Note, Pitch, Duration, Chord, Syllable
 import music21 as m21
 from music21.stream import Part, Score
 from rich import print
@@ -146,27 +146,29 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
     # ------------------------------------------------------
     # block scheduling
 
-    sh.add_vp('rhy')
-    sh.add_vp('lyr', before=['rhy'], lead_name='rhy', use_copy=False)
-    sh.add_vp('pitchGridT', lead_name='rhy')
-    sh.add_vp('fillInT', use_copy=False)
-    sh.add_vp('chords', lead_name='rhy')
-    sh.add_vp('pitchGridB', lead_name='rhy')
-    sh.add_vp('pitchGridS', lead_name='rhy')
-    sh.add_vp('pitchGridA', lead_name='rhy')
-    sh.add_vp('fillInB', use_copy=False)
-    sh.add_vp('fillInS', use_copy=False)
-    sh.add_vp('fillInA', use_copy=False)
+    sh.add_vp('rhy', Duration)
+    sh.add_vp('lyr', Syllable, lead_name='rhy', use_copy=False)
+    sh.add_vp('pitchGridT', Pitch, lead_name='rhy')
+    sh.add_vp('fillInT', Pitch, use_copy=False)
+    sh.add_vp('chords', Chord, lead_name='rhy')
+    sh.add_vp('pitchGridB', Pitch, lead_name='rhy')
+    sh.add_vp('pitchGridS', Pitch, lead_name='rhy')
+    sh.add_vp('pitchGridA', Pitch, lead_name='rhy')
+    sh.add_vp('fillInB', Note, use_copy=False)
+    sh.add_vp('fillInS', Note, use_copy=False)
+    sh.add_vp('fillInA', Note, use_copy=False)
+
+    sh.setup()
     
     rhythm, pitches = grid_from_part(mel)
     fill_in = fill_in_from_part(mel)
 
     # content generation: fix some vps, add producers to others
     sh.set_structure(struc)
-    sh['rhy'].set_to(rhythm)
-    sh['lyr'].set_to(lyr)
-    sh['pitchGridT'].set_to(pitches)
-    sh['fillInT'].set_to(fill_in, fixedness=0.8)
+    sh['rhy'].initialize_to(rhythm)
+    sh['lyr'].initialize_to(lyr)
+    sh['pitchGridT'].initialize_to(pitches)
+    sh['fillInT'].initialize_to(fill_in, fixedness=0.8)
 
     sh.add_producer(chords_prod, 'chords')
     sh.add_producer(melody_b_prod, 'pitchGridB')

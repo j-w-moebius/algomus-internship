@@ -448,7 +448,7 @@ class MelodyMinorB(ur.PitchMarkov):
 #         return music.mean(gen.one)
 
 class ScorerFunc(ur.Scorer):
-    ARGS = [(m.Chord, ur.Interval(1))]
+    LIST_ARGS = [(m.Chord, ur.Interval(1))]
 
     def function(self, chords: List[m.Chord]):
 
@@ -559,7 +559,7 @@ class ScorerFunc(ur.Scorer):
 
 class ScorerMelodyHarm(ur.Scorer):#(ur.ScorerTwoSequence):
 
-    ARGS = [(m.Pitch, ur.Interval(1,1)),
+    LIST_ARGS = [(m.Pitch, ur.Interval(1,1)),
             (m.Chord, ur.Interval(1,1))]
 
     # bottom-up index of voice in four-part setting
@@ -744,12 +744,13 @@ class ScorerMelodyHarmB(ScorerMelodyHarmRoot):
 
 class Flourisher(ur.Producer[m.Note]):
 
-    ARGS = [(m.Duration, ur.Interval(1)),
-            (m.Pitch, ur.Interval(1))]
+    LIST_ARGS = [(m.Duration, ur.Interval(1)),
+                 (m.Pitch, ur.Interval(1))]
+    OUT_COUNT = ur.Interval(1)
 
     RANDOMIZED = False
 
-    def function(self, rhy: List[m.Duration], mel: List[m.Pitch]) -> List[m.Note]:
+    def function(self, rhy: List[m.Duration], mel: List[m.Pitch], len_to_gen: ur.Interval) -> List[m.Note]:
         if len(rhy) != len(mel):
             raise RuntimeError("Rhythm and Pitch lists must be of same length for flourishing")
         
