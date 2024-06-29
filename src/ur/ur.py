@@ -76,6 +76,9 @@ class Rule(Generic[R]):
         self.vps: List[ViewPoint] = vps
 
     def __call__(self, *args: T) -> R:
+        raise NotImplementedError()
+
+    def check_args(self, *args: T) -> None:
         if len(args) != len(self.LIST_ARGS) + len(self.ARGS):
             raise RuntimeError("Number of specified and of passed arguments do not match")
         for (i, (a, (t, s))) in enumerate(zip(args, self.LIST_ARGS)):
@@ -93,10 +96,6 @@ class Rule(Generic[R]):
         for (a, t) in zip(args[i:], self.ARGS):
             if not isinstance(a, t):
                 raise RuntimeError("Passed argument is not of specified type")
-        return self.function(*args)
-
-    def function(self, *args: T) -> R:
-        raise NotImplementedError()
 
     def get_range(self, _vp: ViewPoint) -> Optional[Interval]:
         for (i, vp) in enumerate(self.vps):
@@ -117,7 +116,7 @@ class Producer(Rule[List[C]]):
         self.fixedness = fixedness
         super().__init__(vps_in)
 
-    def function(self, *list_args: List[T], len_to_gen: Interval) -> List[C]:
+    def __call__(self, *list_args: List[T], len_to_gen: Interval) -> List[C]:
         raise NotImplementedError()
 
 
@@ -161,7 +160,7 @@ class Generator(Generic[C]):
             len_to_gen = Interval(1)
         if len_to_gen not in prod.OUT_COUNT:
             raise RuntimeError(f"Producer {prod.__class__.__name__} can't generate the specified number of elements.")
-        return prod(*list_args, len_to_gen)
+        return prod(*list_args, len_to_gen=len_to_gen)
 
     def call_eval(self, eval: Evaluator[R], generated: List[C], window_start: Optional[Index] = None, window_end: Optional[Index] = None) -> R:
         if window_start is None:
@@ -461,9 +460,11 @@ class HiddenMarkov(Producer[C], Generic[S, C]):
         '''
         return state is not None
 
-    def function(self, len_to_gen: Interval) -> List[C]:
+    def __call__(self, len_to_gen: Interval) -> List[C]:
         '''Return a sequence of emitted states
         '''
+
+        self.check_args(len_to_gen)
 
         i: int = 0
 

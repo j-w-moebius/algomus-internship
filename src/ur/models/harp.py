@@ -450,7 +450,9 @@ class MelodyMinorB(ur.PitchMarkov):
 class ScorerFunc(ur.Scorer):
     LIST_ARGS = [(m.Chord, ur.Interval(1))]
 
-    def function(self, chords: List[m.Chord]):
+    def __call__(self, chords: List[m.Chord]):
+
+        self.check_args(chords)
 
         different = len(set(chords))
         stars = len(list(filter(lambda x: '*' in x, chords)))
@@ -602,7 +604,10 @@ class ScorerMelodyHarm(ur.Scorer):#(ur.ScorerTwoSequence):
         3: 1.0,
     }
 
-    def function(self, mel: List[m.Pitch], chords: List[m.Chord]) -> float:
+    def __call__(self, mel: List[m.Pitch], chords: List[m.Chord]) -> float:
+
+        self.check_args(mel, chords)
+
         # print (mel, harm, self.CHORDS[harm])
         pc: m.Pitch = mel[0].pc()
         chord: m.Chord = chords[0]
@@ -750,7 +755,10 @@ class Flourisher(ur.Producer[m.Note]):
 
     RANDOMIZED = False
 
-    def function(self, rhy: List[m.Duration], mel: List[m.Pitch], len_to_gen: ur.Interval) -> List[m.Note]:
+    def __call__(self, rhy: List[m.Duration], mel: List[m.Pitch], len_to_gen: ur.Interval) -> List[m.Note]:
+
+        self.check_args(rhy, mel, len_to_gen)
+        
         if len(rhy) != len(mel):
             raise RuntimeError("Rhythm and Pitch lists must be of same length for flourishing")
         
