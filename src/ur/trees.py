@@ -27,19 +27,30 @@ class Numeric(Protocol):
 
 
 class Index:
-    def __init__(self, quarter: float, pos: int):
+    def __init__(self, quarter: float, pos: int, node: RefinementNode):
         self.quarter: float = quarter
         self.pos: int = pos
-        self.node: RefinementNode
-
-    def __add__(self, other: Self) -> Self:
-        return self.__init__(0)
-
-    def __sub__(self, other: Self) -> Self:
-        return self.__init__(0)
+        self.node: RefinementNode = node
 
     def __str__(self) -> str:
         return f"({self.quarter}, {self.pos})"
+
+    def __ge__(self, other: Self) -> bool:
+        return self.pos >= other.pos and self.quarter >= other.quarter
+
+    def __le__(self, other: Self) -> bool:
+        return self.pos <= other.pos and self.quarter <= other.quarter
+
+    def __eq__(self, other: Self) -> bool:
+        return self.pos == other.pos and self.quarter == other.quarter
+
+    def __add__(self, other: Self) -> Self:
+        assert self.node == other.node
+        return self.__class__(self.quarter + other.quarter, self.pos + other.pos, self.node)
+
+    def __sub__(self, other: Self) -> Self:
+        assert self.node == other.node
+        return self.__class__(self.quarter - other.quarter, self.pos - other.pos, self.node)
 
     def relative_p(self, label = 'ALL') -> int:
         if self.node.name == label:
@@ -64,7 +75,12 @@ class Index:
         durations = [e.quarter_length() for e in node_content[:offset]]
         self.quarter = sum(durations)
         self.pos = offset + self.node.start.pos
-    
+
+    def child_index(self, child: RefinementNode) -> Self:
+        #assert child in self.node.children
+        return self.__class__(self.quarter - self.node.start.quarter,
+                              self.pos - self.node.start.pos,
+                              child)
 
 class Node(NodeMixin, Generic[I]):
 
@@ -85,10 +101,17 @@ class StructureNode(Node[float]):
 
 class RefinementNode(Node[Index]):
 
-    def __init__(self, start: Index, end: Index, name: str, vp: ViewPoint, children: List[Self] = [], structure: bool = False):
-        super().__init__(start, end, name, children)
-        self.start.node = self
-        self.end.node = self
+    def __init__(self, start: Tuple[float, int] | Index, end: Tuple[float, int] | Index, name: str, vp: ViewPoint, children: List[Self] = [], structure: bool = False):
+        if isinstance(start, tuple):
+            my_start: Index = Index(*start, self)
+        else:
+            my_start = start.child_index(self)
+        if isinstance(end, tuple):
+            my_end: Index = Index(*end, self)
+        else:
+            my_end = end.child_index(self)
+
+        super().__init__(my_start, my_end, name, children)
         self.copy_of: Optional[Self] = None
         self.generatable: bool = True
         self.generator: Optional[ur.Generator] = None
@@ -101,10 +124,15 @@ class RefinementNode(Node[Index]):
         for e in self.vp.out[self.start.pos:self.end.pos]:
             yield e
 
-    def index(self) -> Index:
-        i = Index(0.0, 0)
-        i.node = self
-        return i
+    def __str__(self) -> str:
+        out: str = ""
+        for pre, _, node in RenderTree(self):
+            treestr = u"%s%s" % (pre, node.name)
+            content_str = ""
+            if node.copy_of is not None:
+                content_str += f' (same as {node.copy_of.name})'
+            out += treestr.ljust(8) + str(node.start) + str(node.end) + content_str + "\n"
+        return out
 
     def get_duration(self) -> float:
         return self.end.quarter - self.start.quarter
@@ -166,23 +194,48 @@ class RefinementNode(Node[Index]):
         new_content, fixedness = self.generator.generate()
         self.set_to(new_content, fixedness)
 
-    def __str__(self) -> str:
-        out: str = ""
-        for pre, _, node in RenderTree(self):
-            treestr = u"%s%s" % (pre, node.name)
-            content_str = ""
-            if node.copy_of is not None:
-                content_str += f' (same as {node.copy_of.name})'
-            out += treestr.ljust(8) + str(node.start) + str(node.end) + content_str + "\n"
-        return out
+    def get_subrange(self, start: Index, end: Index) -> List[Self]:
+        ''' tree growing '''
+        # for now, assume we are only operating on structure nodes, in the following way:
+        # [start, end) is either completely covered by some contiguous structure children,
+        # or it is fully outside any child
 
+        if not self.structure:
+            raise NotImplementedError("TODO")
+        assert start >= self.start and end <= self.end
+        if start == self.start and end == self.end: # [start, end) is CONGRUENT with self
+            return [self] 
+        result: List[Self] = []
+        ctr: int = 0
+        for c in self.children:
+            c_start: int = c.start.pos + self.start.pos
+            c_end: int = c.end.pos + self.start.pos
+            if c_start <= start.pos and c_end >= end.pos: # [start, end) is IN c
+                result = c.get_subrange(start.child_index(c), end.child_index(c))
+            elif c_end <= start.pos: # c is fully BEFORE [start, end)
+                pass
+            elif c_start >= end.pos: # c is fully AFTER [start, end)
+                break
+            else: # [start, end) is PARTIALLY in c
+                if c_start < start.pos:
+                    new_start = start.child_index(c)
+                else:
+                    new_start = c.start
+                if c_end > end.pos:
+                    new_end = end.child_index(c)
+                else: 
+                    new_end = c.end
+                result += c.get_subrange(new_start, new_end)
+                pass
+            ctr += 1
 
-class RefinementNodeFollow(RefinementNode):
-    pass
-        
+        if result == []: # [start, end) is outside any child: create new one
+            new_node = RefinementNode(start, end, "", self.vp)
+            #new_node.parent = self
+            self.children = list(self.children[:ctr]) + [new_node] + list(self.children[ctr:])
+            result = [new_node]
+        return result
 
-class RefinementNodeLead(RefinementNode):
-    pass
 
 class ViewPoint(Generic[C]):
 
@@ -264,22 +317,22 @@ class ViewPoint(Generic[C]):
     def set_to(self, bars: list[C], fixedness: float = 1.0) -> None:
         raise NotImplementedError()
 
-    def undefined(self) -> C:
-        return self.content_cls.undefined()
+    def undefined(self, dur: float = 0.0) -> C:
+        return self.content_cls.undefined(dur)
 
     def copy_struc_node(self, n: StructureNode, offset: int = 0) -> RefinementNode:
         '''Construct a RefinementNode by copying a StructureNode 
         '''
         if not n.children:
-            self.out.append(self.undefined())
-            return RefinementNode(Index(n.start, offset), Index(n.end, offset + 1), n.name, self, structure=True)
+            self.out.append(self.undefined(n.end - n.start))
+            return RefinementNode((n.start, offset), (n.end, offset + 1), n.name, self, structure=True)
         children = []
         offset_children = 0
         for c in n.children:
             child_node = self.copy_struc_node(c, offset_children)
             children.append(child_node)
             offset_children = child_node.end.pos
-        return RefinementNode(Index(n.start, offset), Index(n.end, offset + offset_children), n.name, self, children=children, structure=True)
+        return RefinementNode((n.start, offset), (n.end, offset + offset_children), n.name, self, children=children, structure=True)
 
     def generate(self) -> None:
         self.generated = True

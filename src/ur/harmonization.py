@@ -216,6 +216,12 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
     print('[yellow]### Generating ')
     # sh.reset()
 
+    n = sh['pitchGridT'].root
+
+    test = n.get_subrange(Index(4.0, 3, n), Index(8.0, 5, n))
+    test2 = n.get_subrange(Index(44.0, 28, n), Index(48.0, 30, n))
+    print(sh['pitchGridT'])
+
     sh.generate()
 
     return sh

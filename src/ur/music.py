@@ -10,23 +10,23 @@ class Pitch(str):
         return self[0].lower()
 
     @classmethod
-    def undefined(cls) -> Self:
+    def undefined(cls, duration: float = 0.0) -> Self:
         return cls('~')
 
 class Syllable(str):
     @classmethod
-    def undefined(cls) -> Self:
+    def undefined(cls, duration: float = 0.0) -> Self:
         return cls('~')
 
 class Chord(str):
     @classmethod
-    def undefined(cls) -> Self:
+    def undefined(cls, duration: float = 0.0) -> Self:
         return cls('~')
 
 class Content(Protocol):
 
     @classmethod
-    def undefined(cls) -> Self:
+    def undefined(cls, duration: float = 0.0) -> Self:
         pass
 
 class Temporal(Content, Protocol):
@@ -40,7 +40,7 @@ class Duration(float):
         return self
 
     @classmethod
-    def undefined(cls) -> Self:
+    def undefined(cls, duration: float = 0.0) -> Self:
         return cls(0.0)
 
 class Note:
@@ -52,12 +52,12 @@ class Note:
     def __str__(self):
         return u'(%s, %s)' % (self.duration, self.pitch)
 
-    def quarter_length(self):
+    def quarter_length(self) -> float:
         return self.duration
 
     @classmethod
-    def undefined(cls) -> Self:
-        return cls(Duration.undefined(), Pitch.undefined())
+    def undefined(cls, duration: float = 0.0) -> Self:
+        return cls(Duration(duration), Pitch.undefined())
 
 
 def quarters_per_bar(ts_str: str) -> float:

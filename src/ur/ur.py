@@ -105,19 +105,38 @@ class Rule(Generic[R]):
 
 ### Producers
 
-class Producer(Rule[List[C]]):
+class Producer(Rule[List[List[C]]]):
 
-    RANDOMIZED: bool
     OUT_COUNT: Interval
-    ARGS = [Interval]
 
     def __init__(self, vp_out: ViewPoint, vps_in: List[ViewPoint], fixedness: float):
         self.vp = vp_out
         self.fixedness = fixedness
         super().__init__(vps_in)
 
-    def __call__(self, *list_args: List[T], len_to_gen: Interval) -> List[C]:
+
+class Enumerator(Producer[C]):
+
+    ARGS = [Interval]
+
+    def __call__(self, *list_args: List[T], len_to_gen: Interval) -> List[List[C]]:
+        self.check_args(*list_args, len_to_gen)
+        return self.enumerate(*list_args, len_to_gen=len_to_gen)
+
+    def enumerate(*list_args: List[T], len_to_gen: Interval) -> List[List[C]]:
         raise NotImplementedError()
+
+class RandomizedProducer(Producer[C]):
+
+    ARGS = [Interval, int]
+
+    def __call__(self, *list_args: List[T], len_to_gen: Interval, batch_size: int) -> List[List[C]]:
+        self.check_args(*list_args, len_to_gen, batch_size)
+        return [self.produce(*list_args, len_to_gen=len_to_gen) for i in range(batch_size)]
+
+    def produce(self, *list_args: List[T], len_to_gen: Interval) -> List[C]:
+        raise NotImplementedError()
+
 
 
 ### Constraints
@@ -127,7 +146,14 @@ class Evaluator(Rule[R]):
 
 
 class Constraint(Evaluator[bool]):
-    pass
+    def __call__(self, *list_args: List[T]) -> bool:
+        self.check_args(*list_args)
+        return self.valid(*list_args)
+
+    def valid(self, *list_args: List[T]) -> bool:
+        raise NotImplementedError()
+
+    
 
 ### Scores
 
@@ -135,6 +161,13 @@ class Scorer(Evaluator[float]):
     def __init__(self, vps: List[ViewPoint], weight: float = 1.0):
         self.weight: float = weight
         super().__init__(vps)
+
+    def __call__(self, *list_args: List[T]) -> float:
+        self.check_args(*list_args)
+        return self.score(*list_args)
+
+    def score(self, *list_args: List[T]) -> float:
+        raise NotImplementedError()
 
 
 class Generator(Generic[C]):
@@ -151,7 +184,7 @@ class Generator(Generic[C]):
         self.scorers: List[Scorer] = []
         # self.setup()
 
-    def call_prod(self, prod: Producer[C], max_length: Optional[int] = None) -> List[C]:
+    def call_prod(self, prod: Producer[C]) -> List[List[C]]:
         list_args = [vp[self.node.start:self.node.end] for vp in prod.vps]
         len_to_gen: Interval
         if self.node.vp.fixed_count():
@@ -160,7 +193,12 @@ class Generator(Generic[C]):
             len_to_gen = Interval(1)
         if len_to_gen not in prod.OUT_COUNT:
             raise RuntimeError(f"Producer {prod.__class__.__name__} can't generate the specified number of elements.")
-        return prod(*list_args, len_to_gen=len_to_gen)
+        if isinstance(prod, RandomizedProducer):
+            return prod(*list_args, len_to_gen=len_to_gen, batch_size=self.BATCH_SIZE)
+        else:
+            assert isinstance(prod, Enumerator)
+            return prod(*list_args, len_to_gen=len_to_gen)
+            
 
     def call_eval(self, eval: Evaluator[R], generated: List[C], window_start: Optional[Index] = None, window_end: Optional[Index] = None) -> R:
         if window_start is None:
@@ -185,11 +223,10 @@ class Generator(Generic[C]):
         succeeding: List[List[C]] = []
         failing: List[Tuple[List[C], int]] = []
         for p in self.producers:
-            for i in range(self.BATCH_SIZE if p.RANDOMIZED else 1):
-                gens.append(self.call_prod(p))
+            gens += self.call_prod(p)
 
-        window_start: Index = self.node.index()
-        window_end: Index = self.node.index()
+        window_start: Index = Index(0.0, 0, self.node)
+        window_end: Index = Index(0.0, 0, self.node)
 
         # call constraints
         self.constraints = [c for c in self.node.vp.constraints]
@@ -408,14 +445,13 @@ class Generator(Generic[C]):
 # Hidden State Type
 S = TypeVar("S")
 
-class HiddenMarkov(Producer[C], Generic[S, C]):
+class HiddenMarkov(RandomizedProducer[C], Generic[S, C]):
     
     # INITIAL_S, FINAL_S : dict[str, list[str]]
     # structure-dependent initial and final states
     # INITIAL_S: Dict[str, List[str]]
     # FINAL_S: Dict[str, List[str]]
 
-    RANDOMIZED = True
     OUT_COUNT = Interval(1)
 
     STATES: List[S]
@@ -451,7 +487,6 @@ class HiddenMarkov(Producer[C], Generic[S, C]):
         self.INITIAL = [m.Pitch(s) for s in self.INITIAL]
         self.FINAL = [m.Pitch(s) for s in self.FINAL]
 
-
         self.transitions: Dict[S, Dict[S, float]] = self.TRANSITIONS
         self.initial: List[S] = self.INITIAL
 
@@ -460,11 +495,9 @@ class HiddenMarkov(Producer[C], Generic[S, C]):
         '''
         return state is not None
 
-    def __call__(self, len_to_gen: Interval) -> List[C]:
+    def produce(self, len_to_gen: Interval) -> List[C]:
         '''Return a sequence of emitted states
         '''
-
-        self.check_args(len_to_gen)
 
         i: int = 0
 
