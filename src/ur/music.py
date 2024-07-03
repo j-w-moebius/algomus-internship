@@ -2,48 +2,73 @@
 import music21
 
 from typing import NewType, Protocol, Tuple, Optional, Self
+from abc import ABC, abstractmethod
 
-class Pitch(str):
+
+class Content(ABC):
+
+    undefined: bool = False
+
+    def is_undefined(self) -> bool:
+        return self.undefined
+
+    @classmethod
+    @abstractmethod
+    def create_undefined(cls, duration: float = 0.0) -> Self:
+        pass
+
+
+class Pitch(str, Content):
     def pc(self) -> str:
-        ''' The Pitch class as English lower name
+        ''' The Pitch class as English name in lower-case
         '''
         return self[0].lower()
 
     @classmethod
-    def undefined(cls, duration: float = 0.0) -> Self:
-        return cls('~')
+    def create_undefined(cls, duration: float = 0.0) -> Self:
+        new = cls('~')
+        new.undefined = True
+        return new
 
-class Syllable(str):
+class Schema(str, Content):
     @classmethod
-    def undefined(cls, duration: float = 0.0) -> Self:
-        return cls('~')
+    def create_undefined(cls, duration: float = 0.0) -> Self:
+        new = cls('~')
+        new.undefined = True
+        return new
 
-class Chord(str):
+class Syllable(str, Content):
     @classmethod
-    def undefined(cls, duration: float = 0.0) -> Self:
-        return cls('~')
+    def create_undefined(cls, duration: float = 0.0) -> Self:
+        new = cls('~')
+        new.undefined = True
+        return new
 
-class Content(Protocol):
-
+class Chord(str, Content):
     @classmethod
-    def undefined(cls, duration: float = 0.0) -> Self:
-        pass
+    def create_undefined(cls, duration: float = 0.0) -> Self:
+        new = cls('~')
+        new.undefined = True
+        return new
 
-class Temporal(Content, Protocol):
+class Temporal(Content):
 
+    @abstractmethod
     def quarter_length(self) -> float:
         pass
 
-class Duration(float):
+class Duration(float, Temporal):
 
     def quarter_length(self) -> float:
         return self
 
     @classmethod
-    def undefined(cls, duration: float = 0.0) -> Self:
-        return cls(0.0)
+    def create_undefined(cls, duration: float = 0.0) -> Self:
+        new = cls(0.0)
+        new.undefined = True
+        return new
 
-class Note:
+class Note(Temporal):
 
     def __init__(self, duration: Duration, pitch: Pitch):
         self.duration: Duration = duration
@@ -56,8 +81,10 @@ class Note:
         return self.duration
 
     @classmethod
-    def undefined(cls, duration: float = 0.0) -> Self:
-        return cls(Duration(duration), Pitch.undefined())
+    def create_undefined(cls, duration: float = 0.0) -> Self:
+        new = cls(Duration(duration), Pitch.create_undefined())
+        new.undefined = True
+        return new
 
 
 def quarters_per_bar(ts_str: str) -> float:
@@ -79,10 +106,10 @@ def quantize_above(duration: float, meter: str) -> float:
 
     return multiple
 
-def in_range(note, ambitus: Tuple[Pitch, Pitch], key: Optional[str] = None) -> bool:
+def in_range(pitch: str, ambitus: Tuple[Pitch, Pitch], key: Optional[str] = None) -> bool:
     '''return true iff note is in ambitus (with inclusive bounds)
     '''
-    n = music21.pitch.Pitch(note)
+    n = music21.pitch.Pitch(pitch)
     if key:
         n = n.transpose(key)
     return (n.midi >= music21.pitch.Pitch(ambitus[0]).midi) and (n.midi <= music21.pitch.Pitch(ambitus[1]).midi)

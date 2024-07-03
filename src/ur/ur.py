@@ -39,6 +39,38 @@ from trees import *
 
 # Result type
 R = TypeVar('R')
+T = TypeVar('T')
+
+class WindowIterator:
+    def __init__(self, size: Optional[int], n: RefinementNode, outside: bool = False):
+        self.node = n.vp.root if outside else n
+        if size is None:
+            self.size = self.node.get_elt_count()
+            self.possible_positions = [0]
+        else:
+            self.size = size
+            if outside:
+                first_pos = max(n.start.relative_p() - size + 1, 0)
+                self.possible_positions = list(range(first_pos, n.end.relative_p()))
+            else:
+                self.possible_positions = list(range(0, n.get_elt_count() - size + 1))
+
+        self.start = self.node.new_index()
+        self.end = self.node.new_index()
+        self.i = iter(self.possible_positions)
+
+    def __iter__(self) -> Self:
+        return self
+
+    def __next__(self) -> Tuple[Index, Index]:
+        pos = next(self.i)
+        self.start.set_offset(pos)
+        self.end.set_offset(pos + self.size)
+        return (self.start, self.end)
+
+    def __len__(self) -> int:
+        return len(self.possible_positions)
+
 
 class Interval:
     def __init__(self, min: int = 0, max: Optional[int] = None):
@@ -67,21 +99,23 @@ class Interval:
 
 
 class Rule(Generic[R]):
-    LIST_ARGS: List[Tuple[type, Interval]] = []
-    ARGS: List[type] = []
+    ARGS: List[Tuple[type, Interval]] = []
 
     T = TypeVar('T')
-
-    def __init__(self, vps: List[ViewPoint]) -> None:
-        self.vps: List[ViewPoint] = vps
 
     def __call__(self, *args: T) -> R:
         raise NotImplementedError()
 
+
+    def applies_to(self, *args: T, start: Index) -> bool:
+        ''' whether the rule can be applied, given args and a start position
+        overwrite to implement specific behavior'''
+        return True 
+
     def check_args(self, *args: T) -> None:
-        if len(args) != len(self.LIST_ARGS) + len(self.ARGS):
+        if len(args) != len(self.ARGS):
             raise RuntimeError("Number of specified and of passed arguments do not match")
-        for (i, (a, (t, s))) in enumerate(zip(args, self.LIST_ARGS)):
+        for a, (t, s) in zip(args, self.ARGS):
             if not isinstance(a, List):
                 raise RuntimeError("Passed argument is not a list")
 
@@ -89,18 +123,11 @@ class Rule(Generic[R]):
                 raise RuntimeError("Passed lists are not of specified length")
             if not isinstance(a[0], t):
                 raise RuntimeError("Passed argument list is not of specified type")
-        if len(self.LIST_ARGS) == 0:
-            i = 0
-        else:
-            i += 1
-        for (a, t) in zip(args[i:], self.ARGS):
-            if not isinstance(a, t):
-                raise RuntimeError("Passed argument is not of specified type")
 
     def get_range(self, _vp: ViewPoint) -> Optional[Interval]:
         for (i, vp) in enumerate(self.vps):
             if vp == _vp:
-                return self.LIST_ARGS[i][1]
+                return self.ARGS[i][1]
         raise None
 
 ### Producers
@@ -108,33 +135,61 @@ class Rule(Generic[R]):
 class Producer(Rule[List[List[C]]]):
 
     OUT_COUNT: Interval
+    CONTEXT_SENSITIVE: bool
 
-    def __init__(self, vp_out: ViewPoint, vps_in: List[ViewPoint], fixedness: float):
-        self.vp = vp_out
-        self.fixedness = fixedness
-        super().__init__(vps_in)
+    def flexible_length(self) -> bool:
+        return self.OUT_COUNT.max is None
+
+    def call_applies_to(self, node:RefinementNode, window_start: Index, window_end: Index) -> bool:
+        args, _, _, _ = self.fetch_args(node, window_start, window_end)
+        return self.applies_to(*args, start=window_start)
+
+    def fetch_args(self, node: RefinementNode, window_start: Optional[Index] = None, window_end: Optional[Index] = None) -> tuple[list, list, list, Interval]:
+        if window_start is None:
+            window_start = node.start
+        if window_end is None:
+                window_end = node.end
+        args = [vp[window_start:window_end] for vp in self.vps]
+        len_to_gen: Interval
+        if node.vp.fixed_count():
+            len_to_gen = Interval(node.get_elt_count(), node.get_elt_count()) 
+        else:
+            len_to_gen = Interval(1)
+        if len_to_gen not in self.OUT_COUNT:
+            raise RuntimeError(f"Producer {self.__class__.__name__} can't generate the specified number of elements.")
+
+        pre_context: List[C] = node.vp[:window_start]
+        post_context: List[C] = node.vp[window_end:]
+
+        return (args, pre_context, post_context, len_to_gen)
+
 
 
 class Enumerator(Producer[C]):
 
-    ARGS = [Interval]
+    def __call__(self, node: RefinementNode) -> List[List[C]]:
+        args, pre_context, post_context, _ = self.fetch_args(node)
+        self.check_args(*args)
+        if self.CONTEXT_SENSITIVE:
+            return self.enumerate(pre_context, post_context, *args)
+        else:
+            return self.enumerate(*args)
 
-    def __call__(self, *list_args: List[T], len_to_gen: Interval) -> List[List[C]]:
-        self.check_args(*list_args, len_to_gen)
-        return self.enumerate(*list_args, len_to_gen=len_to_gen)
-
-    def enumerate(*list_args: List[T], len_to_gen: Interval) -> List[List[C]]:
+    def enumerate(self, pre_context: List[C], post_context: List[C], *args: List[T]) -> List[List[C]]:
         raise NotImplementedError()
 
 class RandomizedProducer(Producer[C]):
 
-    ARGS = [Interval, int]
+    def __call__(self, node: RefinementNode, batch_size: int) -> List[List[C]]:
+        args, pre_context, post_context, len_to_gen = self.fetch_args(node)
+        self.check_args(*args)
+        if self.CONTEXT_SENSITIVE:
+            return [self.produce(pre_context, post_context, *args, len_to_gen=len_to_gen) for i in range(batch_size)]
+        else:
+            return [self.produce(*args, len_to_gen=len_to_gen) for i in range(batch_size)]
+        
 
-    def __call__(self, *list_args: List[T], len_to_gen: Interval, batch_size: int) -> List[List[C]]:
-        self.check_args(*list_args, len_to_gen, batch_size)
-        return [self.produce(*list_args, len_to_gen=len_to_gen) for i in range(batch_size)]
-
-    def produce(self, *list_args: List[T], len_to_gen: Interval) -> List[C]:
+    def produce(self, pre_context: List[C], post_context: List[C], *args: List[T], len_to_gen: Interval) -> List[C]:
         raise NotImplementedError()
 
 
@@ -142,15 +197,29 @@ class RandomizedProducer(Producer[C]):
 ### Constraints
 
 class Evaluator(Rule[R]):
-    pass
+        
+        def fetch_args(self, node: RefinementNode, generated: List[C], window_start: Index, window_end: Index) -> list:
+            args = []
+            for vp in self.vps:
+                # replace new span of currently generated VP
+                if node.vp == vp:
+                    start_p: int = window_start.pos - node.start.relative_p(window_start.node.name)
+                    prefix = vp[window_start:node.start]
+                    postfix = vp[node.end:window_end]
+                    end_p: int = window_end.pos - node.start.relative_p(window_start.node.name)
+                    args.append(prefix + generated[start_p:end_p] + postfix)
+                else: 
+                    args.append(vp[window_start:window_end])
+            return args
 
 
 class Constraint(Evaluator[bool]):
-    def __call__(self, *list_args: List[T]) -> bool:
-        self.check_args(*list_args)
-        return self.valid(*list_args)
+    def __call__(self, node: RefinementNode, generated: List[C], window_start: Index, window_end: Index) -> bool:
+        args = self.fetch_args(node, generated, window_start, window_end)
+        self.check_args(*args)
+        return self.valid(*args, start=window_start)
 
-    def valid(self, *list_args: List[T]) -> bool:
+    def valid(self, *args: List[T], start: Index) -> bool:
         raise NotImplementedError()
 
     
@@ -158,123 +227,106 @@ class Constraint(Evaluator[bool]):
 ### Scores
 
 class Scorer(Evaluator[float]):
-    def __init__(self, vps: List[ViewPoint], weight: float = 1.0):
-        self.weight: float = weight
-        super().__init__(vps)
 
-    def __call__(self, *list_args: List[T]) -> float:
-        self.check_args(*list_args)
-        return self.score(*list_args)
+    def __call__(self, node: RefinementNode, generated: List[C], window_start: Index, window_end: Index) -> float:
+        args = self.fetch_args(node, generated, window_start, window_end)
+        self.check_args(*args)
+        return self.score(*args, start=window_start)
 
-    def score(self, *list_args: List[T]) -> float:
+    def score(self, *args: List[T], start: Index) -> float:
         raise NotImplementedError()
 
 
 class Generator(Generic[C]):
 
-    BATCH_SIZE = 100
+    BATCH_SIZE = 500
    # S = TypeVar('S', bound=m.Content)
 
-    def __init__(self, node: RefinementNode) -> None:
+    def __init__(self, node: RefinementNode, prod: Producer) -> None:
         # the generated data
-        self.gens: List[Tuple[List[C], float]] = [] # TODO: Maybe CumuList ?
+        self.gens: List[Tuple[List[C], float]] = []
         self.node: RefinementNode = node
-        self.producers: List[Producer] = []
+        self.producer: Producer = prod
         self.constraints: List[Constraint] = []
         self.scorers: List[Scorer] = []
         # self.setup()
 
-    def call_prod(self, prod: Producer[C]) -> List[List[C]]:
-        list_args = [vp[self.node.start:self.node.end] for vp in prod.vps]
-        len_to_gen: Interval
-        if self.node.vp.fixed_count():
-            len_to_gen = Interval(self.node.get_elt_count(), self.node.get_elt_count()) 
-        else:
-            len_to_gen = Interval(1)
-        if len_to_gen not in prod.OUT_COUNT:
-            raise RuntimeError(f"Producer {prod.__class__.__name__} can't generate the specified number of elements.")
-        if isinstance(prod, RandomizedProducer):
-            return prod(*list_args, len_to_gen=len_to_gen, batch_size=self.BATCH_SIZE)
-        else:
-            assert isinstance(prod, Enumerator)
-            return prod(*list_args, len_to_gen=len_to_gen)
-            
+    def generate(self) -> None:
 
-    def call_eval(self, eval: Evaluator[R], generated: List[C], window_start: Optional[Index] = None, window_end: Optional[Index] = None) -> R:
-        if window_start is None:
-            window_start = self.node.start
-        if window_end is None:
-            window_end = self.node.end
-        args = []
-        for vp in eval.vps:
-            if self.node.vp == vp:
-                start: int = window_start.pos - self.node.start.pos
-                end: int = window_end.pos - self.node.start.pos
-                args.append(generated[start:end])
-            else: 
-                args.append(vp[window_start:window_end])
-        return eval(*args)
-
-    def generate(self) -> Tuple[List[C], float]:
-
-        # call producers
-        self.producers = self.node.vp.producers
+        # call producer
         gens: List[List[C]] = []
         succeeding: List[List[C]] = []
         failing: List[Tuple[List[C], int]] = []
-        for p in self.producers:
-            gens += self.call_prod(p)
+        if isinstance(self.producer, Enumerator):
+            gens += self.producer(self.node)
+        else:
+            assert isinstance(self.producer, RandomizedProducer)
+            gens += self.producer(self.node, self.BATCH_SIZE)
 
-        window_start: Index = Index(0.0, 0, self.node)
-        window_end: Index = Index(0.0, 0, self.node)
-
-        # call constraints
-        self.constraints = [c for c in self.node.vp.constraints]
+        # call constraints (start with those for which all involved VPs have been generated)
+        self.constraints = [c for c in self.node.vp.constraints \
+                            if all([vp.generated for vp in c.vps])]
         for g in gens:
             fail_count: int = 0
             for c in self.constraints:
-                possible_positions = list(range(len(g)))
-                for pos in possible_positions:
-                    if not self.call_eval(c, g):
-                        fail_count += 1
+                r = c.get_range(self.node.vp)
+                assert r
+                for window_start, window_end in WindowIterator(r.max, self.node, True):
+                    fail_count += not c(self.node, g, window_start, window_end)
+
             if fail_count == 0:
                 succeeding.append(g)
             else:
                 failing.append((g, fail_count))
         
+        # refine
         if len(succeeding) == 0:
             failing.sort(key = lambda x: x[1])
-            # TODO: refine
-            raise NotImplementedError()
+            out = failing[0][0]
+            self.node.set_to(out, self.producer.fixedness)
+
+            faulty_nodes: List[RefinementNode] = []
+            for c in self.constraints:
+                r = c.get_range(self.node.vp)
+                if r.max is None or len(out) <= r.max: # only deal with sub-constraint (scope should be DECREASING during refinement)
+                    continue
+                for window_start, window_end in WindowIterator(r.max, self.node, True):
+                    if not c(self.node, out, window_start, window_end):
+                        # if a partially outside constraint is failing, only regenerate its intersection with self.node
+                        start, end = (self.node.start.relative_p(), self.node.end.relative_p())
+                        if window_start.pos < start:
+                            window_start.set_offset(start)
+                        if window_end.pos > end:
+                            window_end.set_offset(end)
+                        faulty_nodes += self.node.vp.root.get_subrange(window_start, window_end)
+            
+            for n in faulty_nodes:
+                if n == self:
+                    # ran out of options
+                    raise NotImplementedError("Backtracking would be sensible here, but it is not yet implented")
+                n.generate()
+            return
 
         # call scorers
         self.scorers = [s for s in self.node.vp.scorers \
-                        if all([vp.initialized for vp in s.vps])]
+                        if all([vp.generated for vp in s.vps])]
         for g in succeeding:
             score: float = 0.0
             for s in self.scorers:
                 r = s.get_range(self.node.vp)
                 assert r
                 subscore: float = 0.0
-                if len(g) in r:
-                    subscore += self.call_eval(s, g)
-                elif len(g) < r.min:
-                    pass # s only scores longer sequences; is not of interest
-                else: # len(g) > r.max
-                    assert r.max
-                    possible_positions = list(range(0, len(g) - r.max, r.max))
-                    for offset in possible_positions:
-                        window_start.set_offset(offset)
-                        window_end.set_offset(offset + r.max)
-                        subscore += self.call_eval(s, g, window_start, window_end)
-                    subscore = subscore / len(possible_positions)  
+                windows = WindowIterator(r.max, self.node, True)
+                for window_start, window_end in windows:
+                    subscore += s(self.node, g, window_start, window_end)
+                subscore = subscore / len(windows)  
                 score += subscore * s.weight
             self.gens.append((g, score))
 
         # sort
-        self.gens.sort(key = lambda x: x[1], reverse = True)
+        self.gens.sort(key = lambda p: p[1], reverse = True)
 
-        return (self.gens[0][0], self.producers[0].fixedness) # TODO: choose the right producer
+        self.node.set_to(self.gens[0][0], self.producer.fixedness)
 
 
 #     def setup(self):
@@ -445,7 +497,7 @@ class Generator(Generic[C]):
 # Hidden State Type
 S = TypeVar("S")
 
-class HiddenMarkov(RandomizedProducer[C], Generic[S, C]):
+class HiddenMarkov(RandomizedProducer[C]):
     
     # INITIAL_S, FINAL_S : dict[str, list[str]]
     # structure-dependent initial and final states
@@ -453,85 +505,64 @@ class HiddenMarkov(RandomizedProducer[C], Generic[S, C]):
     # FINAL_S: Dict[str, List[str]]
 
     OUT_COUNT = Interval(1)
+    CONTEXT_SENSITIVE = True
 
-    STATES: List[S]
-    INITIAL: List[S]
-    FINAL: List[S]
+    STATES: List[str]
+    INITIAL: List[str]
 
-    TRANSITIONS: Dict[S, Dict[S, float]]
-    EMISSIONS: Dict[S, Dict[C, float]]
+    TRANSITIONS: Dict[str, Dict[str, float]]
+    EMISSIONS: Dict[str, Dict[str, float]]
 
-
-    # def reset_to_struct(self, struct) -> None:
-    #     '''Set INITIAL and FINAL to state lists associated to struct in 
-    #     INTIIAL_S / FINAL_S (if given)
-    #     '''
-    #     # Incompatible with ItemPitchMarkov
-    #     # To be used with Func
-    #     if self.INITIAL_S:
-    #         self.INITIAL = self.INITIAL_S[struct if struct in self.INITIAL_S else None]
-    #     if self.FINAL_S:
-    #         self.FINAL = self.FINAL_S[struct if struct in self.FINAL_S else None]
-
-    # def setup(self):
-    #     self.initial = self.INITIAL
-    #     self.transitions = self.TRANSITIONS
-
-    def __init__(self, vp_out: ViewPoint, vps_in: List[ViewPoint], fixedness: float):
-        super().__init__(vp_out, vps_in, fixedness)
-
-        # TODO: avoid this barbary (but type annotations system makes it difficult)
-        self.TRANSITIONS = dict([(m.Pitch(s1), dict([(m.Pitch(s2), p) for s2, p in d.items()])) \
-                                 for s1, d in self.TRANSITIONS.items()])
-        self.STATES = [m.Pitch(s) for s in self.STATES]
-        self.INITIAL = [m.Pitch(s) for s in self.INITIAL]
-        self.FINAL = [m.Pitch(s) for s in self.FINAL]
-
-        self.transitions: Dict[S, Dict[S, float]] = self.TRANSITIONS
-        self.initial: List[S] = self.INITIAL
-
-    def state_legal(self, state: Optional[S]) -> bool:
+    def state_legal(self, state: Optional[str]) -> bool:
         '''Return whether state is legal
         '''
         return state is not None
 
-    def produce(self, len_to_gen: Interval) -> List[C]:
+    def produce(self, pre_context: List[C], post_context: List[C], len_to_gen: Interval) -> List[C]:
         '''Return a sequence of emitted states
         '''
 
         i: int = 0
 
-        while i not in len_to_gen:
-            # otherwise the final states constraint has led to a too long sequence
-            i = 0
-            state: S = pwchoice(self.initial)
-            emits: List[C] = []
+        # otherwise the final states constraint has led to a too long sequence
+        i = 0
+        state: Optional[str] = None
+        if len(pre_context) == 0 or pre_context[-1].is_undefined():
+            state = pwchoice(self.INITIAL)
+        else:
+            # if we know the last emitted state, update the probabilities for the first hidden state accordingly
+            last: C = pre_context[-1]
+            prob = lambda s: sum([self.TRANSITIONS[s1][s] * self.EMISSIONS[s1][str(last)] for s1 in self.STATES])
+            initial = dict([(s, prob(s)) for s in self.STATES])
+            while not self.state_legal(state):
+                state = pwchoice(initial)
+        emits: List[C] = []
 
-            emit: C = pwchoice(self.EMISSIONS[state])
-            emits.append(emit)
+        assert state
+        emit: C = self.vp_out.content_cls(pwchoice(self.EMISSIONS[state]))
+        emits.append(emit)
+        i += 1
+        while i < len_to_gen.min:
+            next_state: Optional[str] = None
+            while not self.state_legal(next_state):
+                try:
+                    next_state = pwchoice(self.TRANSITIONS[state])
+                except KeyError:
+                    print(f"[red]! No transition for [yellow]{self.__class__.__name__} {state}")
+                    raise
+            assert next_state
+            state = next_state
+            emit = self.vp_out.content_cls(pwchoice(self.EMISSIONS[state]))
+            emits += [emit]
             i += 1
-            while i < len_to_gen.min or state not in self.FINAL:
-                next_state: Optional[S] = None
-                while not self.state_legal(next_state):
-                    try:
-                        next_state = pwchoice(self.transitions[state])
-                    except KeyError:
-                        print(f"[red]! No transition for [yellow]{self.__class__.__name__} {state}")
-                        raise
-                assert next_state
-                state = next_state
-                emit = pwchoice(self.EMISSIONS[state])
-                emits += [emit]
-                i += 1
 
         return emits
 
-class Markov(HiddenMarkov[C, C]):
+class Markov(HiddenMarkov[C]):
     
-    def __init__(self, vp_out: ViewPoint, vps_in: List[ViewPoint], fixedness: float):
-        super().__init__(vp_out, vps_in, fixedness)
+    def __init__(self):
         self.EMISSIONS = {
-            x: {x: 1.00} for x in self.STATES
+            x: defaultdict(float, {x: 1.00}) for x in self.STATES
         }
 
 class PitchMarkov(Markov[m.Pitch]):
@@ -539,11 +570,11 @@ class PitchMarkov(Markov[m.Pitch]):
     AMBITUS: Tuple[m.Pitch, m.Pitch]
     INITIAL_AMBITUS: Tuple[m.Pitch, m.Pitch]
 
-    def __init__(self, vp_out: ViewPoint, vps_in: List[ViewPoint], fixedness: float):
-        super().__init__(vp_out, vps_in, fixedness)
-        self.set_key(vp_out.model.key)
+    def __init__(self, key: str):
+        super().__init__()
+        self.set_key(key)
 
-    def state_legal(self, pitch: m.Pitch) -> bool:
+    def state_legal(self, pitch: str) -> bool:
         # Redundant, but we may here implement melodic rules
         if pitch is None:
             return False
@@ -553,19 +584,17 @@ class PitchMarkov(Markov[m.Pitch]):
         ''' Adapt transitions and states to key
         '''
         self.key = key
-        self.initial = self.INITIAL.copy()
-        self.transitions = self.TRANSITIONS.copy()
 
-        for n1 in list(self.transitions):
-            for n2 in list(self.transitions[n1]):
+        for n1 in list(self.TRANSITIONS):
+            for n2 in list(self.TRANSITIONS[n1]):
                 if not music.in_range(n2, self.AMBITUS, self.key) or '#' in n2 or '-' in n2:
                     # print(self.key, 'del', n1, n2)
-                    del self.transitions[n1][n2]
-                    if len(self.transitions[n1]) == 0:
-                        del self.transitions[n1]
-        for n in list(self.initial):
+                    del self.TRANSITIONS[n1][n2]
+                    if len(self.TRANSITIONS[n1]) == 0:
+                        del self.TRANSITIONS[n1]
+        for n in list(self.INITIAL):
             if not music.in_range(n, self.AMBITUS_INITIAL, self.key):
-                self.initial.remove(n)
+                self.INITIAL.remove(n)
 
 
 # class ScorerOne(Scorer):
@@ -709,7 +738,7 @@ class PitchMarkov(Markov[m.Pitch]):
 
 ### Model
 
-class Model:#(Gen):
+class Model:
 
     def __init__(self, key: str, mode: str, meter: str):
         self.key: str = key
@@ -756,31 +785,45 @@ class Model:#(Gen):
         '''
         for (i, vp1) in enumerate(self.vps):
             for vp2 in self.vps[i + 1:]:
-                if vp1.get_leader() == vp2.get_leader():
+                if vp1.get_leader() == vp2.get_leader() and vp2.fixed_count_in is None:
                     vp1.fixed_count_out.append(vp2)
                     vp2.fixed_count_in = vp1
+
+        for vp in self.vps:
+            vp.init()
 
     def set_structure(self, struc: StructureNode) -> None:
         self.structure: StructureNode = struc
         for vp in self.vps:
             vp.initialize_structure()
 
-    def add_producer(self, _producer: type, vp: str, *vp_in_names: str, fixedness: float = 0.5) -> None:
-        vps_in: List[ViewPoint] = [self[n] for n in vp_in_names]
-        if issubclass(_producer, Producer):
-            producer = _producer(self[vp], vps_in, fixedness)
-            self[vp].producers.append(producer)
+    def add_producer(self, producer: Producer, vp: str, *vp_in_names: str, fixedness: float = 0.5, default: bool = False) -> None:
+        producer.model: Model = self
+        producer.fixedness: float = fixedness
+        try:
+            producer.vp_out: ViewPoint = self[vp]
+            producer.vps: List[ViewPoint] = [self[n] for n in vp_in_names]
+        except KeyError:
+            raise RuntimeError("Need to specify names of existing ViewPoints")
+
+        self[vp].producers.append(producer)
+        if default:
+            if not producer.flexible_length():
+                raise RuntimeError(f"Default producers have to be of flexible length")
+            self[vp].default_prod = producer
     
-    def add_evaluator(self, evaluator: type, *vp_names: str, weight: float = 1.0) -> None:
-        vps: List[ViewPoint] = [self[n] for n in vp_names]
-        if issubclass(evaluator, Constraint):
-            constraint = evaluator(vps)
-            for v in vps:
-                v.constraints.append(constraint)
-        elif issubclass(evaluator, Scorer):
-            scorer = evaluator(vps, weight)
-            for v in vps:
-                v.scorers.append(scorer)
+    def add_evaluator(self, evaluator: Evaluator, *vp_names: str, weight: float = 1.0) -> None:
+        try:
+            evaluator.vps: List[ViewPoint] = [self[n] for n in vp_names]
+        except KeyError:
+            raise RuntimeError("Need to specify names of existing ViewPoints")
+        if isinstance(evaluator, Constraint):
+            for v in evaluator.vps:
+                v.constraints.append(evaluator)
+        elif isinstance(evaluator, Scorer):
+            evaluator.weight: float = weight
+            for v in evaluator.vps:
+                v.scorers.append(evaluator)
 
     def generate(self) -> None:
         for vp in self.vps:

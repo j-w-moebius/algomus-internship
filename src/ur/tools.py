@@ -14,7 +14,7 @@ def weighted_choice(choices, weights):
     return choices[bisect.bisect(cumdist, x)]
 
 def possibly_weighted_choice(l):
-    if type(l) == type({}):
+    if isinstance(l, dict):
         l = dict_to_list2(l)    
     if type(l[0]) == type((0,0)):
         choices, weights = zip(*l)

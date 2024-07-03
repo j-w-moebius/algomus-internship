@@ -30,7 +30,7 @@ import glob
 import gabuzomeu
 import random
 import music
-from music import Note, Pitch, Duration, Chord, Syllable
+from music import Note, Pitch, Duration, Chord, Syllable, Schema
 import music21 as m21
 from music21.stream import Part, Score
 from rich import print
@@ -120,6 +120,7 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
 
     sh: ur.Model = ur.Model(key, mode, meter)
 
+    # TODO simplify
     if mode == 'major':
         chords_prod: type = ChordsMajor
         melody_s_prod: type = MelodyMajorS
@@ -150,6 +151,7 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
     sh.add_vp('lyr', Syllable, lead_name='rhy', use_copy=False)
     sh.add_vp('pitchGridT', Pitch, lead_name='rhy')
     sh.add_vp('fillInT', Pitch, use_copy=False)
+    sh.add_vp('schemata', Schema, lead_name='rhy')
     sh.add_vp('chords', Chord, lead_name='rhy')
     sh.add_vp('pitchGridB', Pitch, lead_name='rhy')
     sh.add_vp('pitchGridS', Pitch, lead_name='rhy')
@@ -162,6 +164,7 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
     
     rhythm, pitches = grid_from_part(mel)
     fill_in = fill_in_from_part(mel)
+    schemata = ([Schema.create_undefined()] * 13 + [Schema("c")] * 2) * 2
 
     # content generation: fix some vps, add producers to others
     sh.set_structure(struc)
@@ -169,31 +172,37 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
     sh['lyr'].initialize_to(lyr)
     sh['pitchGridT'].initialize_to(pitches)
     sh['fillInT'].initialize_to(fill_in, fixedness=0.8)
+    sh['schemata'].initialize_to(schemata)
 
-    sh.add_producer(chords_prod, 'chords')
-    sh.add_producer(melody_b_prod, 'pitchGridB')
-    sh.add_producer(melody_s_prod, 'pitchGridS')
-    sh.add_producer(melody_a_prod, 'pitchGridA')
-    sh.add_producer(Flourisher, 'fillInB', 'rhy', 'pitchGridB')
-    sh.add_producer(Flourisher, 'fillInS', 'rhy', 'pitchGridS')
-    sh.add_producer(Flourisher, 'fillInA', 'rhy', 'pitchGridA')
+    sh.add_producer(chords_prod(), 'chords', default=True)
+    sh.add_producer(melody_b_prod(key), 'pitchGridB', default=True)
+    sh.add_producer(melody_s_prod(key), 'pitchGridS', default=True)
+    sh.add_producer(melody_a_prod(key), 'pitchGridA', default=True)
+    sh.add_producer(CadencesChords(mode), 'chords', 'schemata', fixedness=0.9)
+    sh.add_producer(InitialChord(mode), 'chords', fixedness=1.0)
+    sh.add_producer(Cadences(mode, 'B'), 'pitchGridB', 'schemata', fixedness=0.9)
+    sh.add_producer(Cadences(mode, 'S'), 'pitchGridS', 'schemata', fixedness=0.9) 
+    sh.add_producer(Cadences(mode, 'A'), 'pitchGridA', 'schemata', fixedness=0.9)
+    sh.add_producer(Flourisher(), 'fillInB', 'rhy', 'pitchGridB', default=True)
+    sh.add_producer(Flourisher(), 'fillInS', 'rhy', 'pitchGridS', default=True)
+    sh.add_producer(Flourisher(), 'fillInA', 'rhy', 'pitchGridA', default=True)
 
     # equip viewpoints with evaluators
-    sh.add_evaluator(ScorerFunc, 'chords')
+    sh.add_evaluator(ScorerFunc(), 'chords')
 
-    sh.add_evaluator(ScorerMelodyHarmT, 'pitchGridT', 'chords', weight=4)
+    sh.add_evaluator(MelodyHarm('T'), 'pitchGridT', 'chords', weight=4)
 
-    sh.add_evaluator(ScorerMelodyHarmB, 'pitchGridB', 'chords', weight=4)
+    sh.add_evaluator(MelodyHarm('B'), 'pitchGridB', 'chords', weight=4)
     # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridB', 'pitchGridT')
     # sh.add_evaluator(ScorerMelodyMelodyBelow, 'pitchGridB', 'pitchGridT')
 
-    sh.add_evaluator(ScorerMelodyHarmS, 'pitchGridS', 'chords', weight=4)
+    sh.add_evaluator(MelodyHarm('S'), 'pitchGridS', 'chords', weight=4)
     # sh.add_evaluator(ScorerMelodySA, 'pitchGridS', weight=2)
     # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridS', 'pitchGrid')
     # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridS', 'pitchGridB')
     # sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridS', weight=10)
 
-    sh.add_evaluator(ScorerMelodyHarmA, 'pitchGridA', 'chords', weight=8)
+    sh.add_evaluator(MelodyHarm('A'), 'pitchGridA', 'chords', weight=8)
     # sh.add_evaluator(ScorerMelodySA, 'pitchGridA', weight=4)
     # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridA', 'pitchGrid')
     # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridA', 'pitchGridB')
@@ -218,9 +227,9 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
 
     n = sh['pitchGridT'].root
 
-    test = n.get_subrange(Index(4.0, 3, n), Index(8.0, 5, n))
-    test2 = n.get_subrange(Index(44.0, 28, n), Index(48.0, 30, n))
-    print(sh['pitchGridT'])
+    # test = n.get_subrange(Index(4.0, 3, n), Index(44.0, 28, n))
+    # test2 = n.get_subrange(Index(44.0, 28, n), Index(48.0, 30, n))
+    # print(sh['pitchGridT'])
 
     sh.generate()
 

@@ -35,13 +35,24 @@ class Index:
     def __str__(self) -> str:
         return f"({self.quarter}, {self.pos})"
 
+    def __gt__(self, other: Self) -> bool:
+        assert self.node == other.node
+        return self.pos > other.pos and self.quarter > other.quarter
+
+    def __lt__(self, other: Self) -> bool:
+        assert self.node == other.node
+        return self.pos < other.pos and self.quarter < other.quarter
+
     def __ge__(self, other: Self) -> bool:
+        assert self.node == other.node
         return self.pos >= other.pos and self.quarter >= other.quarter
 
     def __le__(self, other: Self) -> bool:
+        assert self.node == other.node
         return self.pos <= other.pos and self.quarter <= other.quarter
 
     def __eq__(self, other: Self) -> bool:
+        assert self.node == other.node
         return self.pos == other.pos and self.quarter == other.quarter
 
     def __add__(self, other: Self) -> Self:
@@ -52,7 +63,37 @@ class Index:
         assert self.node == other.node
         return self.__class__(self.quarter - other.quarter, self.pos - other.pos, self.node)
 
-    def relative_p(self, label = 'ALL') -> int:
+    def maps_to(self, pos: int, level: int) -> bool:
+        assert level >= 0
+        level_ctr: int = self.node.depth
+        ptr: RefinementNode = self.node
+        if level_ctr <= level:
+            acc: int = self.node.start.pos
+            while level_ctr < level:
+                for c in ptr.children:
+                    if c.end.pos + acc > self.pos:
+                        ptr = c
+                        acc += c.start.pos
+                        break
+                level_ctr += 1
+            if pos >= 0:
+                return acc + pos == self.pos
+            else:
+                return acc + ptr.get_elt_count() + pos == self.pos
+        else:
+            acc = 0
+            while level_ctr > level:
+                ptr = ptr.parent
+                acc +=  ptr.start.pos
+                level_ctr -= 1
+            if pos >= 0:
+                return acc + self.pos == pos
+            else:
+                return acc + self.pos == ptr.get_elt_count() + pos
+
+
+
+    def relative_p(self, label: str = 'ALL') -> int:
         if self.node.name == label:
             return self.pos - self.node.start.pos
         elif self.node.parent is not None:
@@ -60,7 +101,7 @@ class Index:
         else:
             raise RuntimeError("n is not a parent of current node")
 
-    def relative_q(self, label = 'ALL') -> float:
+    def relative_q(self, label: str = 'ALL') -> float:
         if self.node.name == label:
             return self.quarter - self.node.start.quarter
         elif self.node.parent is not None:
@@ -73,7 +114,7 @@ class Index:
         offset = min(offset, self.node.get_elt_count())
         node_content: list = self.node.vp.get_leader()[self.node.start:self.node.end]
         durations = [e.quarter_length() for e in node_content[:offset]]
-        self.quarter = sum(durations)
+        self.quarter = sum(durations) + self.node.start.quarter
         self.pos = offset + self.node.start.pos
 
     def child_index(self, child: RefinementNode) -> Self:
@@ -134,6 +175,9 @@ class RefinementNode(Node[Index]):
             out += treestr.ljust(8) + str(node.start) + str(node.end) + content_str + "\n"
         return out
 
+    def new_index(self) -> Index:
+        return Index(0.0, 0, self)
+
     def get_duration(self) -> float:
         return self.end.quarter - self.start.quarter
 
@@ -180,28 +224,62 @@ class RefinementNode(Node[Index]):
             assert self.structure
             vp.nodes[self.name].set_to([vp.undefined()] * len(content), 0.0)
 
+    def set_generator(self, prod: ur.Producer) -> ur.Generator:
+        new_gen: ur.Generator = ur.Generator(self, prod)
+        self.generator = new_gen
+        return new_gen
+
     def generate(self) -> None:
         if self.fixedness > 0.0:
             return
         if self.copy_of is not None:
-            self.set_to(self.vp[self.copy_of.start:self.copy_of.end], 1.0) # TODO: not sure if sensible
+            self.set_to(self.vp[self.copy_of.start:self.copy_of.end], 1.0)
         if not self.generatable:
             for c in self.children:
                 c.generate()
             return 
-        if not self.generator:
-            self.generator = ur.Generator(self)
-        new_content, fixedness = self.generator.generate()
-        self.set_to(new_content, fixedness)
+
+        # dispatch producers and create generators
+        generators: List[ur.Generator] = []
+        for p in self.vp.producers:
+            if p.flexible_length():
+                continue
+
+            sup: Optional[int] = p.OUT_COUNT.max
+            for window_start, window_end in ur.WindowIterator(sup, self):
+                if p.call_applies_to(self, window_start, window_end):
+                    generators += [n.set_generator(p) for n in self.get_subrange(window_start, window_end)]
+
+        # fill intervals in between with default producer
+        slices: List[Tuple[int, int]] = []
+        for g in generators:
+            start: int = g.node.start.relative_p(self.name)
+            end: int = g.node.end.relative_p(self.name)
+            slices.append((start, end))
+
+        window_start = self.new_index()
+        window_end = self.new_index()
+        window_start.set_offset(0)
+        for (start, end) in sorted(slices, key = lambda p: p[0]):
+            if start + self.start.pos > window_start.pos:
+                window_end.set_offset(start)
+                generators += [n.set_generator(self.vp.default_prod) 
+                               for n in self.get_subrange(window_start, window_end)]
+            window_start.set_offset(end)
+        if self.end.pos > window_start.pos:
+            generators += [n.set_generator(self.vp.default_prod) 
+                            for n in self.get_subrange(window_start, self.end)]
+
+        # generate                    
+        for g in generators:
+            g.generate()
 
     def get_subrange(self, start: Index, end: Index) -> List[Self]:
         ''' tree growing '''
-        # for now, assume we are only operating on structure nodes, in the following way:
-        # [start, end) is either completely covered by some contiguous structure children,
+        # for now, assume we are only operating on nodes that have the following property:
+        # [start, end) is either completely covered by some contiguous children,
         # or it is fully outside any child
 
-        if not self.structure:
-            raise NotImplementedError("TODO")
         assert start >= self.start and end <= self.end
         if start == self.start and end == self.end: # [start, end) is CONGRUENT with self
             return [self] 
@@ -246,12 +324,15 @@ class ViewPoint(Generic[C]):
         self.producers: List[ur.Producer] = []
         self.constraints: List[ur.Constraint] = []
         self.scorers: List[ur.Scorer] = []
-        self.initialized: bool = False
+        self.generated: bool = False
         self.out: List[C] = []
         self.content_cls: Type[C] = content_cls
         self.fixed_count_out: List[ViewPoint] = []
         self.fixed_count_in: Optional[ViewPoint] = None
-        self.generated: bool = False
+        self.default_prod: ur.Producer
+
+    def init(self) -> None:
+        self.producers.sort(key = lambda p: p.fixedness, reverse = True)
     
     def get_pos(self, i: Index) -> int:
         if i.node.vp.get_leader() == self.get_leader():
@@ -301,7 +382,6 @@ class ViewPoint(Generic[C]):
         raise NotImplementedError()
 
     def initialize_structure(self) -> None:
-        self.initialized = True
         self.nodes: Dict[str, RefinementNode] = {}
         self.root: RefinementNode = self.copy_struc_node(self.model.structure)
         i: int = 0
@@ -318,7 +398,7 @@ class ViewPoint(Generic[C]):
         raise NotImplementedError()
 
     def undefined(self, dur: float = 0.0) -> C:
-        return self.content_cls.undefined(dur)
+        return self.content_cls.create_undefined(dur)
 
     def copy_struc_node(self, n: StructureNode, offset: int = 0) -> RefinementNode:
         '''Construct a RefinementNode by copying a StructureNode 
@@ -412,8 +492,6 @@ class ViewPointFollow(ViewPoint[C]):
                 n.set_to(self[n.copy_of.start:n.copy_of.end], fixedness)
             else:
                 n.set_to(new_content, fixedness)
-
-        print(self)
 
     def get_leader(self) -> ViewPointLead:
         return self.leader
