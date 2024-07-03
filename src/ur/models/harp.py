@@ -10,6 +10,9 @@ import math
 import tools
 from typing import Optional, List, Dict
 from collections import defaultdict
+import random
+
+import nonchord
 
 STRUCTURE_LEVELS: Dict[str, int] = {
     'piece': 0,
@@ -853,9 +856,108 @@ class Flourisher(ur.RandomizedProducer[m.Note]):
     OUT_COUNT = ur.Interval(1)
     CONTEXT_SENSITIVE = False
 
+    FIGURES = {
+        'third-passing': 0.4,
+        # 'third-16': 0.1,
+        # 'same-neighbor-16': 0.0,
+        # 'same-neighbor': 0.1,
+        # 'second-jump': 0.2,
+        # 'second-8-16-16': 0.1,
+        # 'fourth-8-16-16': 0.1,
+        # 'fifth-jump': 0.1,
+        # 'fifth-16': 0.1,
+    }
+
     def flourish(self, p1: m.Pitch, d1: m.Duration, p2: m.Pitch, d2: m.Duration) -> List[m.Note]:
+
+        rhy: List[m.Duration] = []
+        pitches: List[m.Pitch] = []
         
-        return [m.Note(d1, p1)]
+        # if rhy not in ['4', '4.'] or i >= len(items)-1:
+        #     return rhy, lyr, new_items 
+        
+        # n1 = items[i]
+        # n2 = items[i+1]
+
+        # Some passing notes between fifths
+        # if nonchord.interval_fifth_up(p1, p2):
+        #     if random.random() < self.FIGURES['fifth-16']:
+        #         rhy = random.choice(['8. 16 16 16']) if ternary else '16 16 16 16'
+        #         lyr += ['-', '-', '-']
+        #         new_items += [
+        #             nonchord.note_direction(n1, n2, 1),
+        #             nonchord.note_direction(n1, n2, 2),
+        #             nonchord.note_direction(n1, n2, 3),
+        #         ]
+        #     elif random.random() < thresholds['fifth-jump']:
+        #         rhy =  '4 8' if ternary else '8 8'
+        #         lyr += ['-']
+        #         new_items += [
+        #             nonchord.note_direction(n1, n2, 2)
+        #         ]
+                
+        # Some passing notes between fourths
+        # elif nonchord.interval_fourth(n1, n2):
+        #     if random.random() < thresholds['fourth-8-16-16']:
+        #         rhy = random.choice(['8 8 8', '8. 16 8']) if ternary else '8 16 16'
+        #         lyr += ['-', '-']
+        #         new_items += [
+        #             nonchord.note_direction(n1, n2, 1),
+        #             nonchord.note_direction(n1, n2, 2)
+        #         ]
+
+        # Some passing notes between thirds
+        if nonchord.interval_third(p1, p2):
+            # if random.random() < thresholds['third-16'] and not ternary16:
+            #     rhy = '8. 16 16 16' if ternary else '16 16 16 16'
+            #     new_items += [
+            #         nonchord.note_direction(n1, n2, 1),
+            #         n2,
+            #         nonchord.note_direction(n1, n2, 3),
+            #         ]
+            if random.random() < self.FIGURES['third-passing']:
+                rhy = [d1 / 2] * 2# if self.model.ternary else '8 8'
+                pitches = [p1, m.Pitch(nonchord.note_nonchord(p1, p2))]
+
+        # # Some neighbor notes between same notes
+        # elif n1 == n2:
+        #     if random.random() < thresholds['same-neighbor-16'] and not ternary16:
+        #         rhy = random.choice(['8 8 16 16', '8. 16 16 16']) if ternary else '16 16 16 16'
+        #         lyr += ['-', '-', '-']
+        #         dir = random.choice([-1, 1])
+        #         new_items += [
+        #             nonchord.note_projection(n1, dir, 1),
+        #             nonchord.note_projection(n1, dir, 2) if random.choice([True, False]) else n1,
+        #             nonchord.note_projection(n1, dir, 1),
+        #         ]
+        #     elif random.random() < thresholds['same-neighbor']:
+        #         rhy = '4 8' if ternary else random.choice(['8 8', '8. 16'])
+        #         lyr += ['-']
+        #         new_items += [nonchord.note_nonchord(n1, n2, True)]
+
+        # # Some jump-passing notes between seconds
+        # elif nonchord.interval_second(n1, n2):
+        #     if random.random() < thresholds['second-jump']:
+        #         rhy = '4 8' if ternary else random.choice(['8 8', '8. 16'])
+        #         lyr += ['-']
+        #         new_items += [nonchord.note_direction(n1, n2, 2)]
+        #     elif random.random() < thresholds['second-8-16-16']:
+        #         rhy = random.choice(['8 8 8', '8. 16 8']) if ternary else '8 16 16'
+        #         lyr += ['-', '-']
+        #         new_items += [
+        #             n2, 
+        #             nonchord.note_direction(n1, n2, 2)
+        #         ]
+                
+        # if new_items:
+        #     new =  '  '.join([f'{n} {r}' for n, r in zip([n1] + new_items, rhy.split(' '))])
+        #     print(f"Flourish: {n1} {rhy_i} {n2} => {new}  {n2}")
+
+        if pitches == [] and rhy == []:
+            pitches = [p1]
+            rhy = [d1]
+        
+        return [m.Note(d, p) for d, p in zip(rhy, pitches)]
 
     def produce(self, rhy: List[m.Duration], mel: List[m.Pitch], len_to_gen: ur.Interval) -> List[m.Note]:
         
