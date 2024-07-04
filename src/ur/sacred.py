@@ -26,251 +26,195 @@
 #  along with "Ur". If not, see <http://www.gnu.org/licenses/>
 
 
-import ur
 import glob
 import gabuzomeu
 import random
 import music
-import music21
+from music import Note, Pitch, Duration, Chord, Syllable, Schema
+import music21 as m21
+from music21.stream import Part, Score
 from rich import print
 import argparse
+from typing import cast, Tuple, List
+import os
 
+import ur
+from trees import *
 from models.harp import *
-from models.woo import *
+from load import *
 
-parser = argparse.ArgumentParser(description = 'Fake Sacred Harp')
-parser.add_argument('--save', '-s', type=int, default=0, help='starting number to save generation, otherwise draft generations')
-parser.add_argument('--nb', '-n', type=int, default=0, help='number of generations with --save')
-parser.add_argument('--svg', action='store_true', help='generate and opens .svg (requires Verovio and Firefox)')
-parser.add_argument('--woo', action='store_true', help='experiment')
-parser.add_argument('--hh', action='store_true', help="Holly's lyrics")
+from anytree import LevelOrderIter
 
-def gen_sacred(woo, hh):
+def set_lyrics(vp: ViewPoint, lyr: List[List[Syllable]]) -> None:
+    vp.generated = True
+    verse_iter = iter(lyr)
+    verse: List[Syllable] = next(verse_iter)
+    verse_len: int = len(verse)
+
+    # divide syllables in verse approximately unifmorly among motifs
+    # for now: assume that level(motif) = level(phrase)+ 1
+    for n in LevelOrderIter(vp.root, lambda n: n.is_leaf):
+
+        motifs: int = len(n.siblings) + 1
+
+        if len(verse) == 0:
+            verse = next(verse_iter)
+            verse_len = len(verse)
+        
+        new_syls: int = min(math.ceil(verse_len / motifs), len(verse))
+        n.set_to(verse[:new_syls], 1.0)
+        verse = verse[new_syls:]
+
+
+def gen_sacred(lyr_path: str, struct: StructureNode) -> ur.Model:
     print('[yellow]### Init')
 
     key = random.choice(Key.CHOICES)
+    mode = random.choice(['minor', 'major'])
+
     print(f'Key: [blue]{key}')
-    mode = random.choice(['minor', 'minor', 'major'])
 
-    # sh.add(ur.Or('func', [FuncMajor('Major'),
-    #                       FuncMinor('minor')]))
+    meter = random.choice(['3/4'])
 
-    sh = ur.Model()
-    sh.meter = '24/4' if woo else random.choice(['4/4', '6/8', '6/8'])
-    print(f'Meter: [blue]{sh.meter}')
+    print(f'Meter: [blue]{meter}')
 
+    sh: ur.Model = ur.Model(key, mode, meter)
+
+    # lyr_path = random.choice(...) # (among suitable songs)
+    lyr = load_lyrics(lyr_path, STRESS_WORDS)
+
+    # TODO simplify
     if mode == 'major':
-        Func = FuncMajor
-        # MelodyUp = MelodyMajorUp
-        # MelodyDown = MelodyMajorDown
-        MelodyS = MelodyMajorS
-        MelodyA = MelodyMajorA
-        MelodyT = MelodyMajorT
-        MelodyB = MelodyMajorB
+        chords_prod: type = ChordsMajor
+        melody_s_prod: type = MelodyMajorS
+        melody_a_prod: type = MelodyMajorA
+        melody_t_prod: type = MelodyMajorT
+        melody_b_prod: type = MelodyMajorB
     else:
-        Func = FuncMinorExtended
-        # MelodyUp = MelodyMinorUp
-        # MelodyDown = MelodyMinorDown
-        MelodyS = MelodyMinorS
-        MelodyA = MelodyMinorA
-        MelodyT = MelodyMinorT
-        MelodyB = MelodyMinorB
+        chords_prod = ChordsMinor
+        melody_s_prod = MelodyMinorS
+        melody_a_prod = MelodyMinorA
+        melody_t_prod = MelodyMinorT
+        melody_b_prod = MelodyMinorB
 
-    if woo: # weird model
-        zFunc = WFunc
-        zScorerMelodyHarmS = WScorerMelodyHarm
-        zScorerMelodyHarmA = WScorerMelodyHarm
-        zScorerMelodyHarmT = WScorerMelodyHarm
-        zScorerMelodyHarmB = WScorerMelodyHarm
-        zLyrics = WLyrics
-        zRhythm = WRhythm
-        zScorerRhythmMetrics = WScorerRhythmMetrics
-        zStructure = WStructure
-    else:
-        zFunc = Func
-        zScorerMelodyHarmS = ScorerMelodyHarmS
-        zScorerMelodyHarmA = ScorerMelodyHarmA
-        zScorerMelodyHarmT = ScorerMelodyHarmT
-        zScorerMelodyHarmB = ScorerMelodyHarmB
-        if hh:
-            if sh.ternary():
-                zLyrics = HHLyricsTernary
-            else:
-                zLyrics = HHLyrics
-        else:
-            zLyrics = Lyrics
-        if sh.ternary():
-            zRhythm = TernaryRhythm
-            zScorerRhythmMetrics = ScorerRhythmMetricsTernary
-        else:
-            zRhythm = Rhythm
-            zScorerRhythmMetrics = ScorerRhythmMetricsFour
-        zStructure = Structure
+    # if sh.ternary():
+        # rhythm_prod: type = TernaryRhythm
+        # scorer_rhythm_met: type = ScorerRhythmMetricsTernary
+    # else:
+        # rhythm_prod = Rhythm
+        # scorer_rhythm_met = ScorerRhythmMetricsFour
 
-    if sh.ternary():
-        zLyrics.MIN_LENGTH = 7
-    else:
-        zLyrics.MIN_LENGTH = 5
+    # if sh.ternary():
+    #     Lyrics.MIN_LENGTH = 7 # changes class attribute
+    # else:
+    #     Lyrics.MIN_LENGTH = 5
 
-    sh.add(zStructure('struct'))
+    # ------------------------------------------------------
+    # block scheduling
 
-    sh.add(zFunc('func'))
-    sh.scorer(ScorerFunc, 'func')
-    sh.structurer('struct', 'func')
+    sh.add_vp('rhy', Duration)
+    sh.add_vp('lyr', Syllable, before=['rhy'], lead_name='rhy', use_copy=False)
+    sh.add_vp('schemata', Schema, lead_name='rhy', gapless=False)
+    sh.add_vp('chords', Chord, lead_name='rhy')
+    sh.add_vp('pitchGridT', Pitch, lead_name='rhy')
+    sh.add_vp('fillInT', Pitch, use_copy=False)
+    sh.add_vp('pitchGridB', Pitch, lead_name='rhy')
+    sh.add_vp('pitchGridS', Pitch, lead_name='rhy')
+    sh.add_vp('pitchGridA', Pitch, lead_name='rhy')
+    sh.add_vp('fillInB', Note, use_copy=False)
+    sh.add_vp('fillInS', Note, use_copy=False)
+    sh.add_vp('fillInA', Note, use_copy=False)
 
-    sh.add(MelodyT('mel'))
-    sh['mel'].set_key(key)
-    sh['mel'].flourish = {
-            'third-passing': 0.7,
-            'third-16': 0.3,
-            'same-neighbor': 0.5,
-            'same-neighbor-16': 0.1,
-            'second-jump': 0.4,
-            'second-8-16-16': 0.2,
-            'fourth-8-16-16': 0.3,
-            'fifth-jump': 0.2,
-            'fifth-16': 0.4,
-        }
-    sh.scorer(zScorerMelodyHarmT, 'mel', 'func', 2)
-    sh.scorer(ScorerMelody, 'mel')
-    # sh.scorer(ScorerSectionsMelodyT, 'mel', weight=2)
-    sh.scorer(RelativeScorerSectionMelody, 'mel', weight=10)
+    sh.setup()
 
-    sh.add(MelodyB('melB'))
-    sh['melB'].set_key(key)
-    sh['melB'].flourish = {
-            'third-passing': 0.7,
-            'third-16': 0,
-            'same-neighbor': 0,
-            'same-neighbor-16': 0,
-            'second-jump': 0,
-            'second-8-16-16': 0,
-            'fourth-8-16-16': 0.3,
-            'fifth-jump': 0.7,
-            'fifth-16': 0.2,
-        }
-    sh.scorer(zScorerMelodyHarmB, 'melB', 'func', 4)
-    # sh.scorer(ScorerFifthInBass, 'melB', 'func', 2)
-    sh.scorer(ScorerMelodyMelody, 'melB', 'mel')
-    sh.scorer(ScorerMelodyMelodyBelow, 'melB', 'mel')
-    # sh.scorer(ScorerMelodyMelodyCross, 'melB', 'mel', 5)
+    # content generation: add producers to viewpoints
+    sh.set_structure(struct)
+    set_lyrics(sh['lyr'], lyr)
 
-    sh.add(MelodyS('melS'))
-    sh['melS'].set_key(key)
-    sh.scorer(zScorerMelodyHarmS, 'melS', 'func', 4)
-    sh.scorer(ScorerMelodySA, 'melS', weight=2)
-    sh.scorer(ScorerMelodyMelody, 'melS', 'mel')
-    sh.scorer(ScorerMelodyMelody, 'melS', 'melB')
-    sh.scorer(RelativeScorerSectionMelody, 'melS', weight=10)
+    sh.add_producer(Rhythm(meter), 'rhy', default=True)
+    sh.add_producer(chords_prod(), 'chords', default=True)
+    sh.add_producer(melody_t_prod(key), 'pitchGridT', default=True)
+    sh.add_producer(melody_b_prod(key), 'pitchGridB', default=True)
+    sh.add_producer(melody_s_prod(key), 'pitchGridS', default=True)
+    sh.add_producer(melody_a_prod(key), 'pitchGridA', default=True)
+    sh.add_producer(Cadences(), 'schemata', fixedness=1.0)
+    sh.add_producer(CadenceChords(mode), 'chords', 'schemata', fixedness=0.9)
+    sh.add_producer(CadencePitches(mode, 'T'), 'pitchGridT', 'schemata', fixedness=0.9)
+    sh.add_producer(CadencePitches(mode, 'B'), 'pitchGridB', 'schemata', fixedness=0.9)
+    sh.add_producer(CadencePitches(mode, 'S'), 'pitchGridS', 'schemata', fixedness=0.9) 
+    sh.add_producer(CadencePitches(mode, 'A'), 'pitchGridA', 'schemata', fixedness=0.9)
+    sh.add_producer(Flourisher(), 'fillInT', 'rhy', 'pitchGridT', 'schemata', default=True)
+    sh.add_producer(Flourisher(), 'fillInB', 'rhy', 'pitchGridB', 'schemata', default=True)
+    sh.add_producer(Flourisher(), 'fillInS', 'rhy', 'pitchGridS', 'schemata', default=True)
+    sh.add_producer(Flourisher(), 'fillInA', 'rhy', 'pitchGridA', 'schemata', default=True)
 
-    sh.add(MelodyA('melA'))
-    sh['melA'].set_key(key)
-    sh.scorer(zScorerMelodyHarmA, 'melA', 'func', 8)
-    sh.scorer(ScorerMelodySA, 'melA', weight=4)
-    sh.scorer(ScorerMelodyMelody, 'melA', 'mel')
-    sh.scorer(ScorerMelodyMelody, 'melA', 'melB')
-    sh.scorer(ScorerMelodyMelody, 'melA', 'melS')
-    # sh.scorer(ScorerMelodyMelodyBelow, 'melA', 'mel')
-    sh.scorer(ScorerMelodyMelodyCross, 'melA', 'melS', 10)
-    sh.scorer(ScorerMelodyMelodyCross, 'melA', 'mel', 10)
-    sh.scorer(RelativeScorerSectionMelody, 'melA', weight=10)
+    # equip viewpoints with evaluators
+    sh.add_evaluator(ScorerFunc(), 'chords')
 
-    sh.add(zLyrics('lyr'))
-    sh.structurer('struct', 'lyr')
-    sh['lyr'].load()
-    sh.add(zRhythm('rhy'))
-    sh.scorer(ScorerRhythmLyrics, 'rhy', 'lyr')
-    sh.scorer(zScorerRhythmMetrics, 'rhy')
-    sh.set_key(key)
+    sh.add_evaluator(MelodyHarm('T'), 'pitchGridT', 'chords')
 
+    sh.add_evaluator(MelodyHarm('B'), 'pitchGridB', 'chords')
+    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridB', 'pitchGridT')
+    # sh.add_evaluator(ScorerMelodyMelodyBelow, 'pitchGridB', 'pitchGridT')
+
+    sh.add_evaluator(MelodyHarm('S'), 'pitchGridS', 'chords')
+    # sh.add_evaluator(ScorerMelodySA, 'pitchGridS', weight=2)
+    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridS', 'pitchGrid')
+    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridS', 'pitchGridB')
+    # sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridS', weight=10)
+
+    sh.add_evaluator(MelodyHarm('A'), 'pitchGridA', 'chords')
+    # sh.add_evaluator(ScorerMelodySA, 'pitchGridA', weight=4)
+    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridA', 'pitchGrid')
+    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridA', 'pitchGridB')
+    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridA', 'pitchGridS')
+    # sh.add_evaluator(ScorerMelodyMelodyCross, 'pitchGridA', 'pitchGridS', 10)
+    # sh.add_evaluator(ScorerMelodyMelodyCross, 'pitchGridA', 'pitchGrid', 10)
+    # sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridA', weight=10)
+
+    sh.add_evaluator(ScorerRhythmLyrics(meter), 'rhy', 'lyr')
+    # sh.add_evaluator(scorer_rhythm_met, 'rhy')
+    
     print()
-    # -------------------------------------------------------
 
-    # print('[yellow]### Gen 1, independent')
-    # sh.generate()
-    # sh.score()
-    # print(sh)
-
-    # -------------------------------------------------------
+    # ------------------------------------------------------------
+    # generation
 
     print('[yellow]### Generating ')
-    sh.reset()
-    sh['struct'].gen()
-    sh.set_structure()
 
-    l0 = sh['lyr'].gen(common=True)
-    r0 = sh['rhy'].gen(l0, common=True)
-    print(r0)
+    sh.generate()
 
-    d0 = sh['func'].gen(r0)
-    print("d0", d0)
-
-    m0 = sh['mel'].gen(d0)
-    m0 = sh['melB'].gen(d0)
-    m0 = sh['melS'].gen(d0)
-    m0 = sh['melA'].gen(d0)
-
-    if woo:
-        sh.modes = [
-            #[('e', 'e-')],
-            #[('a', 'a-'), ('g', 'f')],
-            #[('f', 'f#'), ('g', 'b-'), ('b', 'b-')],
-            #[('f', 'f#'), ('g', 'a'), ('e', 'e-')],
-            [],
-            #[('a', 'a-'), ('g', 'f')],
-            [('f', 'f#'),  ('b', 'b-')],
-            [('f', 'f#')],
-        ]
-
-    # sh.score()
-    print()
     return sh
 
 
-def sacred(code, f, woo, hh, svg):
-    sh = gen_sacred(woo, hh)
-
-    print('[yellow]### Generated ')
-    print(sh)
-
-    if hh:
-        title = sh['lyr'].gens['Z'][0].one
-        title = ' '.join(title).replace(' -', '').replace('>', '').replace('/', '').replace('.', '').replace(',', '').replace(';','')
-    else:
-        title = gabuzomeu.sentence(woo)
-
-    sh.export(
-        f,
-        f"{code}. {title} ({sh['struct'].structure})",
-        sh['struct'].structure_full,
-        sh['rhy'],
-        sh['lyr'],
-        ['melS', 'melA', 'mel', 'melB'],
-        ['func'],
-        svg
-        )
-
 if __name__ == '__main__':
 
-    args = parser.parse_args()
+    lyr_path: str = os.path.join(os.getcwd(), "data/lyrics/56b_Villulia.txt")
 
-    if args.nb:
-        nb = args.nb
-    else:
-        nb = 1 # 20 if args.save else 5
+    struc: StructureNode = \
+        StructureNode(0.0, 48.0, "ALL", [
+            StructureNode(0.0, 24.0, "A", [
+                StructureNode(0.0, 12.0, "A.1", [
+                    StructureNode(0.0, 6.0, "a"),
+                    StructureNode(6.0, 12.0, "b")
+                ]),
+                StructureNode(12.0, 24.0, "A.2", [
+                    StructureNode(0.0, 6.0, "c"),
+                    StructureNode(6.0, 12.0, "d")
+                ])
+            ]),
+            StructureNode(24.0, 48.0, "B", [
+                StructureNode(0.0, 12.0, "B.1", [
+                    StructureNode(0.0, 6.0, "e"),
+                    StructureNode(6.0, 12.0, "b\'")
+                ]),
+                StructureNode(12.0, 24.0, "B.2", [
+                    StructureNode(0.0, 6.0, "a\'"),
+                    StructureNode(6.0, 12.0, "f")
+                ])
+            ])
+        ])
 
-    if args.save:
-        span = '%03d-%03d/' % (args.save, args.save + nb - 1)
+    sh: ur.Model = gen_sacred(lyr_path, struc)
 
-    for i in range(nb):
-
-        if args.save:
-            n = args.save + i
-            code = '%03d' % n
-            f = span + ('woo-' if args.woo else 'sacred-') + code
-        else:
-            code = 'draft-%02d' % i
-            f = code
-
-        print(f'[green]## Experiment {code}')
-        sacred(code, f, args.woo, args.hh, args.svg)
+    sh.export('test','Villulia recomposed', 'lyr', ['fillInS', 'fillInA', 'fillInT', 'fillInB'], ['chords'], False)

@@ -16,8 +16,8 @@ import nonchord
 
 STRUCTURE_LEVELS: Dict[str, int] = {
     'piece': 0,
-    'phrase': 1,
-    'subphrase': 2,
+    'section': 1,
+    'phrase': 2,
     'motif': 3
 }
 
@@ -27,6 +27,8 @@ VOICE_POSITIONS: Dict[str, int] = {
     'A': 2,
     'S': 3
 }
+
+STRESS_WORDS: List[str] = ['Lord', 'God', 'Christ', 'Son']
 
 # class Structure(ur.ItemChoice):
 #     # FuncMinorExtended
@@ -49,17 +51,16 @@ VOICE_POSITIONS: Dict[str, int] = {
 #     FILES = ['data/lyrics-hh/3-2.txt', 'data/lyrics-hh/6-8.txt']
 
 
-# class Key(ur.ItemChoice):
-#     CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4', 'A4']
+class Key:
+     CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4']
 
-class ChordsMajor(ur.Producer):
+class ChordsMajor(ur.HiddenMarkov[m.Chord]):
 
 
     SOURCE = '(Kelley 2016)'
 
     STATES = ['i', 'T', 'S', 'D']
     INITIAL = ['i']
-    FINAL = ['i']
 
     TRANSITIONS = {
         'i': { 'i': 0.62, 'T': 0.10, 'S': 0.09, 'D': 0.18 },
@@ -75,13 +76,12 @@ class ChordsMajor(ur.Producer):
         'D': defaultdict(float, {'iii': 0.21, 'V': 0.72, 'vii': 0.07}),
     }
 
-class ChordsMinor(ur.HiddenMarkov[m.Chord]):#(ur.ItemMarkov):
+class ChordsMinor(ur.HiddenMarkov[m.Chord]):
 
     SOURCE = '(Kelley 2016)'
 
     STATES = ['T', 'S', 'D']
     INITIAL = ['T']
-    FINAL = ['T']
 
     TRANSITIONS = {
         'T': { 'T': 0.53, 'S': 0.08, 'D': 0.39 },
@@ -127,43 +127,86 @@ class ChordsMinor(ur.HiddenMarkov[m.Chord]):#(ur.ItemMarkov):
 #         'D': {'III': 0.20, '*III7': 0.08, 'v': 0.15, 'v3': 0.7, 'v8': 0.05, 'VII': 0.33},
 #     }
 
-class Rhythm(ur.Producer):#ur.ItemSpanSequence):
-    ITEMS_LAST = [
-        ('2', 0.8),
-        ('4', 0.5),
-    ]
+class Rhythm(ur.RandomizedProducer):
+
+    DISPATCH_BY_NODE = True
+
+    OUT_COUNT = ur.Interval(1)
+    NEEDS_CONTEXT = False
+    NEEDS_DURATION = True
+
+    MIN_DUR = 1.0 # needs to divide all durations 
+    FINAL_DUR = 3.0
+
     ITEMS = [
-                ('2', 0.03),
-                ('4', 0.7),
-                ('8 8', 0.20),
-                ('8. 16', 0.05),
-                ('4. 8', 0.05),
+                (m.Duration(2.0), 0.5),
+                (m.Duration(1.0), 0.5)
             ]
 
-class TernaryRhythm(ur.Producer):#ur.ItemSpanSequence):
-    ITEMS_LAST = [
-        ('1.', 0.2),
-        ('2.', 0.8),
-        ('4.', 0.5),
-    ]
-    ITEMS = [
-                ('2.', 0.30),
-                ('4.', 0.40),
-                ('2 8 8', 0.10),
-                ('4 8', 0.45),
-                ('8 8 8', 0.30),
-                # ('4 16 16', 0.04),
-                # ('8 8 16 16', 0.04),
-                ('8. 16 16 16', 0.02),
-                # ('8 16 16 8', 0.01),
-                ('8. 16 8', 0.15),
-            ]
+    METER: str
+
+    def __init__(self, meter: str):
+        self.METER = meter
+
+    def applies_to(self, node: ur.RefinementNode) -> bool:
+        return node.is_leaf
+
+    def get_node_args(self, node: ur.RefinementNode) -> list:
+        # return whether the node is the end of a section
+        ptr: ur.RefinementNode = node
+        while ptr.depth != STRUCTURE_LEVELS['section']:
+            ind: int = ptr.parent.children.index(ptr)
+            if len(ptr.parent.children[ind + 1:]) > 0:
+                return [False]
+            ptr = ptr.parent
+        return [True]
+
+    def produce(self, dur_to_gen: float, end_of_section: bool, len_to_gen: ur.Interval) -> List[m.Duration]:
+        # we're only dealing with fix-sized output
+        assert len_to_gen.min == len_to_gen.max
+        target_len: int = len_to_gen.min - 1 if end_of_section else len_to_gen.min
+        target_dur: float = dur_to_gen - self.FINAL_DUR if end_of_section else dur_to_gen
+        result: List[m.Duration] = []
+
+        # extremely inefficient, but the whole point is the model, not the algos for the rules
+        while sum(result) != target_dur:
+            result = []
+            for i in range(target_len):
+                result.append(tools.pwchoice(self.ITEMS))
+
+        if end_of_section:
+            result.append(m.Duration(self.FINAL_DUR))
+
+        assert sum(result) == dur_to_gen
+        assert len(result) >= len_to_gen.min and len(result) >= len_to_gen.max
+
+        return result
+
+
+# class TernaryRhythm(ur.Producer):
+#     ITEMS_LAST = [
+#         ('1.', 0.2),
+#         ('2.', 0.8),
+#         ('4.', 0.5),
+#     ]
+#     ITEMS = [
+#                 ('2.', 0.30),
+#                 ('4.', 0.40),
+#                 ('2 8 8', 0.10),
+#                 ('4 8', 0.45),
+#                 ('8 8 8', 0.30),
+#                 # ('4 16 16', 0.04),
+#                 # ('8 8 16 16', 0.04),
+#                 ('8. 16 16 16', 0.02),
+#                 # ('8 16 16 8', 0.01),
+#                 ('8. 16 8', 0.15),
+#             ]
 
 
 # class Melody0(ur.ItemSequence):
 #     ITEMS = 'cdefgab'
 
-class MelodyMajorS(ur.Producer):
+class MelodyMajorS(ur.PitchMarkov):
     AMBITUS = ('C4', 'A5')
     AMBITUS_INITIAL = ('E4', 'E5')
     STATES = ['C4', 'D4', 'E4', 'F4', 'B3', 'G4', 'A4', 'A3', 'C5', 'B4', 'G3', 'D5', 'E5', 'F5', 'A5', 'G5', 'A-5', 'F#5', 'D3', 'F3']
@@ -345,7 +388,7 @@ class MelodyMinorT(ur.PitchMarkov):
     AMBITUS = ('B2', 'A4')
     AMBITUS_INITIAL = ('C3', 'E4')
     STATES = ['E4', 'C4', 'D4', 'B3', 'A3', 'A-3', 'G4', 'A-4', 'A4', 'G3', 'F3', 'E3', 'F#4', 'B-3', 'E-4', 'F4', 'B-4', 'F#3', 'G#3', 'D3']
-    INITIAL = ['E3', 'A3', 'C4', 'E4']
+    INITIAL = ['E3', 'A3', 'E4']
     FINAL = STATES
 
     TRANSITIONS = defaultdict(lambda: defaultdict(float), {
@@ -468,7 +511,7 @@ class MelodyMinorB(ur.PitchMarkov):
 class ScorerFunc(ur.Scorer):
     ARGS = [(m.Chord, ur.Interval(1))]
 
-    def score(self, chords: List[m.Chord], start: ur.Index):
+    def score(self, chords: List[m.Chord]):
 
         defined: List[m.Chord] = list(filter(lambda c: not c.is_undefined(), chords))
 
@@ -487,44 +530,41 @@ class ScorerFunc(ur.Scorer):
 #     AMBITUS_GOOD = 5
 
 
-# S2 = {
-#         '1': 2, '2': 2, '2.': 2, '4.': 2, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 2, '8 8': 0, '8. 16': 2,
-#         '1.': 2, '2.': 2, '4.': 2, '8 8 8': 0, '8. 16 8': 0, '4 8': 0, '2 8 8': 0, '4 16 16': 0, '8 8 16 16': 0, '8 16 16 8': 0,
-#      }
-# S1 = {
-#         '1': 2, '2': 2, '2.': 2, '4.': 1, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 1, '8 8': 0, '8. 16': 1,
-#         '1.': 0, '2.': 2, '4.': 2, '8 8 8': 0, '8. 16 8': 2, '4 8': 2, '2 8 8': 2, '4 16 16': 2, '8 8 16 16': 1, '8 16 16 8': 2,
-#      }
-# S0 = {
-#         '1': 0, '2': 0, '2.': 0, '4.': 0, '8.': 0, '4': 1, '8': 1, '16': 1, '4. 8': 0, '8 8': 1, '8. 16': 0,
-#         '1.': 0, '2.': 0, '4.': 1, '8 8 8': 1, '8. 16 8': 0, '4 8': 1, '2 8 8': 0, '4 16 16': 0, '8 8 16 16': 1, '8 16 16 8': 1,
-#       }
+S1 = {
+        1.0: 0, 2.0: 1, 3.0: 2
+     }
 
-# class ScorerRhythmLyrics(ur.Scorer):#ur.ScorerTwoSpanSequence):
+S0 = {
+        1.0: 2, 2.0: 1, 3.0: 0
+     }
 
-#     STRESSES = [
-#         ('!', S2),
-#         ('>>', S1),
-#         ('>',  S1),
+class ScorerRhythmLyrics(ur.Scorer):
 
-#         ('/', S1),
-#         ('.', S1),
+    ARGS = [(m.Duration, ur.Interval(1,1)),
+            (m.Syllable, ur.Interval(1,1))]
 
-#         (';', S1),
-#         (',', S1),
+    STRESSES = [
+        ('!', S1),
+        ('>>', S1),
+        ('>',  S1),
 
-#         ('',  S0),
-#     ]
+        ('-', S0),
+        ('',  S0),
+    ]
 
+    METER: str
 
-#     def score_element(self, rhy, lyr):
-#         for (symbol, scores) in self.STRESSES:
-#             if symbol in lyr:
-#                 if rhy in scores:
-#                     return scores[rhy]
-#                 # return 0
-#         print('!', lyr, rhy)
-#         return 0
+    def __init__(self, meter: str):
+        self.METER = meter
+
+    def score(self, rhy: List[m.Duration], lyr: List[m.Syllable]):
+        d: m.Duration = rhy[0]
+        s: m.Syllable = lyr[0]
+        for (symbol, scores) in self.STRESSES:
+            if symbol in s:
+                if d in scores:
+                    return scores[d]
+        return 0
 
 
 # class ScorerRhythmMetricsFour(ur.ScorerOne):
@@ -764,27 +804,12 @@ class MelodyHarm(ur.Constraint):#(ur.ScorerTwoSequence):
 #         else:
 #             return self.SCORES[None]
 
-class InitialChord(ur.Enumerator):
-
-    OUT_COUNT = ur.Interval(1,1)
-    MODE: str
-    CONTEXT_SENSITIVE = False
-
-    def __init__(self, mode: str):
-        self.MODE = mode
-
-    def applies_to(self, start: ur.Index):
-        return start.maps_to(0, STRUCTURE_LEVELS['piece'])
-
-    def enumerate(self) -> List[List[m.Chord]]:
-        return [[m.Chord('i')]] if self.MODE == 'minor' else [[m.Chord('I')]]
-
-class Cadences(ur.Enumerator):
+class CadencePitches(ur.Enumerator):
 
     ARGS = [(m.Schema, ur.Interval(2,2))]
 
     OUT_COUNT = ur.Interval(2,2)
-    CONTEXT_SENSITIVE = False
+    NEEDS_CONTEXT = False
 
     SOURCE = '(Kelley 2009)'
 
@@ -824,14 +849,13 @@ class Cadences(ur.Enumerator):
     def enumerate(self, schemata: List[m.Schema]) -> List[List[m.Pitch]]:
         return self.CADENCES[self.MODE][self.POSITION]
 
-class CadencesChords(ur.Enumerator):
+class CadenceChords(ur.Enumerator):
 
     SOURCE = '(Kelley 2009)'
 
     ARGS = [(m.Schema, ur.Interval(2,2))]
-
     OUT_COUNT = ur.Interval(2,2)
-    CONTEXT_SENSITIVE = False
+    NEEDS_CONTEXT = False
 
     CADENCES = {
         'major': [[m.Chord('V'), m.Chord('I')]],
@@ -848,13 +872,22 @@ class CadencesChords(ur.Enumerator):
     def enumerate(self, schemata: List[m.Schema]) -> List[List[m.Chord]]:
         return self.CADENCES[self.MODE]
 
+class Cadences(ur.Enumerator):
+    OUT_COUNT = ur.Interval(2,2)
+
+    def applies_to(self, start: ur.Index) -> bool:
+        return start.maps_to(-2, STRUCTURE_LEVELS['section'])
+
+    def enumerate(self) -> List[List[m.Schema]]:
+        return [[m.Schema('c'), m.Schema('c')]]
 
 class Flourisher(ur.RandomizedProducer[m.Note]):
 
     ARGS = [(m.Duration, ur.Interval(1)),
-            (m.Pitch, ur.Interval(1))]
+            (m.Pitch, ur.Interval(1)),
+            (m.Schema, ur.Interval(1))]
     OUT_COUNT = ur.Interval(1)
-    CONTEXT_SENSITIVE = False
+    NEEDS_CONTEXT = False
 
     FIGURES = {
         'third-passing': 0.4,
@@ -868,10 +901,14 @@ class Flourisher(ur.RandomizedProducer[m.Note]):
         # 'fifth-16': 0.1,
     }
 
-    def flourish(self, p1: m.Pitch, d1: m.Duration, p2: m.Pitch, d2: m.Duration) -> List[m.Note]:
+    def flourish(self, p1: m.Pitch, d1: m.Duration, s1: m.Schema, p2: m.Pitch, d2: m.Duration, s2: m.Schema) -> List[m.Note]:
 
         rhy: List[m.Duration] = []
         pitches: List[m.Pitch] = []
+
+        if s1 == m.Schema('c') and s2.is_undefined():
+            # ultima, don't flourish
+            return [m.Note(d1, p1)]
         
         # if rhy not in ['4', '4.'] or i >= len(items)-1:
         #     return rhy, lyr, new_items 
@@ -959,15 +996,15 @@ class Flourisher(ur.RandomizedProducer[m.Note]):
         
         return [m.Note(d, p) for d, p in zip(rhy, pitches)]
 
-    def produce(self, rhy: List[m.Duration], mel: List[m.Pitch], len_to_gen: ur.Interval) -> List[m.Note]:
+    def produce(self, rhy: List[m.Duration], mel: List[m.Pitch], schemata: List[m.Schema], len_to_gen: ur.Interval) -> List[m.Note]:
         
         if len(rhy) != len(mel):
             raise RuntimeError("Rhythm and Pitch lists must be of same length for flourishing")
 
         out: List[m.Note] = []
         
-        for ((p1, d1), (p2, d2)) in zip(list(zip(mel, rhy))[:-1], list(zip(mel, rhy))[1:]):
-            out += self.flourish(p1, d1, p2, d2)
+        for ((p1, d1, s1), (p2, d2, s2)) in zip(list(zip(mel, rhy, schemata))[:-1], list(zip(mel, rhy, schemata))[1:]):
+            out += self.flourish(p1, d1, s1, p2, d2, s2)
 
         out.append(m.Note(rhy[-1], mel[-1]))
 

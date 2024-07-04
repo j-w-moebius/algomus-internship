@@ -107,7 +107,7 @@ class Rule(Generic[R]):
         raise NotImplementedError()
 
 
-    def applies_to(self, *args: T, start: Index) -> bool:
+    def applies_to(self, *args: T, start: Optional[Index] = None) -> bool:
         ''' whether the rule can be applied, given args and a start position
         overwrite to implement specific behavior'''
         return True 
@@ -135,7 +135,9 @@ class Rule(Generic[R]):
 class Producer(Rule[List[List[C]]]):
 
     OUT_COUNT: Interval
-    CONTEXT_SENSITIVE: bool
+    NEEDS_CONTEXT: bool = False
+    NEEDS_DURATION: bool = False
+    DISPATCH_BY_NODE: bool = False
 
     def flexible_length(self) -> bool:
         return self.OUT_COUNT.max is None
@@ -163,6 +165,9 @@ class Producer(Rule[List[List[C]]]):
 
         return (args, pre_context, post_context, len_to_gen)
 
+    def get_node_args(self, node: RefinementNode) -> list:
+        raise NotImplementedError()
+
 
 
 class Enumerator(Producer[C]):
@@ -170,10 +175,13 @@ class Enumerator(Producer[C]):
     def __call__(self, node: RefinementNode) -> List[List[C]]:
         args, pre_context, post_context, _ = self.fetch_args(node)
         self.check_args(*args)
-        if self.CONTEXT_SENSITIVE:
-            return self.enumerate(pre_context, post_context, *args)
-        else:
-            return self.enumerate(*args)
+        if self.NEEDS_CONTEXT:
+            args = [pre_context, post_context] + args
+        if self.NEEDS_DURATION:
+            args.append(node.get_duration())
+        if self.DISPATCH_BY_NODE:
+            args.append(self.get_node_args(node))
+        return self.enumerate(*args)
 
     def enumerate(self, pre_context: List[C], post_context: List[C], *args: List[T]) -> List[List[C]]:
         raise NotImplementedError()
@@ -183,10 +191,13 @@ class RandomizedProducer(Producer[C]):
     def __call__(self, node: RefinementNode, batch_size: int) -> List[List[C]]:
         args, pre_context, post_context, len_to_gen = self.fetch_args(node)
         self.check_args(*args)
-        if self.CONTEXT_SENSITIVE:
-            return [self.produce(pre_context, post_context, *args, len_to_gen=len_to_gen) for i in range(batch_size)]
-        else:
-            return [self.produce(*args, len_to_gen=len_to_gen) for i in range(batch_size)]
+        if self.NEEDS_CONTEXT:
+            args = [pre_context, post_context] + args
+        if self.NEEDS_DURATION:
+            args.append(node.get_duration())
+        if self.DISPATCH_BY_NODE:
+            args += self.get_node_args(node)
+        return [self.produce(*args, len_to_gen=len_to_gen) for i in range(batch_size)]
         
 
     def produce(self, pre_context: List[C], post_context: List[C], *args: List[T], len_to_gen: Interval) -> List[C]:
@@ -231,9 +242,9 @@ class Scorer(Evaluator[float]):
     def __call__(self, node: RefinementNode, generated: List[C], window_start: Index, window_end: Index) -> float:
         args = self.fetch_args(node, generated, window_start, window_end)
         self.check_args(*args)
-        return self.score(*args, start=window_start)
+        return self.score(*args)
 
-    def score(self, *args: List[T], start: Index) -> float:
+    def score(self, *args: List[T]) -> float:
         raise NotImplementedError()
 
 
@@ -263,7 +274,7 @@ class Generator(Generic[C]):
             assert isinstance(self.producer, RandomizedProducer)
             gens += self.producer(self.node, self.BATCH_SIZE)
 
-        # call constraints (start with those for which all involved VPs have been generated)
+        # call constraints (only those for which all involved VPs have been generated)
         self.constraints = [c for c in self.node.vp.constraints \
                             if all([vp.generated for vp in c.vps])]
         for g in gens:
@@ -499,13 +510,13 @@ S = TypeVar("S")
 
 class HiddenMarkov(RandomizedProducer[C]):
     
-    # INITIAL_S, FINAL_S : dict[str, list[str]]
+    # INITIAL_S, FINAL_S : dict[str, List[str]]
     # structure-dependent initial and final states
     # INITIAL_S: Dict[str, List[str]]
     # FINAL_S: Dict[str, List[str]]
 
     OUT_COUNT = Interval(1)
-    CONTEXT_SENSITIVE = True
+    NEEDS_CONTEXT = True
 
     STATES: List[str]
     INITIAL: List[str]
@@ -759,7 +770,7 @@ class Model:
                 return vp
         raise KeyError(name)
 
-    def add_vp(self, name: str, content_cls: Type[C], before: List[str] = [], use_copy: bool = True, lead_name: Optional[str] = None) -> None:
+    def add_vp(self, name: str, content_cls: Type[C], before: List[str] = [], use_copy: bool = True, lead_name: Optional[str] = None, gapless: bool = True) -> None:
 
         error_msg: str = "Need to specify existing Lead ViewPoint when creating a Follow ViewPoint."
         new_vp: ViewPoint
@@ -767,13 +778,13 @@ class Model:
             if lead_name in [vp.name for vp in self]:
                 lead: ViewPoint = self[lead_name]
                 if isinstance(lead, ViewPointLead):
-                    new_vp = ViewPointFollow(name, content_cls, use_copy, self, lead)
+                    new_vp = ViewPointFollow(name, content_cls, use_copy, self, lead, gapless)
                 else:
                     raise RuntimeError(error_msg)
             else:
                 raise RuntimeError(error_msg)
         else:
-            new_vp = ViewPointLead(name, content_cls, use_copy, self)
+            new_vp = ViewPointLead(name, content_cls, use_copy, self, gapless)
         if before:
             ind: int = min([self.vps.index(self[vp]) for vp in before])
             self.vps.insert(ind, new_vp)

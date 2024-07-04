@@ -82,10 +82,12 @@ class Index:
                 return acc + ptr.get_elt_count() + pos == self.pos
         else:
             acc = 0
-            while level_ctr > level:
+            while True:
                 ptr = ptr.parent
-                acc +=  ptr.start.pos
                 level_ctr -= 1
+                if level_ctr == level:
+                    break
+                acc +=  ptr.start.pos
             if pos >= 0:
                 return acc + self.pos == pos
             else:
@@ -208,7 +210,6 @@ class RefinementNode(Node[Index]):
                 c.end.pos += delta
             self.parent.increase_size(delta)
 
-
     def set_to(self, content: List[C], fixedness: float) -> None:
         self.fixedness = fixedness
 
@@ -220,7 +221,7 @@ class RefinementNode(Node[Index]):
             self.parent.update_fixedness()
         
         for vp in self.vp.fixed_count_out:
-            # for now:
+            # for now (TODO)
             assert self.structure
             vp.nodes[self.name].set_to([vp.undefined()] * len(content), 0.0)
 
@@ -228,6 +229,47 @@ class RefinementNode(Node[Index]):
         new_gen: ur.Generator = ur.Generator(self, prod)
         self.generator = new_gen
         return new_gen
+
+    def dispatch_producers(self) -> List[ur.Generator]:
+        # dispatch producers and create generators
+        generators: List[ur.Generator] = []
+        for p in self.vp.producers:
+            # Dispatch by node: just call p on all descendants
+            if p.DISPATCH_BY_NODE:
+                for n in [self] + list(self.descendants):
+                    if p.applies_to(n):
+                        generators.append(n.set_generator(p))
+                return generators
+            if p.flexible_length():
+                continue
+
+            sup: Optional[int] = p.OUT_COUNT.max
+            for window_start, window_end in ur.WindowIterator(sup, self):
+                if p.call_applies_to(self, window_start, window_end):
+                    generators += [n.set_generator(p) for n in self.get_subrange(window_start, window_end)]
+
+        if self.vp.gapless:
+            # fill intervals in between with default producer
+            slices: List[Tuple[int, int]] = []
+            for g in generators:
+                start: int = g.node.start.relative_p(self.name)
+                end: int = g.node.end.relative_p(self.name)
+                slices.append((start, end))
+
+            window_start = self.new_index()
+            window_end = self.new_index()
+            window_start.set_offset(0)
+            for (start, end) in sorted(slices, key = lambda p: p[0]):
+                if start + self.start.pos > window_start.pos:
+                    window_end.set_offset(start)
+                    generators += [n.set_generator(self.vp.default_prod) 
+                                for n in self.get_subrange(window_start, window_end)]
+                window_start.set_offset(end)
+            if self.end.pos > window_start.pos:
+                generators += [n.set_generator(self.vp.default_prod) 
+                                for n in self.get_subrange(window_start, self.end)]
+        
+        return generators
 
     def generate(self) -> None:
         if self.fixedness > 0.0:
@@ -239,40 +281,11 @@ class RefinementNode(Node[Index]):
                 c.generate()
             return 
 
-        # dispatch producers and create generators
-        generators: List[ur.Generator] = []
-        for p in self.vp.producers:
-            if p.flexible_length():
-                continue
-
-            sup: Optional[int] = p.OUT_COUNT.max
-            for window_start, window_end in ur.WindowIterator(sup, self):
-                if p.call_applies_to(self, window_start, window_end):
-                    generators += [n.set_generator(p) for n in self.get_subrange(window_start, window_end)]
-
-        # fill intervals in between with default producer
-        slices: List[Tuple[int, int]] = []
-        for g in generators:
-            start: int = g.node.start.relative_p(self.name)
-            end: int = g.node.end.relative_p(self.name)
-            slices.append((start, end))
-
-        window_start = self.new_index()
-        window_end = self.new_index()
-        window_start.set_offset(0)
-        for (start, end) in sorted(slices, key = lambda p: p[0]):
-            if start + self.start.pos > window_start.pos:
-                window_end.set_offset(start)
-                generators += [n.set_generator(self.vp.default_prod) 
-                               for n in self.get_subrange(window_start, window_end)]
-            window_start.set_offset(end)
-        if self.end.pos > window_start.pos:
-            generators += [n.set_generator(self.vp.default_prod) 
-                            for n in self.get_subrange(window_start, self.end)]
-
         # generate                    
-        for g in generators:
+        for g in self.dispatch_producers():
             g.generate()
+
+
 
     def get_subrange(self, start: Index, end: Index) -> List[Self]:
         ''' tree growing '''
@@ -280,7 +293,7 @@ class RefinementNode(Node[Index]):
         # [start, end) is either completely covered by some contiguous children,
         # or it is fully outside any child
 
-        assert start >= self.start and end <= self.end
+        assert start.pos >= self.start.pos and end.pos <= self.end.pos
         if start == self.start and end == self.end: # [start, end) is CONGRUENT with self
             return [self] 
         result: List[Self] = []
@@ -314,10 +327,36 @@ class RefinementNode(Node[Index]):
             result = [new_node]
         return result
 
+class RefinementNodeLead(RefinementNode):
+    
+    def set_to(self, content: List[T], fixedness: float) -> None:
+        '''also need to update durations in lead VPs'''
+        super().set_to(content, fixedness)
+
+        old_duration: float = self.end.quarter - self.start.quarter
+        new_duration: float = sum([e.quarter_length() for e in content])
+        self.increase_duration(new_duration - old_duration)
+
+        # TODO: propagate to followers. But when do we REALLY need it ?
+
+
+    def increase_duration(self, delta: float) -> None:
+        if self.structure:
+            # structure nodes never change in duration
+            return 
+        self.end.quarter += delta
+        if self.parent is not None:
+            ind: int = self.parent.children.index(self)
+            for c in self.parent.children[ind + 1:]:
+                c.start.quarter += delta
+                c.end.quarter += delta
+            self.parent.increase_size(delta)
+
+
 
 class ViewPoint(Generic[C]):
 
-    def __init__(self, name: str, content_cls: Type[C], use_copy: bool, model: ur.Model):
+    def __init__(self, name: str, content_cls: Type[C], use_copy: bool, model: ur.Model, gapless: bool):
         self.name: str = name
         self.use_copy: bool = use_copy
         self.model: ur.Model = model
@@ -330,6 +369,7 @@ class ViewPoint(Generic[C]):
         self.fixed_count_out: List[ViewPoint] = []
         self.fixed_count_in: Optional[ViewPoint] = None
         self.default_prod: ur.Producer
+        self.gapless: bool = gapless
 
     def init(self) -> None:
         self.producers.sort(key = lambda p: p.fixedness, reverse = True)
@@ -394,7 +434,7 @@ class ViewPoint(Generic[C]):
                 n.copy_of = self.nodes[to_copy]
                 n.unset_generatable()
 
-    def set_to(self, bars: list[C], fixedness: float = 1.0) -> None:
+    def set_to(self, bars: List[C], fixedness: float = 1.0) -> None:
         raise NotImplementedError()
 
     def undefined(self, dur: float = 0.0) -> C:
@@ -439,14 +479,14 @@ class ViewPoint(Generic[C]):
         return result
 
 class ViewPointLead(ViewPoint[T]):
-    def __init__(self, name: str, content_cls: Type[T], use_copy: bool, model: ur.Model):
-        super().__init__(name, content_cls, use_copy, model)
+    def __init__(self, name: str, content_cls: Type[T], use_copy: bool, model: ur.Model, gapless: bool):
+        super().__init__(name, content_cls, use_copy, model, gapless)
         self.followers: List[ViewPointFollow] = []
 
-    def initialize_to(self, l: list[T], fixedness: float = 1.0) -> None:
+    def initialize_to(self, l: List[T], fixedness: float = 1.0) -> None:
         ''' For now, lead needs to be set first'''
         self.generated = True
-        new_content: list[T] = []
+        new_content: List[T] = []
         for n in PreOrderIter(self.root):
 
             # only set content of leafs
@@ -461,6 +501,7 @@ class ViewPointLead(ViewPoint[T]):
                     l = l[i + 1:]
                     break
             if n.copy_of and self.use_copy:
+                # assume other n.copy_of is already set (-> only backward copy edges)
                 n.set_to(self[n.copy_of.start:n.copy_of.end], fixedness)
             else:
                 n.set_to(new_content, fixedness)
@@ -472,13 +513,13 @@ class ViewPointLead(ViewPoint[T]):
         return self
 
 class ViewPointFollow(ViewPoint[C]):
-    def __init__(self, name: str, content_cls: Type[C], use_copy: bool, model: ur.Model, lead: ViewPointLead):
-        super().__init__(name, content_cls, use_copy, model)
+    def __init__(self, name: str, content_cls: Type[C], use_copy: bool, model: ur.Model, lead: ViewPointLead, gapless: bool):
+        super().__init__(name, content_cls, use_copy, model, gapless)
         self.leader: ViewPointLead = lead
         lead.followers.append(self)
 
-    def initialize_to(self, l: list[C], fixedness: float = 1.0) -> None:
-        ''' assume that lead VP is set first''' 
+    def initialize_to(self, l: List[C], fixedness: float = 1.0) -> None:
+        ''' assume that fixed_count_in VP is set first''' 
         assert self.fixed_count_in is not None and self.fixed_count_in.generated
         self.generated = True
         for n in PreOrderIter(self.root):
@@ -486,7 +527,7 @@ class ViewPointFollow(ViewPoint[C]):
             # only set content of leafs
             if n.children:
                 continue
-            new_content: list[C] = l[:n.get_elt_count()]
+            new_content: List[C] = l[:n.get_elt_count()]
             l = l[n.get_elt_count():]
             if n.copy_of and self.use_copy:
                 n.set_to(self[n.copy_of.start:n.copy_of.end], fixedness)

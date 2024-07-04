@@ -15,8 +15,11 @@ Python librairies
 
 ```
 
-# Generate some harmonizations
+# Generate some re-harmonizations
 python3 src/ur/harmonization.py
+
+# Generate some music from scratch (i.e., from lyrics and structure only)
+python3 src/ur/sacred.py
 ```
 
 ## Credits

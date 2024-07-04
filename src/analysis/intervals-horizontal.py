@@ -4,7 +4,7 @@ import os
 # run this script to analyze horizontal interval frequencies in "The Scared Harp" collection
 
 
-def compute_interval_freqs(s: stream.base.Score, freqs_list: list[dict[str, dict[str, int]]]):
+def compute_interval_freqs(s: stream.base.Score, freqs_list: List[dict[str, dict[str, int]]]):
    
     start = 0
     if len(s.parts) == 3: # we have: (alto, tenor, bass)
@@ -39,7 +39,7 @@ def normalize_key(s, mode, tonic):
     return s.transpose(i)
 
 
-def analyze_corpus(corpus_path: str, mode: str) -> list[dict[str, dict[str, float]]]:
+def analyze_corpus(corpus_path: str, mode: str) -> List[dict[str, dict[str, float]]]:
     '''analyze horizontal interval frequencies
     conditioned on one predecessor
     mode: restricts the pieces that contribute to frequencies ('Major' or 'Minor')
