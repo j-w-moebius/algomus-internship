@@ -111,7 +111,6 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
     sh['lyr'].initialize_to(lyr)
     sh['pitchGridT'].initialize_to(pitches)
     sh['fillInT'].initialize_to(fill_in, fixedness=0.8)
-    sh['schemata'].initialize_to(schemata)
 
     sh.add_producer(chords_prod(), 'chords', default=True)
     sh.add_producer(melody_b_prod(key), 'pitchGridB', default=True)

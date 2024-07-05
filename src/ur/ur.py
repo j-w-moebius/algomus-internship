@@ -101,6 +101,8 @@ class Interval:
 class Rule(Generic[R]):
     ARGS: List[Tuple[type, Interval]] = []
 
+    NEEDS_START: bool = False
+
     T = TypeVar('T')
 
     def __call__(self, *args: T) -> R:
@@ -135,35 +137,52 @@ class Rule(Generic[R]):
 class Producer(Rule[List[List[C]]]):
 
     OUT_COUNT: Interval
+
     NEEDS_CONTEXT: bool = False
     NEEDS_DURATION: bool = False
+    NEEDS_LEN: bool = False
     DISPATCH_BY_NODE: bool = False
 
     def flexible_length(self) -> bool:
         return self.OUT_COUNT.max is None
 
     def call_applies_to(self, node:RefinementNode, window_start: Index, window_end: Index) -> bool:
-        args, _, _, _ = self.fetch_args(node, window_start, window_end)
-        return self.applies_to(*args, start=window_start)
+        args = self.fetch_args(node, window_start, window_end, True)
+        return self.applies_to(*args)
 
-    def fetch_args(self, node: RefinementNode, window_start: Optional[Index] = None, window_end: Optional[Index] = None) -> tuple[list, list, list, Interval]:
-        if window_start is None:
-            window_start = node.start
-        if window_end is None:
-                window_end = node.end
+    def fetch_args(self, node: RefinementNode, window_start: Index, window_end: Index, for_applies_to: bool) -> list:
+
         args = [vp[window_start:window_end] for vp in self.vps]
-        len_to_gen: Interval
-        if node.vp.fixed_count():
-            len_to_gen = Interval(node.get_elt_count(), node.get_elt_count()) 
-        else:
-            len_to_gen = Interval(1)
-        if len_to_gen not in self.OUT_COUNT:
-            raise RuntimeError(f"Producer {self.__class__.__name__} can't generate the specified number of elements.")
+        self.check_args(*args)
 
-        pre_context: List[C] = node.vp[:window_start]
-        post_context: List[C] = node.vp[window_end:]
+        if self.NEEDS_START or for_applies_to:
+            args.append(window_start)
 
-        return (args, pre_context, post_context, len_to_gen)
+        if for_applies_to:
+            return args
+
+        if self.NEEDS_CONTEXT:
+            pre_context: List[C] = node.vp[:window_start]
+            post_context: List[C] = node.vp[window_end:]
+            args += [pre_context, post_context]
+
+        if self.NEEDS_LEN:
+            len_to_gen: Interval
+            if node.vp.fixed_count():
+                len_to_gen = Interval(node.get_elt_count(), node.get_elt_count()) 
+            else:
+                len_to_gen = Interval(1)
+            if len_to_gen not in self.OUT_COUNT:
+                raise RuntimeError(f"Producer {self.__class__.__name__} can't generate the specified number of elements.")
+            args.append(len_to_gen)
+        
+        if self.NEEDS_DURATION:
+            args.append(node.get_duration())
+
+        if self.DISPATCH_BY_NODE:
+            args.append(self.get_node_args(node))
+
+        return args
 
     def get_node_args(self, node: RefinementNode) -> list:
         raise NotImplementedError()
@@ -173,34 +192,20 @@ class Producer(Rule[List[List[C]]]):
 class Enumerator(Producer[C]):
 
     def __call__(self, node: RefinementNode) -> List[List[C]]:
-        args, pre_context, post_context, _ = self.fetch_args(node)
-        self.check_args(*args)
-        if self.NEEDS_CONTEXT:
-            args = [pre_context, post_context] + args
-        if self.NEEDS_DURATION:
-            args.append(node.get_duration())
-        if self.DISPATCH_BY_NODE:
-            args.append(self.get_node_args(node))
+        args = self.fetch_args(node, node.start, node.end, False)
         return self.enumerate(*args)
 
-    def enumerate(self, pre_context: List[C], post_context: List[C], *args: List[T]) -> List[List[C]]:
+    def enumerate(self, *args: T) -> List[List[C]]:
         raise NotImplementedError()
 
 class RandomizedProducer(Producer[C]):
 
     def __call__(self, node: RefinementNode, batch_size: int) -> List[List[C]]:
-        args, pre_context, post_context, len_to_gen = self.fetch_args(node)
-        self.check_args(*args)
-        if self.NEEDS_CONTEXT:
-            args = [pre_context, post_context] + args
-        if self.NEEDS_DURATION:
-            args.append(node.get_duration())
-        if self.DISPATCH_BY_NODE:
-            args += self.get_node_args(node)
-        return [self.produce(*args, len_to_gen=len_to_gen) for i in range(batch_size)]
+        args = self.fetch_args(node, node.start, node.end, False)
+        return [self.produce(*args) for i in range(batch_size)]
         
 
-    def produce(self, pre_context: List[C], post_context: List[C], *args: List[T], len_to_gen: Interval) -> List[C]:
+    def produce(self, *args: T) -> List[C]:
         raise NotImplementedError()
 
 
@@ -221,16 +226,20 @@ class Evaluator(Rule[R]):
                     args.append(prefix + generated[start_p:end_p] + postfix)
                 else: 
                     args.append(vp[window_start:window_end])
+            self.check_args(*args)
+            
+            if self.NEEDS_START:
+                args.append(window_start)
+
             return args
 
 
 class Constraint(Evaluator[bool]):
     def __call__(self, node: RefinementNode, generated: List[C], window_start: Index, window_end: Index) -> bool:
         args = self.fetch_args(node, generated, window_start, window_end)
-        self.check_args(*args)
-        return self.valid(*args, start=window_start)
+        return self.valid(*args)
 
-    def valid(self, *args: List[T], start: Index) -> bool:
+    def valid(self, *args: T) -> bool:
         raise NotImplementedError()
 
     
@@ -241,10 +250,9 @@ class Scorer(Evaluator[float]):
 
     def __call__(self, node: RefinementNode, generated: List[C], window_start: Index, window_end: Index) -> float:
         args = self.fetch_args(node, generated, window_start, window_end)
-        self.check_args(*args)
-        return self.score(*args, window_start)
+        return self.score(*args)
 
-    def score(self, *args: List[T], start: Index) -> float:
+    def score(self, *args: T) -> float:
         raise NotImplementedError()
 
 
@@ -517,6 +525,7 @@ class HiddenMarkov(RandomizedProducer[C]):
 
     OUT_COUNT = Interval(1)
     NEEDS_CONTEXT = True
+    NEEDS_LEN = True
 
     STATES: List[str]
     INITIAL: List[str]

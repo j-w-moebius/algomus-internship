@@ -132,11 +132,11 @@ class Rhythm(ur.RandomizedProducer):
     DISPATCH_BY_NODE = True
 
     OUT_COUNT = ur.Interval(1)
-    NEEDS_CONTEXT = False
+    NEEDS_LEN = True
     NEEDS_DURATION = True
 
     MIN_DUR = 1.0 # needs to divide all durations 
-    FINAL_DUR = 3.0
+    CADENCE_DUR = [1.0, 3.0]
 
     ITEMS = [
                 (m.Duration(2.0), 0.5),
@@ -161,11 +161,11 @@ class Rhythm(ur.RandomizedProducer):
             ptr = ptr.parent
         return [True]
 
-    def produce(self, dur_to_gen: float, end_of_section: bool, len_to_gen: ur.Interval) -> List[m.Duration]:
+    def produce(self, len_to_gen: ur.Interval, dur_to_gen: float, end_of_section: bool) -> List[m.Duration]:
         # we're only dealing with fix-sized output
         assert len_to_gen.min == len_to_gen.max
-        target_len: int = len_to_gen.min - 1 if end_of_section else len_to_gen.min
-        target_dur: float = dur_to_gen - self.FINAL_DUR if end_of_section else dur_to_gen
+        target_len: int = len_to_gen.min - len(self.CADENCE_DUR) if end_of_section else len_to_gen.min
+        target_dur: float = dur_to_gen - sum(self.CADENCE_DUR) if end_of_section else dur_to_gen
         result: List[m.Duration] = []
 
         # extremely inefficient, but the whole point is the model, not the algos for the rules
@@ -175,7 +175,7 @@ class Rhythm(ur.RandomizedProducer):
                 result.append(tools.pwchoice(self.ITEMS))
 
         if end_of_section:
-            result.append(m.Duration(self.FINAL_DUR))
+            result += [m.Duration(d) for d in self.CADENCE_DUR]
 
         assert sum(result) == dur_to_gen
         assert len(result) >= len_to_gen.min and len(result) >= len_to_gen.max
@@ -511,7 +511,7 @@ class MelodyMinorB(ur.PitchMarkov):
 class ScorerFunc(ur.Scorer):
     ARGS = [(m.Chord, ur.Interval(1))]
 
-    def score(self, chords: List[m.Chord], start: ur.Index):
+    def score(self, chords: List[m.Chord]):
 
         defined: List[m.Chord] = list(filter(lambda c: not c.is_undefined(), chords))
 
@@ -557,7 +557,7 @@ class ScorerRhythmLyrics(ur.Scorer):
     def __init__(self, meter: str):
         self.METER = meter
 
-    def score(self, rhy: List[m.Duration], lyr: List[m.Syllable], start: ur.Index):
+    def score(self, rhy: List[m.Duration], lyr: List[m.Syllable]):
         d: m.Duration = rhy[0]
         s: m.Syllable = lyr[0]
         for (symbol, scores) in self.STRESSES:
@@ -570,6 +570,7 @@ class ScorerRhythmLyrics(ur.Scorer):
 class ScorerRhythmMetrics(ur.Scorer):
     
     ARGS = [(m.Duration, ur.Interval(1))]
+    NEEDS_START = True
 
     METER: str
 
@@ -675,7 +676,7 @@ class MelodyHarm(ur.Constraint):#(ur.ScorerTwoSequence):
             raise RuntimeError(f"Voice must be one of {' ,'.join(VOICE_POSITIONS.keys())}!")
         self.POSITION = VOICE_POSITIONS[voice]
 
-    def valid(self, mel: List[m.Pitch], chords: List[m.Chord], start: ur.Index) -> float:
+    def valid(self, mel: List[m.Pitch], chords: List[m.Chord]) -> float:
 
         # print (mel, harm, self.CHORDS[harm])
         pc: m.Pitch = mel[0].pc()
@@ -817,7 +818,6 @@ class CadencePitches(ur.Enumerator):
     ARGS = [(m.Schema, ur.Interval(2,2))]
 
     OUT_COUNT = ur.Interval(2,2)
-    NEEDS_CONTEXT = False
 
     SOURCE = '(Kelley 2009)'
 
@@ -863,7 +863,6 @@ class CadenceChords(ur.Enumerator):
 
     ARGS = [(m.Schema, ur.Interval(2,2))]
     OUT_COUNT = ur.Interval(2,2)
-    NEEDS_CONTEXT = False
 
     CADENCES = {
         'major': [[m.Chord('V'), m.Chord('I')]],
@@ -895,7 +894,7 @@ class Flourisher(ur.RandomizedProducer[m.Note]):
             (m.Pitch, ur.Interval(1)),
             (m.Schema, ur.Interval(1))]
     OUT_COUNT = ur.Interval(1)
-    NEEDS_CONTEXT = False
+    NEEDS_LEN = True
 
     FIGURES = {
         'third-passing': 0.4,
