@@ -242,15 +242,15 @@ class Scorer(Evaluator[float]):
     def __call__(self, node: RefinementNode, generated: List[C], window_start: Index, window_end: Index) -> float:
         args = self.fetch_args(node, generated, window_start, window_end)
         self.check_args(*args)
-        return self.score(*args)
+        return self.score(*args, window_start)
 
-    def score(self, *args: List[T]) -> float:
+    def score(self, *args: List[T], start: Index) -> float:
         raise NotImplementedError()
 
 
 class Generator(Generic[C]):
 
-    BATCH_SIZE = 500
+    BATCH_SIZE = 100
    # S = TypeVar('S', bound=m.Content)
 
     def __init__(self, node: RefinementNode, prod: Producer) -> None:

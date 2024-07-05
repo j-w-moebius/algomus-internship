@@ -511,7 +511,7 @@ class MelodyMinorB(ur.PitchMarkov):
 class ScorerFunc(ur.Scorer):
     ARGS = [(m.Chord, ur.Interval(1))]
 
-    def score(self, chords: List[m.Chord]):
+    def score(self, chords: List[m.Chord], start: ur.Index):
 
         defined: List[m.Chord] = list(filter(lambda c: not c.is_undefined(), chords))
 
@@ -548,7 +548,7 @@ class ScorerRhythmLyrics(ur.Scorer):
         ('>>', S1),
         ('>',  S1),
 
-        ('-', S0),
+        #('-', S0),
         ('',  S0),
     ]
 
@@ -557,7 +557,7 @@ class ScorerRhythmLyrics(ur.Scorer):
     def __init__(self, meter: str):
         self.METER = meter
 
-    def score(self, rhy: List[m.Duration], lyr: List[m.Syllable]):
+    def score(self, rhy: List[m.Duration], lyr: List[m.Syllable], start: ur.Index):
         d: m.Duration = rhy[0]
         s: m.Syllable = lyr[0]
         for (symbol, scores) in self.STRESSES:
@@ -567,27 +567,35 @@ class ScorerRhythmLyrics(ur.Scorer):
         return 0
 
 
-# class ScorerRhythmMetricsFour(ur.ScorerOne):
+class ScorerRhythmMetrics(ur.Scorer):
+    
+    ARGS = [(m.Duration, ur.Interval(1))]
 
-#     def score_item(self, gen, _, __):
-#         score = 0
+    METER: str
 
-#         # music.duration(gen.one)
-#         pos = 0
-#         for r in gen.one:
-#             d = int(music.duration(r))
-#             if pos + d > 4:
-#                 score -= .5
-#             if d > 1 and pos == 1:
-#                 score -= .2
-#             if d == 1 and r != '4' and pos == 3:
-#                 score += .2
-#             pos = (pos + d) % 4
+    def __init__(self, meter: str):
+        self.METER = meter
+        self.qpb: float = m.quarters_per_bar(meter)
 
-#         if pos in [0, 2]:
-#             score -= .5
+    def score(self, rhy: List[m.Duration], start: ur.Index) -> float:
+        score: float = 0.0
 
-#         return score
+        pos: float = start.relative_q() % self.qpb
+        for r in rhy:
+            d = r.quarter_length()
+            # penalize bar-crossing ties
+            if pos + d > self.qpb:
+                score -= .2
+            # if d > 1 and pos == 1:
+            #     score -= .2
+            # if d == 1 and r != '4' and pos == 3:
+            #     score += .2
+            pos = (pos + d) % self.qpb
+
+        # if pos in [0, 2]:
+        #     score -= .5
+
+        return score
 
 
 # class ScorerRhythmMetricsTernary(ur.ScorerOne):

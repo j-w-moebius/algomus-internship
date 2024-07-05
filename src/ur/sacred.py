@@ -173,7 +173,7 @@ def gen_sacred(lyr_path: str, struct: StructureNode) -> ur.Model:
     # sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridA', weight=10)
 
     sh.add_evaluator(ScorerRhythmLyrics(meter), 'rhy', 'lyr')
-    # sh.add_evaluator(scorer_rhythm_met, 'rhy')
+    sh.add_evaluator(ScorerRhythmMetrics(meter), 'rhy')
     
     print()
 
