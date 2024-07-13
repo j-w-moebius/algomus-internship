@@ -51,7 +51,8 @@ class WindowIterator:
             self.size = size
             if outside:
                 first_pos = max(n.start.relative_p() - size + 1, 0)
-                self.possible_positions = list(range(first_pos, n.end.relative_p()))
+                last_pos = n.end.relative_p() - size + 1
+                self.possible_positions = list(range(first_pos, last_pos))
             else:
                 self.possible_positions = list(range(0, n.get_elt_count() - size + 1))
 
@@ -180,7 +181,7 @@ class Producer(Rule[List[List[C]]]):
             args.append(node.get_duration())
 
         if self.DISPATCH_BY_NODE:
-            args.append(self.get_node_args(node))
+            args += self.get_node_args(node)
 
         return args
 
@@ -221,9 +222,17 @@ class Evaluator(Rule[R]):
                 if node.vp == vp:
                     start_p: int = window_start.pos - node.start.relative_p(window_start.node.name)
                     prefix = vp[window_start:node.start]
-                    postfix = vp[node.end:window_end]
+                    # if window_start is before the start of generated:
+                    if start_p < 0:
+                        # prefix += [node.vp.undefined()] * (- start_p)
+                        start_p = 0
+                    suffix = vp[node.end:window_end]
+                    # if window_end is after the end of generated
                     end_p: int = window_end.pos - node.start.relative_p(window_start.node.name)
-                    args.append(prefix + generated[start_p:end_p] + postfix)
+                    if end_p > len(generated):
+                        # suffix = [node.vp.undefined()] * (end_p - len(generated)) + suffix
+                        end_p = len(generated)
+                    args.append(prefix + generated[start_p:end_p] + suffix)
                 else: 
                     args.append(vp[window_start:window_end])
             self.check_args(*args)
@@ -289,7 +298,7 @@ class Generator(Generic[C]):
             fail_count: int = 0
             for c in self.constraints:
                 r = c.get_range(self.node.vp)
-                assert r
+                assert r 
                 for window_start, window_end in WindowIterator(r.max, self.node, True):
                     fail_count += not c(self.node, g, window_start, window_end)
 
@@ -343,7 +352,7 @@ class Generator(Generic[C]):
             self.gens.append((g, score))
 
         # sort
-        self.gens.sort(key = lambda p: p[1], reverse = True)
+        self.gens.sort(key = lambda p: p[1], reverse=True)
 
         self.node.set_to(self.gens[0][0], self.producer.fixedness)
 
@@ -608,7 +617,6 @@ class PitchMarkov(Markov[m.Pitch]):
         for n1 in list(self.TRANSITIONS):
             for n2 in list(self.TRANSITIONS[n1]):
                 if not music.in_range(n2, self.AMBITUS, self.key) or '#' in n2 or '-' in n2:
-                    # print(self.key, 'del', n1, n2)
                     del self.TRANSITIONS[n1][n2]
                     if len(self.TRANSITIONS[n1]) == 0:
                         del self.TRANSITIONS[n1]

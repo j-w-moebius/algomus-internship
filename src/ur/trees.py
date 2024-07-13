@@ -443,6 +443,11 @@ class ViewPoint(Generic[C]):
     def copy_struc_node(self, n: StructureNode, offset: int = 0) -> RefinementNode:
         '''Construct a RefinementNode by copying a StructureNode 
         '''
+        if n.name == 'rest':
+            res = RefinementNode((n.start, offset), (n.end, offset + 1), n.name, self, structure=True)
+            res.generatable = False
+            res.set_to([self.undefined(n.get_duration())], 1.0)
+            return res
         if not n.children:
             self.out.append(self.undefined(n.end - n.start))
             return RefinementNode((n.start, offset), (n.end, offset + 1), n.name, self, structure=True)

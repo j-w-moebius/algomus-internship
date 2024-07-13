@@ -64,7 +64,7 @@ class Duration(float, Temporal):
 
     @classmethod
     def create_undefined(cls, duration: float = 0.0) -> Self:
-        new = cls(0.0)
+        new = cls(duration)
         new.undefined = True
         return new
 
@@ -127,6 +127,7 @@ def mean(mel):
 
 
 def interval(n1, n2):
+    ''' Interval in number of chromatic steps'''
     return music21.pitch.Pitch(n2).midi - music21.pitch.Pitch(n1).midi
 
 DURATION = {

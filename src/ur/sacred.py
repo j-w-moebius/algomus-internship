@@ -74,7 +74,7 @@ def gen_sacred(lyr_path: str, struct: StructureNode) -> ur.Model:
 
     print(f'Key: [blue]{key}')
 
-    meter = random.choice(['3/4'])
+    meter = random.choice(['3/4'])#, '4/4', '6/8'])
 
     print(f'Meter: [blue]{meter}')
 
@@ -152,27 +152,30 @@ def gen_sacred(lyr_path: str, struct: StructureNode) -> ur.Model:
     sh.add_evaluator(ScorerFunc(), 'chords')
 
     sh.add_evaluator(MelodyHarm('T'), 'pitchGridT', 'chords')
+    sh.add_evaluator(ScorerMelody(), 'pitchGridT', weight=2)
+
 
     sh.add_evaluator(MelodyHarm('B'), 'pitchGridB', 'chords')
-    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridB', 'pitchGridT')
+    sh.add_evaluator(ScorerMelody(), 'pitchGridT', weight=4)
+    sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridT', 'pitchGridB')
     # sh.add_evaluator(ScorerMelodyMelodyBelow, 'pitchGridB', 'pitchGridT')
 
     sh.add_evaluator(MelodyHarm('S'), 'pitchGridS', 'chords')
-    # sh.add_evaluator(ScorerMelodySA, 'pitchGridS', weight=2)
-    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridS', 'pitchGrid')
-    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridS', 'pitchGridB')
+    sh.add_evaluator(ScorerMelodySA(), 'pitchGridS', weight=4)
+    sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridS', 'pitchGridT')
+    sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridS', 'pitchGridB')
     # sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridS', weight=10)
 
     sh.add_evaluator(MelodyHarm('A'), 'pitchGridA', 'chords')
-    # sh.add_evaluator(ScorerMelodySA, 'pitchGridA', weight=4)
-    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridA', 'pitchGrid')
-    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridA', 'pitchGridB')
-    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridA', 'pitchGridS')
+    sh.add_evaluator(ScorerMelodySA(), 'pitchGridA', weight=4)
+    sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridA', 'pitchGridT')
+    sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridA', 'pitchGridB')
+    sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridS', 'pitchGridA')
     # sh.add_evaluator(ScorerMelodyMelodyCross, 'pitchGridA', 'pitchGridS', 10)
     # sh.add_evaluator(ScorerMelodyMelodyCross, 'pitchGridA', 'pitchGrid', 10)
     # sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridA', weight=10)
 
-    sh.add_evaluator(ScorerRhythmLyrics(meter), 'rhy', 'lyr')
+    sh.add_evaluator(ScorerRhythmLyrics(), 'rhy', 'lyr')
     sh.add_evaluator(ScorerRhythmMetrics(meter), 'rhy')
     
     print()
@@ -191,30 +194,6 @@ if __name__ == '__main__':
 
     lyr_path: str = os.path.join(os.getcwd(), "data/lyrics/56b_Villulia.txt")
 
-    struc: StructureNode = \
-        StructureNode(0.0, 48.0, "ALL", [
-            StructureNode(0.0, 24.0, "A", [
-                StructureNode(0.0, 12.0, "A.1", [
-                    StructureNode(0.0, 6.0, "a"),
-                    StructureNode(6.0, 12.0, "b")
-                ]),
-                StructureNode(12.0, 24.0, "A.2", [
-                    StructureNode(0.0, 6.0, "c"),
-                    StructureNode(6.0, 12.0, "d")
-                ])
-            ]),
-            StructureNode(24.0, 48.0, "B", [
-                StructureNode(0.0, 12.0, "B.1", [
-                    StructureNode(0.0, 6.0, "e"),
-                    StructureNode(6.0, 12.0, "b\'")
-                ]),
-                StructureNode(12.0, 24.0, "B.2", [
-                    StructureNode(0.0, 6.0, "a\'"),
-                    StructureNode(6.0, 12.0, "f")
-                ])
-            ])
-        ])
-
-    sh: ur.Model = gen_sacred(lyr_path, struc)
+    sh: ur.Model = gen_sacred(lyr_path, struc1)
 
     sh.export('test','Villulia recomposed', 'lyr', ['fillInS', 'fillInA', 'fillInT', 'fillInB'], ['chords'], False)

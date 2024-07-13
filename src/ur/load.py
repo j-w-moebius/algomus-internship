@@ -67,7 +67,7 @@ def load_lyrics(file: str, stress_words: List[str]) -> List[List[Syllable]]:
         verse: List[Syllable] = []
         if l == '\n':
             break # only load first stanza
-        text: str = l.replace('-', ' -').strip()
+        text: str = l.replace('-', ' -').strip() + '/'
         for s in text.split():
             for ww in stress_words:
                 if ww in s:

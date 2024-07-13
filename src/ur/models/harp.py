@@ -8,9 +8,10 @@ import glob
 import music as m
 import math
 import tools
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple
 from collections import defaultdict
 import random
+from trees import StructureNode
 
 import nonchord
 
@@ -30,13 +31,29 @@ VOICE_POSITIONS: Dict[str, int] = {
 
 STRESS_WORDS: List[str] = ['Lord', 'God', 'Christ', 'Son']
 
-# class Structure(ur.ItemChoice):
-#     # FuncMinorExtended
-#     # A/a begin on T,     end on T/S/D
-#     # B/b begin on T/S/D, end on T/S/D
-#     # Z/z begin on S/D,   end on T
-#     CHOICES = ['AB-aZ', 'AB-bZ', 'A-aZ-z', 'A-aB-Z-z' ]
-#                # 'AQ-RA', 'AQ-AC', 'BA-QA' ]
+struc1: StructureNode = \
+        StructureNode(0.0, 48.0, "ALL", [
+            StructureNode(0.0, 24.0, "A", [
+                StructureNode(0.0, 12.0, "A.1", [
+                    StructureNode(0.0, 6.0, "a"),
+                    StructureNode(6.0, 12.0, "b")
+                ]),
+                StructureNode(12.0, 24.0, "A.2", [
+                    StructureNode(0.0, 6.0, "c"),
+                    StructureNode(6.0, 12.0, "d")
+                ])
+            ]),
+            StructureNode(24.0, 48.0, "B", [
+                StructureNode(0.0, 12.0, "B.1", [
+                    StructureNode(0.0, 6.0, "e"),
+                    StructureNode(6.0, 12.0, "b\'")
+                ]),
+                StructureNode(12.0, 24.0, "B.2", [
+                    StructureNode(0.0, 6.0, "a\'"),
+                    StructureNode(6.0, 12.0, "f")
+                ])
+            ])
+        ])
 
 
 # class Lyrics(ur.ItemLyricsChoiceFiles):
@@ -96,36 +113,28 @@ class ChordsMinor(ur.HiddenMarkov[m.Chord]):
     }
 
 
-# class ChordsExtended(ChordsMinor):
+class ChordsExtended(ChordsMinor):
 
-#     STATES = ['i', 'j', 'T', 'S', 'D']
-#     INITIAL_S = {
-#                  None: ['j'],
-#                  'B': ['T', 'S', 'D'],
-#                  'Z': ['S', 'D'],
-#                  }
-#     FINAL_S = {
-#                None: ['i'],
-#                'A': ['i', 'D', 'S'],
-#                'B': ['i', 'D', 'S'],
-#                }
+    STATES = ['i', 'j', 'T', 'S', 'D']
+    INITIAL = ['i']
 
-#     TRANSITIONS = {
-#         'j': { 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 },
-#         'i': { 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 },
-#         'T': { 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 },
-#         'S': { 'i': 0.10, 'T': 0.21, 'S': 0.14, 'D': 0.55 },
-#         'D': { 'i': 0.20, 'T': 0.29, 'S': 0.08, 'D': 0.43 },
-#     }
 
-#     # stars mark enrichened chords
-#     EMISSIONS = {
-#         'j': {'i': 0.50, 'i3': 0.20,  'i8': 0.15 },
-#         'i': {'i': 1.00 },
-#         'T': {'i': 0.30, 'i3': 0.20, '*i9': 0.25 },
-#         'S': {'iim': 0.19, 'iv': 0.33, '*iv9': 0.10, 'VI': 0.28},
-#         'D': {'III': 0.20, '*III7': 0.08, 'v': 0.15, 'v3': 0.7, 'v8': 0.05, 'VII': 0.33},
-#     }
+    TRANSITIONS = {
+        'j': defaultdict(float,{ 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 }),
+        'i': defaultdict(float,{ 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 }),
+        'T': defaultdict(float,{ 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 }),
+        'S': defaultdict(float,{ 'i': 0.10, 'T': 0.21, 'S': 0.14, 'D': 0.55 }),
+        'D': defaultdict(float,{ 'i': 0.20, 'T': 0.29, 'S': 0.08, 'D': 0.43 }),
+    }
+
+    # stars mark enrichened chords
+    EMISSIONS: Dict[str, defaultdict[m.Chord, float]] = {
+        'j': defaultdict(float,{'i': 0.50, 'i3': 0.20,  'i8': 0.15 }),
+        'i': defaultdict(float,{'i': 1.00 }),
+        'T': defaultdict(float,{'i': 0.30, 'i3': 0.20, '*i9': 0.25 }),
+        'S': defaultdict(float,{'iim': 0.19, 'iv': 0.33, '*iv9': 0.10, 'VI': 0.28}),
+        'D': defaultdict(float,{'III': 0.20, '*III7': 0.08, 'v': 0.15, 'v3': 0.7, 'v8': 0.05, 'VII': 0.33})
+    }
 
 class Rhythm(ur.RandomizedProducer):
 
@@ -135,18 +144,37 @@ class Rhythm(ur.RandomizedProducer):
     NEEDS_LEN = True
     NEEDS_DURATION = True
 
-    MIN_DUR = 1.0 # needs to divide all durations 
-    CADENCE_DUR = [1.0, 3.0]
+    CADENCE_DUR = {
+        '3/4': [1.0, 3.0],
+        '4/4': [1.0, 4.0],
+        '6/8': [0.5, 3.0]
+    }
 
-    ITEMS = [
-                (m.Duration(2.0), 0.5),
-                (m.Duration(1.0), 0.5)
-            ]
+    ITEMS: Dict[str, List[Tuple[List[float], float]]] = {
+        '3/4': [([2.0], 0.2),
+                ([1.0], 0.4),
+                ([0.5, 0.5], 0.2),
+                ([1.5, 0.5], 0.2)],
+        '4/4': [([2.0], 0.03),
+                ([1.0], 0.7),
+                ([0.5, 0.5], 0.20),
+                ([0.75, 0.25], 0.05),
+                ([1.5, 0.5], 0.05)],
+        '6/8': [([3.0], 0.30),
+                ([1.5], 0.40),
+                ([2.0, 0.5, 0.5], 0.10),
+                ([1.0, 0.5], 0.45),
+                ([0.5, 0.5, 0.5], 0.30)]               
+               # ('8. 16 16 16', 0.02),
+               # ('8. 16 8', 0.15)]
+    }
 
     METER: str
 
     def __init__(self, meter: str):
         self.METER = meter
+        self.cadence_dur: List[float] = self.CADENCE_DUR[meter]
+        self.items: List[Tuple[List[float], float]] = self.ITEMS[meter]
 
     def applies_to(self, node: ur.RefinementNode) -> bool:
         return node.is_leaf
@@ -164,43 +192,23 @@ class Rhythm(ur.RandomizedProducer):
     def produce(self, len_to_gen: ur.Interval, dur_to_gen: float, end_of_section: bool) -> List[m.Duration]:
         # we're only dealing with fix-sized output
         assert len_to_gen.min == len_to_gen.max
-        target_len: int = len_to_gen.min - len(self.CADENCE_DUR) if end_of_section else len_to_gen.min
-        target_dur: float = dur_to_gen - sum(self.CADENCE_DUR) if end_of_section else dur_to_gen
+        target_len: int = len_to_gen.min - len(self.cadence_dur) if end_of_section else len_to_gen.min
+        target_dur: float = dur_to_gen - sum(self.cadence_dur) if end_of_section else dur_to_gen
         result: List[m.Duration] = []
 
         # extremely inefficient, but the whole point is the model, not the algos for the rules
-        while sum(result) != target_dur:
+        while sum(result) != target_dur or len(result) != target_len:
             result = []
-            for i in range(target_len):
-                result.append(tools.pwchoice(self.ITEMS))
+            while len(result) < target_len:
+                result += [m.Duration(d) for d in tools.pwchoice(self.items)]
 
         if end_of_section:
-            result += [m.Duration(d) for d in self.CADENCE_DUR]
+            result += [m.Duration(d) for d in self.cadence_dur]
 
         assert sum(result) == dur_to_gen
         assert len(result) >= len_to_gen.min and len(result) >= len_to_gen.max
 
         return result
-
-
-# class TernaryRhythm(ur.Producer):
-#     ITEMS_LAST = [
-#         ('1.', 0.2),
-#         ('2.', 0.8),
-#         ('4.', 0.5),
-#     ]
-#     ITEMS = [
-#                 ('2.', 0.30),
-#                 ('4.', 0.40),
-#                 ('2 8 8', 0.10),
-#                 ('4 8', 0.45),
-#                 ('8 8 8', 0.30),
-#                 # ('4 16 16', 0.04),
-#                 # ('8 8 16 16', 0.04),
-#                 ('8. 16 16 16', 0.02),
-#                 # ('8 16 16 8', 0.01),
-#                 ('8. 16 8', 0.15),
-#             ]
 
 
 # class Melody0(ur.ItemSequence):
@@ -446,36 +454,43 @@ class MelodyMinorB(ur.PitchMarkov):
     })
 
 
-# class ScorerMelody(ur.ScorerOne):
+class ScorerMelody(ur.Scorer):
 
-#     AMBITUS_LOW = 5
-#     AMBITUS_HIGH = 14
-#     AMBITUS_GOOD = 7
+    ARGS = [(m.Pitch, ur.Interval(1))]
 
-#     def score_item(self, gen, _, __):
-#         score = 0
+    AMBITUS_LOW = 5
+    AMBITUS_HIGH = 14
+    AMBITUS_GOOD = 7
 
-#         # Ambitus
-#         ambitus = music.ambitus(gen.one)
-#         if ambitus < self.AMBITUS_LOW or ambitus > self.AMBITUS_HIGH:
-#             score -= 1
-#         elif ambitus > self.AMBITUS_GOOD: # ?? Why not == ?
-#             score += 0.5
+    def score(self, mel: List[m.Pitch]):
+        score: float = 0.0
 
-#         for i in range(len(gen.one)-2):
-#             a, b, c = gen.one[i:i+3]
+        # Ambitus
+        ambitus = m.ambitus([m for m in mel if not m.is_undefined()])
+        if ambitus < self.AMBITUS_LOW or ambitus > self.AMBITUS_HIGH:
+            score -= 1.0
+        elif ambitus > self.AMBITUS_GOOD:
+            score += 0.5
 
-#             # Large intervals, then short contrary motion
-#             if music.interval(a, b) > 7 and music.interval(b, c) in [-1, -2]:
-#                 score += 0.2
-#             if music.interval(a, b) < -7 and music.interval(b, c) in [1, 2]:
-#                 score += 0.2
+        for i in range(len(mel)-2):
+            a, b, c = mel[i:i+3]
+            if a.is_undefined() or b.is_undefined() or c.is_undefined():
+                continue
+            i1 = m.interval(a,b)
+            i2 = m.interval(b,c)
+            if abs(i1) > 9 and abs(i1) != 12:
+                score -=5.0 # TODO: arbitrary hack
+            # Large intervals, then short contrary motion
+            if i1 > 7 and i2 in [-1, -2]:
+                score += 0.2
+            if i1 < -7 and i2 in [1, 2]:
+                score += 0.2
 
-#             # Too many repeated notes
-#             if a == b and b == c:
-#                 score -= 0.2
+            # Too many repeated notes
+            if a == b and b == c:
+                score -= 0.2
 
-#         return score
+        return score
 
 
 # class ScorerSectionsMelodyT(ur.ScorerOne):
@@ -493,7 +508,7 @@ class MelodyMinorB(ur.PitchMarkov):
 #         tdown, tup = self.TARGET[struct] if struct in self.TARGET else self.TARGET[None]
 #         return -tools.distance_to_interval(mean, tdown, tup)
 
-# class RelativeScorerSectionMelody(ur.ScorerOne, ur.RelativeScorerSection):
+# class RelativeScorerSectionMelody(ur.Scorer, ur.RelativeScorerSection):
 #     ''' Relative Scorer for mean pitch in melody
 #     '''
 
@@ -524,10 +539,10 @@ class ScorerFunc(ur.Scorer):
         return score
 
 
-# class ScorerMelodySA(ScorerMelody):
-#     AMBITUS_LOW = 5
-#     AMBITUS_HIGH = 12
-#     AMBITUS_GOOD = 5
+class ScorerMelodySA(ScorerMelody):
+    AMBITUS_LOW = 5
+    AMBITUS_HIGH = 12
+    AMBITUS_GOOD = 5
 
 
 S1 = {
@@ -547,15 +562,11 @@ class ScorerRhythmLyrics(ur.Scorer):
         ('!', S1),
         ('>>', S1),
         ('>',  S1),
+        ('/', S1),
 
         #('-', S0),
         ('',  S0),
     ]
-
-    METER: str
-
-    def __init__(self, meter: str):
-        self.METER = meter
 
     def score(self, rhy: List[m.Duration], lyr: List[m.Syllable]):
         d: m.Duration = rhy[0]
@@ -699,13 +710,12 @@ class MelodyHarm(ur.Constraint):#(ur.ScorerTwoSequence):
         # else:
         #     return self.SCORES[None]
 
-    # TODO: cadences, first, last, etc. ?
 
     # def score_first_last_element(self, mel, harm):
     #     if mel[0].lower() in self.CHORDS[harm]:
     #         return 1.0
     #     else:
-    #         return -20 # arbitrary ?? 
+    #         return -20
 
 # class ScorerMelodyMelodyBelow(ur.ScorerTwoSequence):
 #     def score_element(self, mel1, mel2):
@@ -764,21 +774,24 @@ class MelodyHarm(ur.Constraint):#(ur.ScorerTwoSequence):
 #         return score
 
 
-# class ScorerMelodyMelody(ur.ScorerTwoSequenceIntervals):
+class ScorerMelodyMelody(ur.Scorer):
 
-#     def score_element(self,
-#                       mel1a, mel1b,
-#                       mel2a, mel2b):
+    ARGS = [(m.Pitch, ur.Interval(2,2)),
+            (m.Pitch, ur.Interval(2,2))]
 
+    def score(self, mel1: List[m.Pitch], mel2: List[m.Pitch]) -> float:
 
-#         # Detect doubling of voices
-#         if (music.interval(mel1a, mel2a) % 12) == 0:
-#             int1 = music.interval(mel1a, mel1b) % 12
-#             int2 = music.interval(mel2a, mel2b) % 12
-#             if int1 == int2:
-#                 return -1.0
+        if any([m.is_undefined() for m in mel1 + mel2]):
+            return 0.0
 
-#         return 1.0
+        # Detect doubling of voices
+        if (mel1[0].pc() == mel2[0].pc()):
+            int1 = m.interval(mel1[0], mel1[1]) % 12
+            int2 = m.interval(mel2[0], mel2[1]) % 12
+            if int1 == int2:
+                return -1.0
+
+        return 1.0
 
 # class ScorerMelodyHarmRoot(ScorerMelodyHarm):
 
@@ -829,7 +842,8 @@ class CadencePitches(ur.Enumerator):
                 [m.Pitch('G3'), m.Pitch('C4')]],
             1: [[m.Pitch('D4'), m.Pitch('C4')]],
             2: [[m.Pitch('G4'), m.Pitch('G4')]],
-            3: [[m.Pitch('D5'), m.Pitch('E5')]],
+            3: [[m.Pitch('D5'), m.Pitch('E5')],
+                [m.Pitch('D5'), m.Pitch('C5')]],
         },
         'minor': {
             0: [[m.Pitch('E3'), m.Pitch('A3')],
