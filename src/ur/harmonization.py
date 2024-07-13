@@ -40,7 +40,7 @@ import os
 
 import ur
 from trees import *
-from models.harp import *
+from rulesets.sh import *
 
 from load import *
 
@@ -103,7 +103,6 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
     
     rhythm, pitches = grid_from_part(mel)
     fill_in = fill_in_from_part(mel)
-    schemata = ([Schema.create_undefined()] * 13 + [Schema("c")] * 2) * 2
 
     # content generation: fix some vps, add producers to others
     sh.set_structure(struc)
