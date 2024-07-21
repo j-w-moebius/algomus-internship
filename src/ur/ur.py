@@ -103,6 +103,8 @@ class Rule(Generic[R]):
     ARGS: List[Tuple[type, Interval]] = []
 
     NEEDS_START: bool = False
+    NEEDS_NODE_ARGS: bool = False
+    
 
     T = TypeVar('T')
 
@@ -133,16 +135,19 @@ class Rule(Generic[R]):
                 return self.ARGS[i][1]
         raise None
 
+    def get_node_args(self, node: RefinementNode) -> list:
+        raise NotImplementedError()
+
 ### Producers
 
 class Producer(Rule[List[List[C]]]):
 
     OUT_COUNT: Interval
+    DISPATCH_BY_NODE: bool = False
 
     NEEDS_CONTEXT: bool = False
     NEEDS_DURATION: bool = False
     NEEDS_LEN: bool = False
-    DISPATCH_BY_NODE: bool = False
 
     def flexible_length(self) -> bool:
         return self.OUT_COUNT.max is None
@@ -180,13 +185,10 @@ class Producer(Rule[List[List[C]]]):
         if self.NEEDS_DURATION:
             args.append(node.get_duration())
 
-        if self.DISPATCH_BY_NODE:
+        if self.NEEDS_NODE_ARGS:
             args += self.get_node_args(node)
 
         return args
-
-    def get_node_args(self, node: RefinementNode) -> list:
-        raise NotImplementedError()
 
 
 
@@ -214,33 +216,37 @@ class RandomizedProducer(Producer[C]):
 ### Constraints
 
 class Evaluator(Rule[R]):
-        
-        def fetch_args(self, node: RefinementNode, generated: List[C], window_start: Index, window_end: Index) -> list:
-            args = []
-            for vp in self.vps:
-                # replace new span of currently generated VP
-                if node.vp == vp:
-                    start_p: int = window_start.pos - node.start.relative_p(window_start.node.name)
-                    prefix = vp[window_start:node.start]
-                    # if window_start is before the start of generated:
-                    if start_p < 0:
-                        # prefix += [node.vp.undefined()] * (- start_p)
-                        start_p = 0
-                    suffix = vp[node.end:window_end]
-                    # if window_end is after the end of generated
-                    end_p: int = window_end.pos - node.start.relative_p(window_start.node.name)
-                    if end_p > len(generated):
-                        # suffix = [node.vp.undefined()] * (end_p - len(generated)) + suffix
-                        end_p = len(generated)
-                    args.append(prefix + generated[start_p:end_p] + suffix)
-                else: 
-                    args.append(vp[window_start:window_end])
-            self.check_args(*args)
-            
-            if self.NEEDS_START:
-                args.append(window_start)
 
-            return args
+    ALLOW_OUTSIDE: bool = True
+        
+    def fetch_args(self, node: RefinementNode, generated: List[C], window_start: Index, window_end: Index) -> list:
+        args = []
+        for vp in self.vps:
+            # replace new span of currently generated VP
+            if node.vp == vp:
+                window_node: str = window_start.node.name
+                start_p: int = window_start.relative_p(window_node) - node.start.relative_p(window_node)
+                prefix = vp[window_start:node.start]
+                if start_p < 0:
+                    # if window_start is before the start of generated
+                    start_p = 0
+                suffix = vp[node.end:window_end]
+                end_p: int = window_end.relative_p(window_node) - node.start.relative_p(window_node)
+                if end_p > len(generated):
+                    # if window_end is after the end of generated
+                    end_p = len(generated)
+                args.append(prefix + generated[start_p:end_p] + suffix)
+            else: 
+                args.append(vp[window_start:window_end])
+        self.check_args(*args)
+        
+        if self.NEEDS_START:
+            args.append(window_start)
+
+        if self.NEEDS_NODE_ARGS:
+            args += self.get_node_args(node)
+
+        return args
 
 
 class Constraint(Evaluator[bool]):
@@ -331,7 +337,7 @@ class Generator(Generic[C]):
             for n in faulty_nodes:
                 if n == self:
                     # ran out of options
-                    raise NotImplementedError("Backtracking would be sensible here, but it is not yet implented")
+                    raise NotImplementedError("Need backtracking, not yet implented")
                 n.generate()
             return
 
@@ -344,11 +350,10 @@ class Generator(Generic[C]):
                 r = s.get_range(self.node.vp)
                 assert r
                 subscore: float = 0.0
-                windows = WindowIterator(r.max, self.node, True)
+                windows = WindowIterator(r.max, self.node, s.ALLOW_OUTSIDE)
                 for window_start, window_end in windows:
                     subscore += s(self.node, g, window_start, window_end)
-                subscore = subscore / len(windows)  
-                score += subscore * s.weight
+                score += subscore / len(windows)   * s.weight
             self.gens.append((g, score))
 
         # sort
@@ -357,180 +362,21 @@ class Generator(Generic[C]):
         self.node.set_to(self.gens[0][0], self.producer.fixedness)
 
 
-#     def setup(self):
-#         pass
-
-#     def reset(self):
-#         self.gens = Data()
-#         for m in self.mods:
-#             m.reset()
-
-#     # iterate through models      
-#     def __iter__(self):
-#         yield self
-#         for m in self.mods:
-#             for mm in m:
-#                 yield mm
-
-#     def learn(self):
-#         raise NotImplemented
-
-#     def load(self):
-#         raise NotImplemented
-
-#     def save(self):
-#         raise NotImplemented
-
-#     def hash(self):
-#         return hex(hash(id(self)))[-3:]
-
-#     def id(self):
-#         return f'{self.__class__.__name__}-{self.name}'
-
-#     def export(self, structure, rhythms=None, lyrics=None, annotation=False, meter=None, modes=None):
-#         out = []
-#         lyr = []
-
-#         if meter:
-#             self.set_meter(meter)
-
-#         for struct in structure:
-
-#             if struct == '-':
-#                 out += [ ' r$%s  ' % self.beat()]
-#                 continue
-
-#             items = self.gens[struct][0].one
-#             rhy = rhythms.gens[struct][0].one if rhythms else None
-#             if lyrics:
-#                 ly = lyrics.gens[struct][0].one
-#             i_ly = 0
-#             for i, item in enumerate(items):
-#                 if not rhythms:
-#                     out += [ item ]
-#                     continue
-#                 if annotation:
-#                     out += [ item ]
-#                     if rhy[i].strip() in ['2', '4. 8']:
-#                         out += [ '' ]
-#                     continue
-
-#                 rhy_i = rhy[i]
-
-#                 if lyrics:
-#                     n_ly = len(rhy_i.split())
-#                     lyr += ly[i_ly:i_ly+n_ly]
-#                     i_ly += n_ly
-
-#                 if not annotation:
-#                     rhy_i, new_lyr, new_items = flourish.flourish(items, i, rhy_i, self.flourish, self.ternary())
-#                     lyr += new_lyr
-
-#                 s = ''
-
-#                 # Follow common rhythm
-#                 for j, rh in enumerate(rhy_i.split(' ')):
-#                     if j >= 1:
-#                         if i < len(items)-1:
-#                             item = new_items[j-1] if new_items else nonchord.note_nonchord(item, items[i+1])
-
-#                     s += f' {item}${rh} '
-
-#                 # Mode colouring
-#                 if modes:
-#                     mode = random.choice(modes)
-#                     for (n, nn) in mode:
-#                         s = s.replace(n, nn).replace(n.upper(), nn.upper())
-
-#                 out += [ s ]
-
-#         return out, lyr
-
-
 # ### Item generators
 
-# class ItemChoice(Gen):
+class RandomChoice(RandomizedProducer[C]):
 
-#     def item(self, gens_in=None, struct=None):
-#         return Item(pwchoice(self.CHOICES))
+    CHOICES: List[List[C]]
 
+    def produce(self):
+        return pwchoice(self.CHOICES)
 
-# class ItemLyricsChoiceFiles(ItemChoice):
-
-#     STRESS_WORDS = []
-#     MIN_LENGTH = 4
-
-#     def load(self):
-#         self.CHOICES = []
-#         for f in self.FILES:
-#             for l in open(f, encoding='utf-8').readlines():
-#                 text = l.replace('-', ' -').strip() + '/'
-#                 words = []
-#                 for w in text.split():
-#                     for ww in self.STRESS_WORDS:
-#                         if ww in w:
-#                             w = '!' + w
-#                     words += [w]
-#                 if len(words) >= self.MIN_LENGTH:
-#                     self.CHOICES += [words]
-#         print(f'<== Lyrics: {len(self.FILES)} files, {len(self.CHOICES)} lines')
-
-#     def xitem(self, gens_in=None, struct=None):
-#         f = random.choice(self.FILES)
-#         print('<==', f)
-
-#         text = ''
-#         for l in open(f, encoding='utf-8').readlines():
-#             text += l.strip() + '/ '
-
-#         text = text.replace('-', ' -')
-#         words = text.split()[:50]
-#         return Item(words, self.id() + ':' + str(n))
-
-
-# class ItemSequence(Gen):
-    
-#     def items(self, i, n):
-#         if i == n-1:
-#             try:
-#                 return self.ITEMS_LAST
-#             except AttributeError:
-#                 pass
-#         return self.ITEMS
-
-#     def item(self, gens_in=None, struct=None):
-#         n = self.len_to_gen(gens_in=gens_in, struct=struct)
-#         seq = []
-#         for i in range(n):
-#             seq += [pwchoice(self.items(i, n))]
-#         return Item(seq, self.id() + ':' + str(n))
-
-
-# class ItemSpanSequence(ItemSequence):
-
-#     def item(self, gens_in=None, struct=None):
-#         n = self.len_to_gen(gens_in=gens_in, struct=struct)
-#         seq = []
-#         i = 0
-#         while i < n:
-#             nn = 0
-#             while i + nn > n or (not nn):
-#                 # Do not generate a last thing that goes beyond n
-#                 its = pwchoice(self.items(i, n))
-#                 nn = len(its.split())
-#             seq += [its]
-#             i += nn
-#         return Item(seq, self.id() + f':{n/len(seq)}')  # ??
 
 # Hidden State Type
 S = TypeVar("S")
 
 class HiddenMarkov(RandomizedProducer[C]):
     
-    # INITIAL_S, FINAL_S : dict[str, List[str]]
-    # structure-dependent initial and final states
-    # INITIAL_S: Dict[str, List[str]]
-    # FINAL_S: Dict[str, List[str]]
 
     OUT_COUNT = Interval(1)
     NEEDS_CONTEXT = True
@@ -538,6 +384,7 @@ class HiddenMarkov(RandomizedProducer[C]):
 
     STATES: List[str]
     INITIAL: List[str]
+    FINAL: List[str]
 
     TRANSITIONS: Dict[str, Dict[str, float]]
     EMISSIONS: Dict[str, Dict[str, float]]
@@ -547,43 +394,49 @@ class HiddenMarkov(RandomizedProducer[C]):
         '''
         return state is not None
 
+    def state_final(self, state: str) -> bool:
+        try:
+            return state in self.FINAL
+        except AttributeError:
+            # if no FINAL states are specified, we're allowed to end on any state
+            return True
+
     def produce(self, pre_context: List[C], post_context: List[C], len_to_gen: Interval) -> List[C]:
         '''Return a sequence of emitted states
         '''
-
         i: int = 0
 
-        # otherwise the final states constraint has led to a too long sequence
-        i = 0
-        state: Optional[str] = None
-        if len(pre_context) == 0 or pre_context[-1].is_undefined():
-            state = pwchoice(self.INITIAL)
-        else:
-            # if we know the last emitted state, update the probabilities for the first hidden state accordingly
-            last: C = pre_context[-1]
-            prob = lambda s: sum([self.TRANSITIONS[s1][s] * self.EMISSIONS[s1][str(last)] for s1 in self.STATES])
-            initial = dict([(s, prob(s)) for s in self.STATES])
-            while not self.state_legal(state):
-                state = pwchoice(initial)
-        emits: List[C] = []
+        while i not in len_to_gen:
+            # otherwise the final states constraint has led to a too long sequence
+            i = 0
+            state: Optional[str] = None
 
-        assert state
-        emit: C = self.vp_out.content_cls(pwchoice(self.EMISSIONS[state]))
-        emits.append(emit)
-        i += 1
-        while i < len_to_gen.min:
-            next_state: Optional[str] = None
-            while not self.state_legal(next_state):
-                try:
-                    next_state = pwchoice(self.TRANSITIONS[state])
-                except KeyError:
-                    print(f"[red]! No transition for [yellow]{self.__class__.__name__} {state}")
-                    raise
-            assert next_state
-            state = next_state
-            emit = self.vp_out.content_cls(pwchoice(self.EMISSIONS[state]))
-            emits += [emit]
+            if len(pre_context) == 0 or pre_context[-1].is_undefined():
+                # we don't know the last emitted state
+                state = pwchoice(self.INITIAL)
+            else:
+                # we know the last emitted state: update the probabilities for the first hidden state accordingly
+                last: C = pre_context[-1]
+                prob = lambda s: sum([self.TRANSITIONS[s1][s] * self.EMISSIONS[s1][str(last)] for s1 in self.STATES])
+                initial = dict([(s, prob(s)) for s in self.STATES])
+                while not self.state_legal(state):
+                    state = pwchoice(initial)
+            emits: List[C] = []
+
+            assert state
+            emit: C = self.vp_out.content_cls(pwchoice(self.EMISSIONS[state]))
+            emits.append(emit)
             i += 1
+
+            while i < len_to_gen.min or not self.state_final(state):
+                next_state: Optional[str] = None
+                while not self.state_legal(next_state):
+                    next_state = pwchoice(self.TRANSITIONS[state])
+                assert next_state
+                state = next_state
+                emit = self.vp_out.content_cls(pwchoice(self.EMISSIONS[state]))
+                emits += [emit]
+                i += 1
 
         return emits
 
@@ -594,7 +447,10 @@ class Markov(HiddenMarkov[C]):
             x: defaultdict(float, {x: 1.00}) for x in self.STATES
         }
 
+ 
 class PitchMarkov(Markov[m.Pitch]):
+
+    DISPATCH_BY_NODE = True
 
     AMBITUS: Tuple[m.Pitch, m.Pitch]
     INITIAL_AMBITUS: Tuple[m.Pitch, m.Pitch]
@@ -603,11 +459,14 @@ class PitchMarkov(Markov[m.Pitch]):
         super().__init__()
         self.set_key(key)
 
+    def applies_to(self, node: ur.RefinementNode) -> bool:
+        return node.is_leaf
+
     def state_legal(self, pitch: str) -> bool:
         # Redundant, but we may here implement melodic rules
         if pitch is None:
             return False
-        return music.in_range(pitch, self.AMBITUS, self.key)
+        return m.in_range(pitch, self.AMBITUS, self.key)
 
     def set_key(self, key: str) -> None:
         ''' Adapt transitions and states to key
@@ -616,115 +475,13 @@ class PitchMarkov(Markov[m.Pitch]):
 
         for n1 in list(self.TRANSITIONS):
             for n2 in list(self.TRANSITIONS[n1]):
-                if not music.in_range(n2, self.AMBITUS, self.key) or '#' in n2 or '-' in n2:
+                if not m.in_range(n2, self.AMBITUS, self.key) or '#' in n2 or '-' in n2:
                     del self.TRANSITIONS[n1][n2]
                     if len(self.TRANSITIONS[n1]) == 0:
                         del self.TRANSITIONS[n1]
         for n in list(self.INITIAL):
-            if not music.in_range(n, self.AMBITUS_INITIAL, self.key):
+            if not m.in_range(n, self.AMBITUS_INITIAL, self.key):
                 self.INITIAL.remove(n)
-
-
-# class ScorerOne(Scorer):
-#     '''A scorer of one single model
-#     '''
-#     def __init__(self, mod):
-#         self.mod1 = mod
-
-#     def __str__(self):
-#         return f'<<{self.mod1.id()}>>'
-
-#     def score(self, gens1: Data):
-#         for struct in gens1.data.keys():
-#             self.score_item(gens1[struct], struct=struct)
-
-
-# class ScorerTwo(Scorer):
-#     '''A scorer of two models
-#     '''
-#     def __init__(self, mod1, mod2):
-#         self.mod1 = mod1
-#         self.mod2 = mod2
-
-#     def two(self):
-#         return True
-
-#     def __str__(self):
-#         return f'<<{self.mod1.id()} // {self.mod2.id()}>>'
-
-#     def score(self, gens1: Data, gens2: Data):
-#         # print(gens1, gens2)
-#         for struct in set(gens1.data.keys()).union(set(gens2.data.keys())):
-#             print(struct)
-#             self.score_item(gens1[struct], gens2[struct], struct)
-
-
-# class ScorerTwoSequence(ScorerTwo):
-#     '''A scorer of two sequences with special first / last handling
-#     '''
-
-#     def span(self, g):
-#         return g
-
-#     def score_element(self, e1, e2):
-#         raise NotImplemented
-
-#     def score_first_last_element(self, e1, e2):
-#         return self.score_element(e1, e2)
-
-#     def score_first_element(self, e1, e2):
-#         return self.score_first_last_element(e1, e2)
-#     def score_last_element(self, e1, e2):
-#         return self.score_first_last_element(e1, e2)
-
-#     def score_item(self, gen1: Item, gen2: Item, struct=None, verbose=False):
-#         '''Return average pair-wise score of zipped sequences'''
-#         z = list(zip(self.span(gen1.one), self.span(gen2.one)))
-#         scores =  [self.score_first_element(z[0][0], z[0][1])]
-#         scores += [self.score_element(e1, e2) for (e1, e2) in z[1:-1]]
-#         scores += [self.score_last_element(z[-1][0], z[-1][1])]
-
-#         if verbose:
-#             print(scores, gen1, gen2)
-#         return sum(scores)/len(scores)
-
-# class ScorerTwoSequenceAllPairs(ScorerTwoSequence):
-#     '''A scorer of two sequences without special first / last handling
-#     '''
-
-#     def score_item(self, gen1: Item, gen2: Item, struct=None):
-#         z = list(zip(self.span(gen1.one), self.span(gen2.one)))
-#         return self.score_all_pairs(z)
-
-#     def score_all_pairs(z):
-#         raise NotImplemented
-
-# class ScorerTwoSequenceIntervals(ScorerTwo):
-#     '''A two-sequence scorer which takes into account the relation between two
-#     neighbouring notes
-#     '''
-
-#     def span(self, g):
-#         return g
-
-#     def score_element(self, e1, f1, e2, f2):
-#         raise NotImplemented
-
-#     def score_item(self, gen1: Item, gen2: Item, struct=None, verbose=False):
-#         z = list(zip(self.span(gen1.one), self.span(gen2.one)))
-#         scores = []
-#         for i in range(len(z)-1):
-#             scores += [self.score_element(z[i][0], z[i+1][0], z[i][1], z[i+1][1]) ]
-
-#         if verbose:
-#             print(scores, gen1, gen2)
-#         return sum(scores)/len(scores)
-
-
-# class ScorerTwoSpanSequence(ScorerTwoSequence):
-#     # ?? better call that flatten
-#     def span(self, g):
-#         return ' '.join(g).split()
 
 # class RelativeScorer(Scorer):
 #     '''Scores an item based on the comparison of its prescore to that of all

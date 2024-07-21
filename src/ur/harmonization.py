@@ -59,7 +59,6 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
 
     sh: ur.Model = ur.Model(key, mode, meter)
 
-    # TODO simplify
     if mode == 'major':
         chords_prod: type = ChordsMajor
         melody_s_prod: type = MelodyMajorS
@@ -71,20 +70,6 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
         melody_a_prod = MelodyMinorA
         melody_b_prod = MelodyMinorB
 
-    # if sh.ternary():
-        # rhythm_prod: type = TernaryRhythm
-        # scorer_rhythm_met: type = ScorerRhythmMetricsTernary
-    # else:
-        # rhythm_prod = Rhythm
-        # scorer_rhythm_met = ScorerRhythmMetricsFour
-
-    # if sh.ternary():
-    #     Lyrics.MIN_LENGTH = 7 # changes class attribute
-    # else:
-    #     Lyrics.MIN_LENGTH = 5
-
-    # ------------------------------------------------------
-    # block scheduling
 
     sh.add_vp('rhy', Duration)
     sh.add_vp('lyr', Syllable, lead_name='rhy', use_copy=False)

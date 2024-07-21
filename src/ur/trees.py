@@ -142,6 +142,13 @@ class StructureNode(Node[float]):
     def __init__(self, start: float, end: float, name: str, children: List[Self] = []):
         super().__init__(start, end, name, children)
 
+    def __str__(self) -> str:
+        out: str = ""
+        for pre, _, node in RenderTree(self):
+            treestr = u"%s%s" % (pre, node.name)
+            out += treestr.ljust(8) + "\n"
+        return out
+
 class RefinementNode(Node[Index]):
 
     def __init__(self, start: Tuple[float, int] | Index, end: Tuple[float, int] | Index, name: str, vp: ViewPoint, children: List[Self] = [], structure: bool = False):
@@ -163,10 +170,6 @@ class RefinementNode(Node[Index]):
         self.structure: bool = structure
         self.vp: ViewPoint = vp
 
-    def __iter__(self):
-        for e in self.vp.out[self.start.pos:self.end.pos]:
-            yield e
-
     def __str__(self) -> str:
         out: str = ""
         for pre, _, node in RenderTree(self):
@@ -176,6 +179,10 @@ class RefinementNode(Node[Index]):
                 content_str += f' (same as {node.copy_of.name})'
             out += treestr.ljust(8) + str(node.start) + str(node.end) + content_str + "\n"
         return out
+
+    def __iter__(self):
+        for e in self.vp.out[self.start.pos:self.end.pos]:
+            yield e
 
     def new_index(self) -> Index:
         return Index(0.0, 0, self)
@@ -210,7 +217,16 @@ class RefinementNode(Node[Index]):
                 c.end.pos += delta
             self.parent.increase_size(delta)
 
-    def set_to(self, content: List[C], fixedness: float) -> None:
+    def increase_duration(self, delta: float) -> None:
+        self.end.quarter += delta
+        if self.parent is not None:
+            ind: int = self.parent.children.index(self)
+            for c in self.parent.children[ind + 1:]:
+                c.start.quarter += delta
+                c.end.quarter += delta
+            self.parent.increase_duration(delta)
+
+    def set_to(self, content: List[C], fixedness: float, update: bool = True) -> None:
         self.fixedness = fixedness
 
         self.vp.out[self.start.relative_p():self.end.relative_p()] = content
@@ -220,10 +236,20 @@ class RefinementNode(Node[Index]):
         if self.parent is not None:
             self.parent.update_fixedness()
         
+        if not update:
+            return
+        
+        if isinstance(self.vp, ViewPointLead):
+            # also update duration for lead VPs
+            old_duration: float = self.get_duration()
+            new_duration: float = sum([e.quarter_length() for e in content])
+            self.increase_duration(new_duration - old_duration)
+
         for vp in self.vp.fixed_count_out:
             # for now (TODO)
             assert self.structure
-            vp.nodes[self.name].set_to([vp.undefined()] * len(content), 0.0)
+            vp.nodes[self.name].set_to([vp.undefined()] * len(content), 0.0, False)
+
 
     def set_generator(self, prod: ur.Producer) -> ur.Generator:
         new_gen: ur.Generator = ur.Generator(self, prod)
@@ -286,7 +312,6 @@ class RefinementNode(Node[Index]):
             g.generate()
 
 
-
     def get_subrange(self, start: Index, end: Index) -> List[Self]:
         ''' tree growing '''
         # for now, assume we are only operating on nodes that have the following property:
@@ -327,31 +352,6 @@ class RefinementNode(Node[Index]):
             result = [new_node]
         return result
 
-class RefinementNodeLead(RefinementNode):
-    
-    def set_to(self, content: List[T], fixedness: float) -> None:
-        '''also need to update durations in lead VPs'''
-        super().set_to(content, fixedness)
-
-        old_duration: float = self.end.quarter - self.start.quarter
-        new_duration: float = sum([e.quarter_length() for e in content])
-        self.increase_duration(new_duration - old_duration)
-
-        # TODO: propagate to followers. But when do we REALLY need it ?
-
-
-    def increase_duration(self, delta: float) -> None:
-        if self.structure:
-            # structure nodes never change in duration
-            return 
-        self.end.quarter += delta
-        if self.parent is not None:
-            ind: int = self.parent.children.index(self)
-            for c in self.parent.children[ind + 1:]:
-                c.start.quarter += delta
-                c.end.quarter += delta
-            self.parent.increase_size(delta)
-
 
 
 class ViewPoint(Generic[C]):
@@ -381,7 +381,8 @@ class ViewPoint(Generic[C]):
         struc_parent: RefinementNode = i.node.get_structure_parent()
         ind_q: float = i.relative_q(struc_parent.name)
         acc: float = 0.0
-        for (ctr, e) in enumerate(self.get_leader()[self.nodes[struc_parent.name].start:]):
+        parent_start: Index = self.nodes[struc_parent.name].start
+        for (ctr, e) in enumerate(self.get_leader()[parent_start:], parent_start.relative_p()):
             if acc >= ind_q:
                 return ctr
             acc += e.quarter_length()
@@ -427,12 +428,15 @@ class ViewPoint(Generic[C]):
         i: int = 0
         for n in PreOrderIter(self.root):
             self.nodes[n.name] = n
-            if not self.use_copy or n.name[-1] != '\'':
-                continue
-            to_copy: str = n.name[:-1]
-            if to_copy in self.nodes.keys():
-                n.copy_of = self.nodes[to_copy]
+            # handling rests
+            if n.name[0] == '~':
                 n.unset_generatable()
+                n.set_to([self.undefined(music.beat(self.model.meter))], 0.0, False)
+            if self.use_copy and n.name[-1] == '\'':    
+                to_copy: str = n.name[:-1]
+                if to_copy in self.nodes.keys():
+                    n.copy_of = self.nodes[to_copy]
+                    n.unset_generatable()
 
     def set_to(self, bars: List[C], fixedness: float = 1.0) -> None:
         raise NotImplementedError()
@@ -443,11 +447,6 @@ class ViewPoint(Generic[C]):
     def copy_struc_node(self, n: StructureNode, offset: int = 0) -> RefinementNode:
         '''Construct a RefinementNode by copying a StructureNode 
         '''
-        if n.name == 'rest':
-            res = RefinementNode((n.start, offset), (n.end, offset + 1), n.name, self, structure=True)
-            res.generatable = False
-            res.set_to([self.undefined(n.get_duration())], 1.0)
-            return res
         if not n.children:
             self.out.append(self.undefined(n.end - n.start))
             return RefinementNode((n.start, offset), (n.end, offset + 1), n.name, self, structure=True)
@@ -461,6 +460,13 @@ class ViewPoint(Generic[C]):
 
     def generate(self) -> None:
         self.generated = True
+
+        # update structure node durations from model structure
+        for node in PreOrderIter(self.model.structure):
+            peer_node = self.nodes[node.name]
+            peer_node.start.quarter = node.start
+            peer_node.end.quarter = node.end
+        
         self.root.generate()
         print(self)
 
@@ -516,6 +522,14 @@ class ViewPointLead(ViewPoint[T]):
 
     def get_leader(self) -> ViewPointLead:
         return self
+
+    def generate(self) -> None:
+        super().generate()
+        # after generation, write new node durations into the model's structure tree
+        for node in PreOrderIter(self.model.structure):
+            peer_node = self.nodes[node.name]
+            node.start = peer_node.start.quarter
+            node.end = peer_node.end.quarter
 
 class ViewPointFollow(ViewPoint[C]):
     def __init__(self, name: str, content_cls: Type[C], use_copy: bool, model: ur.Model, lead: ViewPointLead, gapless: bool):

@@ -40,87 +40,61 @@ import os
 
 import ur
 from trees import *
-from models.harp import *
+from rulesets.harp import *
 from load import *
 
-from anytree import LevelOrderIter
-
-def set_lyrics(vp: ViewPoint, lyr: List[List[Syllable]]) -> None:
-    vp.generated = True
-    verse_iter = iter(lyr)
-    verse: List[Syllable] = next(verse_iter)
-    verse_len: int = len(verse)
-
-    # divide syllables in verse approximately unifmorly among motifs
-    # for now: assume that level(motif) = level(phrase)+ 1
-    for n in LevelOrderIter(vp.root, lambda n: n.is_leaf):
-
-        motifs: int = len(n.siblings) + 1
-
-        if len(verse) == 0:
-            verse = next(verse_iter)
-            verse_len = len(verse)
-        
-        new_syls: int = min(math.ceil(verse_len / motifs), len(verse))
-        n.set_to(verse[:new_syls], 1.0)
-        verse = verse[new_syls:]
-
-
-def gen_sacred(lyr_path: str, struct: StructureNode) -> ur.Model:
+def gen_sacred() -> ur.Model:
     print('[yellow]### Init')
 
     key = random.choice(Key.CHOICES)
     mode = random.choice(['minor', 'major'])
 
     print(f'Key: [blue]{key}')
+    print(f'Mode: [blue]{mode}')
 
-    meter = random.choice(['3/4'])#, '4/4', '6/8'])
+    meter = random.choice(['3/4', '4/4', '6/8'])
 
     print(f'Meter: [blue]{meter}')
 
+    struc: StructureNode = random.choice([struc1, struc2, struc3, struc4])
+
+    print(f'Structure: \n[blue]{struc}')
+
     sh: ur.Model = ur.Model(key, mode, meter)
 
-    # lyr_path = random.choice(...) # (among suitable songs)
-    lyr = load_lyrics(lyr_path, STRESS_WORDS)
-
-    # TODO simplify
     if mode == 'major':
         chords_prod: type = ChordsMajor
+        melody_t_prod: type = MelodyMajorT
         melody_s_prod: type = MelodyMajorS
         melody_a_prod: type = MelodyMajorA
-        melody_t_prod: type = MelodyMajorT
         melody_b_prod: type = MelodyMajorB
     else:
-        chords_prod = ChordsMinor
+        chords_prod = ChordsMinorExtended
+        melody_t_prod = MelodyMajorT
         melody_s_prod = MelodyMinorS
         melody_a_prod = MelodyMinorA
-        melody_t_prod = MelodyMinorT
         melody_b_prod = MelodyMinorB
 
-    # if sh.ternary():
-        # rhythm_prod: type = TernaryRhythm
-        # scorer_rhythm_met: type = ScorerRhythmMetricsTernary
-    # else:
-        # rhythm_prod = Rhythm
-        # scorer_rhythm_met = ScorerRhythmMetricsFour
-
-    # if sh.ternary():
-    #     Lyrics.MIN_LENGTH = 7 # changes class attribute
-    # else:
-    #     Lyrics.MIN_LENGTH = 5
+    if music.ternary(meter):
+        rhythm_prod: type = TernaryRhythm
+        scorer_rhythm_met: type = ScorerRhythmMetricsTernary
+        min_lyrics: int = 7
+    else:
+        rhythm_prod = BinaryRhythm
+        scorer_rhythm_met = ScorerRhythmMetricsFour
+        min_lyrics = 5
 
     # ------------------------------------------------------
     # block scheduling
 
     sh.add_vp('rhy', Duration)
-    sh.add_vp('lyr', Syllable, before=['rhy'], lead_name='rhy', use_copy=False)
-    sh.add_vp('schemata', Schema, lead_name='rhy', gapless=False)
-    sh.add_vp('chords', Chord, lead_name='rhy')
-    sh.add_vp('pitchGridT', Pitch, lead_name='rhy')
-    sh.add_vp('fillInT', Pitch, use_copy=False)
-    sh.add_vp('pitchGridB', Pitch, lead_name='rhy')
-    sh.add_vp('pitchGridS', Pitch, lead_name='rhy')
-    sh.add_vp('pitchGridA', Pitch, lead_name='rhy')
+    sh.add_vp('lyr', Syllable, before=['rhy'], lead_name='rhy')
+    sh.add_vp('chords', Chord, lead_name='rhy', use_copy=False)
+    sh.add_vp('pitchGridT', Pitch, lead_name='rhy', use_copy=False)
+    sh.add_vp('pitchGridB', Pitch, lead_name='rhy', use_copy=False)
+    sh.add_vp('pitchGridS', Pitch, lead_name='rhy', use_copy=False)
+    sh.add_vp('pitchGridA', Pitch, lead_name='rhy', use_copy=False)
+    sh.add_vp('fillInT', Note, use_copy=False)
     sh.add_vp('fillInB', Note, use_copy=False)
     sh.add_vp('fillInS', Note, use_copy=False)
     sh.add_vp('fillInA', Note, use_copy=False)
@@ -128,55 +102,48 @@ def gen_sacred(lyr_path: str, struct: StructureNode) -> ur.Model:
     sh.setup()
 
     # content generation: add producers to viewpoints
-    sh.set_structure(struct)
-    set_lyrics(sh['lyr'], lyr)
+    sh.set_structure(struc)
 
-    sh.add_producer(Rhythm(meter), 'rhy', default=True)
+    sh.add_producer(Lyrics(min_lyrics), 'lyr', default=True) 
+    sh.add_producer(rhythm_prod(), 'rhy', default=True)
     sh.add_producer(chords_prod(), 'chords', default=True)
     sh.add_producer(melody_t_prod(key), 'pitchGridT', default=True)
     sh.add_producer(melody_b_prod(key), 'pitchGridB', default=True)
     sh.add_producer(melody_s_prod(key), 'pitchGridS', default=True)
     sh.add_producer(melody_a_prod(key), 'pitchGridA', default=True)
-    sh.add_producer(Cadences(), 'schemata', fixedness=1.0)
-    sh.add_producer(CadenceChords(mode), 'chords', 'schemata', fixedness=0.9)
-    sh.add_producer(CadencePitches(mode, 'T'), 'pitchGridT', 'schemata', fixedness=0.9)
-    sh.add_producer(CadencePitches(mode, 'B'), 'pitchGridB', 'schemata', fixedness=0.9)
-    sh.add_producer(CadencePitches(mode, 'S'), 'pitchGridS', 'schemata', fixedness=0.9) 
-    sh.add_producer(CadencePitches(mode, 'A'), 'pitchGridA', 'schemata', fixedness=0.9)
-    sh.add_producer(Flourisher(), 'fillInT', 'rhy', 'pitchGridT', 'schemata', default=True)
-    sh.add_producer(Flourisher(), 'fillInB', 'rhy', 'pitchGridB', 'schemata', default=True)
-    sh.add_producer(Flourisher(), 'fillInS', 'rhy', 'pitchGridS', 'schemata', default=True)
-    sh.add_producer(Flourisher(), 'fillInA', 'rhy', 'pitchGridA', 'schemata', default=True)
+    sh.add_producer(FlourisherTenor(meter), 'fillInT', 'rhy', 'pitchGridT', default=True)
+    sh.add_producer(FlourisherBass(meter), 'fillInB', 'rhy', 'pitchGridB', default=True)
+    sh.add_producer(Flourisher(meter), 'fillInS', 'rhy', 'pitchGridS', default=True)
+    sh.add_producer(Flourisher(meter), 'fillInA', 'rhy', 'pitchGridA', default=True)
 
     # equip viewpoints with evaluators
     sh.add_evaluator(ScorerFunc(), 'chords')
 
-    sh.add_evaluator(MelodyHarm('T'), 'pitchGridT', 'chords')
-    sh.add_evaluator(ScorerMelody(), 'pitchGridT', weight=2)
+    sh.add_evaluator(ScorerMelodyHarm('T'), 'pitchGridT', 'chords', weight=2)
+    sh.add_evaluator(ScorerMelody(), 'pitchGridT')
+    #sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridT', weight=10)
 
-
-    sh.add_evaluator(MelodyHarm('B'), 'pitchGridB', 'chords')
-    sh.add_evaluator(ScorerMelody(), 'pitchGridT', weight=4)
+    sh.add_evaluator(ScorerMelodyHarmRoot(), 'pitchGridB', 'chords', weight=4)
     sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridT', 'pitchGridB')
-    # sh.add_evaluator(ScorerMelodyMelodyBelow, 'pitchGridB', 'pitchGridT')
+    sh.add_evaluator(ScorerMelodyMelodyBelow(), 'pitchGridT', 'pitchGridB')
 
-    sh.add_evaluator(MelodyHarm('S'), 'pitchGridS', 'chords')
-    sh.add_evaluator(ScorerMelodySA(), 'pitchGridS', weight=4)
+    sh.add_evaluator(ScorerMelodyHarm('S'), 'pitchGridS', 'chords', weight=4)
+    sh.add_evaluator(ScorerMelodySA(), 'pitchGridS', weight=2)
     sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridS', 'pitchGridT')
     sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridS', 'pitchGridB')
-    # sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridS', weight=10)
+    #sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridS', weight=10)
 
-    sh.add_evaluator(MelodyHarm('A'), 'pitchGridA', 'chords')
+    sh.add_evaluator(ScorerMelodyHarm('A'), 'pitchGridA', 'chords', weight=8)
     sh.add_evaluator(ScorerMelodySA(), 'pitchGridA', weight=4)
     sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridA', 'pitchGridT')
     sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridA', 'pitchGridB')
     sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridS', 'pitchGridA')
-    # sh.add_evaluator(ScorerMelodyMelodyCross, 'pitchGridA', 'pitchGridS', 10)
-    # sh.add_evaluator(ScorerMelodyMelodyCross, 'pitchGridA', 'pitchGrid', 10)
-    # sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridA', weight=10)
+    sh.add_evaluator(ScorerMelodyMelodyCross(), 'pitchGridA', 'pitchGridS', weight=10)
+    sh.add_evaluator(ScorerMelodyMelodyCross(), 'pitchGridA', 'pitchGridT', weight=10)
+    #sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridA', weight=10)
 
     sh.add_evaluator(ScorerRhythmLyrics(), 'rhy', 'lyr')
-    sh.add_evaluator(ScorerRhythmMetrics(meter), 'rhy')
+    sh.add_evaluator(scorer_rhythm_met(), 'rhy')
     
     print()
 
@@ -194,6 +161,6 @@ if __name__ == '__main__':
 
     lyr_path: str = os.path.join(os.getcwd(), "data/lyrics/56b_Villulia.txt")
 
-    sh: ur.Model = gen_sacred(lyr_path, struc1)
+    sh: ur.Model = gen_sacred()
 
-    sh.export('test','Villulia recomposed', 'lyr', ['fillInS', 'fillInA', 'fillInT', 'fillInB'], ['chords'], False)
+    sh.export('gen', 'SH meets HH', 'lyr', ['fillInS', 'fillInA', 'fillInT', 'fillInB'], ['chords'], False)

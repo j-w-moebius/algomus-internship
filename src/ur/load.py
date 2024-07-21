@@ -45,7 +45,7 @@ def fill_in_from_part(mel: Part) -> List[Note]:
     notes: List[Note] = []
 
     for n in mel.notes:
-        notes.append(Note(n.duration.quarterLength, n.pitch.nameWithOctave))
+        notes.append(Note(Duration(n.duration.quarterLength), Pitch(n.pitch.nameWithOctave)))
         
     return notes
 

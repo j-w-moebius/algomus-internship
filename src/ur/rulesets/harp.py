@@ -11,16 +11,11 @@ import tools
 from typing import Optional, List, Dict, Tuple
 from collections import defaultdict
 import random
-from trees import StructureNode
+from trees import StructureNode, RefinementNode
 
 import nonchord
 
-STRUCTURE_LEVELS: Dict[str, int] = {
-    'piece': 0,
-    'section': 1,
-    'phrase': 2,
-    'motif': 3
-}
+
 
 VOICE_POSITIONS: Dict[str, int] = {
     'B': 0,
@@ -32,33 +27,72 @@ VOICE_POSITIONS: Dict[str, int] = {
 STRESS_WORDS: List[str] = ['Lord', 'God', 'Christ', 'Son']
 
 struc1: StructureNode = \
-        StructureNode(0.0, 48.0, "ALL", [
-            StructureNode(0.0, 24.0, "A", [
-                StructureNode(0.0, 12.0, "A.1", [
-                    StructureNode(0.0, 6.0, "a"),
-                    StructureNode(6.0, 12.0, "b")
-                ]),
-                StructureNode(12.0, 24.0, "A.2", [
-                    StructureNode(0.0, 6.0, "c"),
-                    StructureNode(6.0, 12.0, "d")
-                ])
-            ]),
-            StructureNode(24.0, 48.0, "B", [
-                StructureNode(0.0, 12.0, "B.1", [
-                    StructureNode(0.0, 6.0, "e"),
-                    StructureNode(6.0, 12.0, "b\'")
-                ]),
-                StructureNode(12.0, 24.0, "B.2", [
-                    StructureNode(0.0, 6.0, "a\'"),
-                    StructureNode(6.0, 12.0, "f")
-                ])
-            ])
-        ])
+    StructureNode(0.0, 5.0, 'ALL', [
+        StructureNode(0.0, 1.0, 'A'),
+        StructureNode(1.0, 2.0, 'B'),
+        StructureNode(2.0, 3.0, '~'),
+        StructureNode(3.0, 4.0, 'A\''),
+        StructureNode(4.0, 5.0, 'Z')
+    ])
+
+struc2: StructureNode = \
+    StructureNode(0.0, 5.0, 'ALL', [
+        StructureNode(0.0, 1.0, 'A'),
+        StructureNode(1.0, 2.0, 'B'),
+        StructureNode(2.0, 3.0, '~'),
+        StructureNode(3.0, 4.0, 'B\''),
+        StructureNode(4.0, 5.0, 'Z')
+    ])
+
+struc3: StructureNode = \
+    StructureNode(0.0, 6.0, 'ALL', [
+        StructureNode(0.0, 1.0, 'A'),
+        StructureNode(1.0, 2.0, '~1'),
+        StructureNode(2.0, 3.0, 'A\''),
+        StructureNode(3.0, 4.0, 'Z'),
+        StructureNode(4.0, 5.0, '~2'),
+        StructureNode(5.0, 6.0, 'Z\'')
+    ])
+
+struc4: StructureNode = \
+    StructureNode(0.0, 8.0, 'ALL', [
+        StructureNode(0.0, 1.0, 'A'),
+        StructureNode(1.0, 2.0, '~1'),
+        StructureNode(2.0, 3.0, 'A\''),
+        StructureNode(3.0, 4.0, 'B'),
+        StructureNode(4.0, 5.0, '~2'),
+        StructureNode(5.0, 6.0, 'Z'),
+        StructureNode(6.0, 7.0, '~3'),
+        StructureNode(7.0, 8.0, 'Z\'')
+    ])
 
 
-# class Lyrics(ur.ItemLyricsChoiceFiles):
-#     FILES = glob.glob('data/lyrics-s/*.txt')
-#     STRESS_WORDS = ['Lord', 'God', 'Christ', 'Son']
+class Lyrics(ur.RandomChoice[m.Syllable]):
+    
+    FILES = glob.glob('data/lyrics-s/*.txt')
+    STRESS_WORDS = ['Lord', 'God', 'Christ', 'Son']
+
+    OUT_COUNT = ur.Interval(4)
+
+    DISPATCH_BY_NODE = True
+
+    def applies_to(self, node: ur.RefinementNode) -> bool:
+        return node.is_leaf
+
+    def __init__(self, min_length: int):
+        self.CHOICES = []
+        self.OUT_COUNT.min = min_length
+        for f in self.FILES:
+            for l in open(f, encoding='utf-8').readlines():
+                text = l.replace('-', ' -').strip() + '/'
+                words: List[m.Syllable] = []
+                for w in text.split():
+                    for ww in self.STRESS_WORDS:
+                        if ww in w:
+                            w = '!' + w
+                    words.append(m.Syllable(w))
+                if len(words) >= min_length:
+                    self.CHOICES += [words]
 
 
 # class HHLyrics(ur.ItemLyricsChoiceFiles):
@@ -71,13 +105,44 @@ struc1: StructureNode = \
 class Key:
      CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4']
 
-class ChordsMajor(ur.HiddenMarkov[m.Chord]):
+class ChordMarkov(ur.HiddenMarkov[m.Chord]):
 
+    # structure-dependent initial and final states
+    INITIAL_S: Dict[str, List[str]]
+    FINAL_S: Dict[str, List[str]]
+
+    DISPATCH_BY_NODE = True
+    NEEDS_NODE_ARGS = True
+
+    def applies_to(self, node: ur.RefinementNode) -> bool:
+        return node.is_leaf
+
+    def get_node_args(self, node: RefinementNode) -> list:
+        return [node.name[0]]
+
+    def set_to_struct(self, struct: str):
+        try:
+            self.INITIAL = self.INITIAL_S[struct]
+            self.FINAL = self.FINAL_S[struct]
+        except AttributeError:
+            pass
+
+    def produce(self, pre_context: List[m.Chord], post_context: List[m.Chord], len_to_gen: ur.Interval, struct: str) -> List[m.Chord]:
+        self.set_to_struct(struct)
+        return super().produce(pre_context, post_context, len_to_gen)
+
+class ChordsMajor(ChordMarkov):
+
+    DISPATCH_BY_NODE = True
+
+    def applies_to(self, node: ur.RefinementNode) -> bool:
+        return node.is_leaf
 
     SOURCE = '(Kelley 2016)'
 
     STATES = ['i', 'T', 'S', 'D']
     INITIAL = ['i']
+    FINAL = ['i']
 
     TRANSITIONS = {
         'i': { 'i': 0.62, 'T': 0.10, 'S': 0.09, 'D': 0.18 },
@@ -93,12 +158,13 @@ class ChordsMajor(ur.HiddenMarkov[m.Chord]):
         'D': defaultdict(float, {'iii': 0.21, 'V': 0.72, 'vii': 0.07}),
     }
 
-class ChordsMinor(ur.HiddenMarkov[m.Chord]):
+class ChordsMinor(ChordMarkov):
 
     SOURCE = '(Kelley 2016)'
 
     STATES = ['T', 'S', 'D']
     INITIAL = ['T']
+    FINAL = ['T']
 
     TRANSITIONS = {
         'T': { 'T': 0.53, 'S': 0.08, 'D': 0.39 },
@@ -113,10 +179,17 @@ class ChordsMinor(ur.HiddenMarkov[m.Chord]):
     }
 
 
-class ChordsExtended(ChordsMinor):
+class ChordsMinorExtended(ChordsMinor):
 
     STATES = ['i', 'j', 'T', 'S', 'D']
-    INITIAL = ['i']
+    INITIAL_S = defaultdict(lambda: ['j'], {
+                 'B': ['T', 'S', 'D'],
+                 'Z': ['S', 'D'],
+                 })
+    FINAL_S = defaultdict(lambda: ['i'], {
+               'A': ['i', 'D', 'S'],
+               'B': ['i', 'D', 'S'],
+               })
 
 
     TRANSITIONS = {
@@ -142,77 +215,69 @@ class Rhythm(ur.RandomizedProducer):
 
     OUT_COUNT = ur.Interval(1)
     NEEDS_LEN = True
-    NEEDS_DURATION = True
 
-    CADENCE_DUR = {
-        '3/4': [1.0, 3.0],
-        '4/4': [1.0, 4.0],
-        '6/8': [0.5, 3.0]
-    }
-
-    ITEMS: Dict[str, List[Tuple[List[float], float]]] = {
-        '3/4': [([2.0], 0.2),
-                ([1.0], 0.4),
-                ([0.5, 0.5], 0.2),
-                ([1.5, 0.5], 0.2)],
-        '4/4': [([2.0], 0.03),
-                ([1.0], 0.7),
-                ([0.5, 0.5], 0.20),
-                ([0.75, 0.25], 0.05),
-                ([1.5, 0.5], 0.05)],
-        '6/8': [([3.0], 0.30),
-                ([1.5], 0.40),
-                ([2.0, 0.5, 0.5], 0.10),
-                ([1.0, 0.5], 0.45),
-                ([0.5, 0.5, 0.5], 0.30)]               
-               # ('8. 16 16 16', 0.02),
-               # ('8. 16 8', 0.15)]
-    }
-
-    METER: str
-
-    def __init__(self, meter: str):
-        self.METER = meter
-        self.cadence_dur: List[float] = self.CADENCE_DUR[meter]
-        self.items: List[Tuple[List[float], float]] = self.ITEMS[meter]
+    ITEMS: List[Tuple[str, float]]
+    ITEMS_LAST: List[Tuple[str, float]]
 
     def applies_to(self, node: ur.RefinementNode) -> bool:
         return node.is_leaf
 
-    def get_node_args(self, node: ur.RefinementNode) -> list:
-        # return whether the node is the end of a section
-        ptr: ur.RefinementNode = node
-        while ptr.depth != STRUCTURE_LEVELS['section']:
-            ind: int = ptr.parent.children.index(ptr)
-            if len(ptr.parent.children[ind + 1:]) > 0:
-                return [False]
-            ptr = ptr.parent
-        return [True]
+    def items(self, i, n):
+        if i == n-1:
+            try:
+                return self.ITEMS_LAST
+            except AttributeError:
+                pass
+        return self.ITEMS
 
-    def produce(self, len_to_gen: ur.Interval, dur_to_gen: float, end_of_section: bool) -> List[m.Duration]:
-        # we're only dealing with fix-sized output
-        assert len_to_gen.min == len_to_gen.max
-        target_len: int = len_to_gen.min - len(self.cadence_dur) if end_of_section else len_to_gen.min
-        target_dur: float = dur_to_gen - sum(self.cadence_dur) if end_of_section else dur_to_gen
-        result: List[m.Duration] = []
+    def produce(self, len_to_gen: ur.Interval) -> List[m.Duration]:
 
-        # extremely inefficient, but the whole point is the model, not the algos for the rules
-        while sum(result) != target_dur or len(result) != target_len:
-            result = []
-            while len(result) < target_len:
-                result += [m.Duration(d) for d in tools.pwchoice(self.items)]
+        assert len_to_gen.max == len_to_gen.min
+        rhy: List[str] = [] 
+        i = 0
+        while i < len_to_gen.min:
+            nn = 0
+            while i + nn > len_to_gen.min or (not nn):
+                # Do not generate a last thing that goes beyond n
+                its = tools.pwchoice(self.items(i, len_to_gen.min)).split()
+                nn = len(its)
+            rhy += its
+            i += nn
+        return [m.Duration(d) for d in rhy]
 
-        if end_of_section:
-            result += [m.Duration(d) for d in self.cadence_dur]
+class BinaryRhythm(Rhythm):
+    ITEMS_LAST = [
+        ('2', 0.8),
+        ('4', 0.5),
+    ]
+    ITEMS = [
+                ('2', 0.03),
+                ('4', 0.7),
+                ('8 8', 0.20),
+                ('8. 16', 0.05),
+                ('4. 8', 0.05),
+            ]
 
-        assert sum(result) == dur_to_gen
-        assert len(result) >= len_to_gen.min and len(result) >= len_to_gen.max
 
-        return result
+class TernaryRhythm(Rhythm):
+    ITEMS_LAST = [
+        ('1.', 0.2),
+        ('2.', 0.8),
+        ('4.', 0.5),
+    ]
+    ITEMS = [
+                ('2.', 0.30),
+                ('4.', 0.40),
+                ('2 8 8', 0.10),
+                ('4 8', 0.45),
+                ('8 8 8', 0.30),
+                # ('4 16 16', 0.04),
+                # ('8 8 16 16', 0.04),
+                ('8. 16 16 16', 0.02),
+                # ('8 16 16 8', 0.01),
+                ('8. 16 8', 0.15),
+            ]
 
-
-# class Melody0(ur.ItemSequence):
-#     ITEMS = 'cdefgab'
 
 class MelodyMajorS(ur.PitchMarkov):
     AMBITUS = ('C4', 'A5')
@@ -456,6 +521,8 @@ class MelodyMinorB(ur.PitchMarkov):
 
 class ScorerMelody(ur.Scorer):
 
+    ALLOW_OUTSIDE = False
+
     ARGS = [(m.Pitch, ur.Interval(1))]
 
     AMBITUS_LOW = 5
@@ -478,8 +545,6 @@ class ScorerMelody(ur.Scorer):
                 continue
             i1 = m.interval(a,b)
             i2 = m.interval(b,c)
-            if abs(i1) > 9 and abs(i1) != 12:
-                score -=5.0 # TODO: arbitrary hack
             # Large intervals, then short contrary motion
             if i1 > 7 and i2 in [-1, -2]:
                 score += 0.2
@@ -493,20 +558,22 @@ class ScorerMelody(ur.Scorer):
         return score
 
 
-# class ScorerSectionsMelodyT(ur.ScorerOne):
+class ScorerSectionsMelodyT(ur.Scorer):
+    ARGS = [(m.Pitch, ur.Interval(1))]
 
-#     # Target some mean pitch, according to section
-#     # Not used now, RelativeScorerSectionMelody is better
-#     TARGET = {
-#         'A': (50, 57), 'a': (59, 70),
-#         'B': (59, 70), 'b': (50, 57),
-#         None: (50, 70),
-#     }
+    # Target some mean pitch, according to section
+    # Not used now, RelativeScorerSectionMelody is better
+    TARGET = {
+        'A': (50, 58), 'A\'': (62, 70),
+        'B': (52, 70), 'B\'': (50, 58),
+        'Z': (50, 62), 'Z\'': (63, 70),
+        None: (50, 70),
+    }
 
-#     def score_item(self, gen, _, struct):
-#         mean = music.mean(gen.one)
-#         tdown, tup = self.TARGET[struct] if struct in self.TARGET else self.TARGET[None]
-#         return -tools.distance_to_interval(mean, tdown, tup)
+    def score(self, mel: List[m.Pitch], struct: str):
+        mean = m.pitch_mean(mel)
+        tdown, tup = self.TARGET[struct] if struct in self.TARGET else self.TARGET[None]
+        return -tools.distance_to_interval(mean, tdown, tup)
 
 # class RelativeScorerSectionMelody(ur.Scorer, ur.RelativeScorerSection):
 #     ''' Relative Scorer for mean pitch in melody
@@ -525,6 +592,7 @@ class ScorerMelody(ur.Scorer):
 
 class ScorerFunc(ur.Scorer):
     ARGS = [(m.Chord, ur.Interval(1))]
+    ALLOW_OUTSIDE = False
 
     def score(self, chords: List[m.Chord]):
 
@@ -545,106 +613,119 @@ class ScorerMelodySA(ScorerMelody):
     AMBITUS_GOOD = 5
 
 
+S2 = {
+        '1': 2, '2': 2, '2.': 2, '4.': 2, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 2, '8 8': 0, '8. 16': 2,
+        '1.': 2, '2.': 2, '4.': 2, '8 8 8': 0, '8. 16 8': 0, '4 8': 0, '2 8 8': 0, '4 16 16': 0, '8 8 16 16': 0, '8 16 16 8': 0,
+     }
 S1 = {
-        1.0: 0, 2.0: 1, 3.0: 2
+        '1': 2, '2': 2, '2.': 2, '4.': 1, '8.': 1, '4': 1, '8': 0, '16': 0, '4. 8': 1, '8 8': 0, '8. 16': 1,
+        '1.': 0, '2.': 2, '4.': 2, '8 8 8': 0, '8. 16 8': 2, '4 8': 2, '2 8 8': 2, '4 16 16': 2, '8 8 16 16': 1, '8 16 16 8': 2,
      }
-
 S0 = {
-        1.0: 2, 2.0: 1, 3.0: 0
-     }
+        '1': 0, '2': 0, '2.': 0, '4.': 0, '8.': 0, '4': 1, '8': 1, '16': 1, '4. 8': 0, '8 8': 1, '8. 16': 0,
+        '1.': 0, '2.': 0, '4.': 1, '8 8 8': 1, '8. 16 8': 0, '4 8': 1, '2 8 8': 0, '4 16 16': 0, '8 8 16 16': 1, '8 16 16 8': 1,
+      }
 
 class ScorerRhythmLyrics(ur.Scorer):
 
     ARGS = [(m.Duration, ur.Interval(1,1)),
             (m.Syllable, ur.Interval(1,1))]
 
+    ALLOW_OUTSIDE = False
+
     STRESSES = [
-        ('!', S1),
+        ('!', S2),
         ('>>', S1),
         ('>',  S1),
-        ('/', S1),
 
-        #('-', S0),
+        ('/', S1),
+        ('.', S1),
+
+        (';', S1),
+        (',', S1),
+
         ('',  S0),
     ]
+
 
     def score(self, rhy: List[m.Duration], lyr: List[m.Syllable]):
         d: m.Duration = rhy[0]
         s: m.Syllable = lyr[0]
         for (symbol, scores) in self.STRESSES:
             if symbol in s:
-                if d in scores:
-                    return scores[d]
+                if d.notated in scores:
+                    return scores[d.notated]
         return 0
 
 
-class ScorerRhythmMetrics(ur.Scorer):
+class ScorerRhythmMetricsFour(ur.Scorer):
     
     ARGS = [(m.Duration, ur.Interval(1))]
-    NEEDS_START = True
 
-    METER: str
+    ALLOW_OUTSIDE = False
 
-    def __init__(self, meter: str):
-        self.METER = meter
-        self.qpb: float = m.quarters_per_bar(meter)
-
-    def score(self, rhy: List[m.Duration], start: ur.Index) -> float:
+    def score(self, rhy: List[m.Duration]) -> float:
         score: float = 0.0
 
-        pos: float = start.relative_q() % self.qpb
+        pos: int = 0
         for r in rhy:
-            d = r.quarter_length()
-            # penalize bar-crossing ties
-            if pos + d > self.qpb:
+            d = int(r.quarter_length())
+            if pos + d > 4:
+                score -= .5
+            if d > 1 and pos == 1:
                 score -= .2
-            # if d > 1 and pos == 1:
-            #     score -= .2
-            # if d == 1 and r != '4' and pos == 3:
-            #     score += .2
-            pos = (pos + d) % self.qpb
+            if d == 1 and r != '4' and pos == 3:
+                score += .2
+            pos = (pos + d) % 4
+
+        if pos in [0, 2]:
+            score -= .5
+
+        return score
+
+class ScorerRhythmMetricsTernary(ur.Scorer):
+
+    ARGS = [(m.Duration, ur.Interval(1))]
+
+    ALLOW_OUTSIDE = False
+
+    def score(self, rhy: List[m.Duration]) -> float:
+        score: float = 0.0
+
+        pos: float = 0.0
+        for r in rhy:
+            d: float = int(r.quarter_length()*2)/2
+            if pos + d > 3:
+                score -= .5
+            if d > 1.5 and pos == 1.5:
+                score -= .2
+            #if d > 1.5 and pos == 0:
+            #    score += .2
+            #if d == 1.5 and r != '4' and pos == 3:
+            #    score += .2
+            pos = (pos + d) % 3
 
         # if pos in [0, 2]:
-        #     score -= .5
+        #    score -= .5
 
         return score
 
 
-# class ScorerRhythmMetricsTernary(ur.ScorerOne):
-
-#     def score_item(self, gen, _, __):
-#         score = 0
-
-#         # music.duration(gen.one)
-#         pos = 0
-#         for r in gen.one:
-#             d = int(music.duration(r)*2)/2
-#             if pos + d > 3:
-#                 score -= .5
-#             if d > 1.5 and pos == 1.5:
-#                 score -= .2
-#             #if d > 1.5 and pos == 0:
-#             #    score += .2
-#             #if d == 1.5 and r != '4' and pos == 3:
-#             #    score += .2
-#             pos = (pos + d) % 3
-
-#         # if pos in [0, 2]:
-#         #    score -= .5
-
-#         return score
 
 
-
-
-class MelodyHarm(ur.Constraint):#(ur.ScorerTwoSequence):
+class ScorerMelodyHarm(ur.Scorer):#(ur.ScorerTwoSequence):
 
     ARGS = [(m.Pitch, ur.Interval(1,1)),
             (m.Chord, ur.Interval(1,1))]
 
+    ALLOW_OUTSIDE = False
+
     # bottom-up index of voice in four-part setting
     POSITION: int
     FIXED_POSITION: List[m.Chord] = [ '*i9', '*III7', '*iv9']
+
+    NEEDS_START = True
+    NEEDS_NODE_ARGS = True
 
     CHORDS: Dict[m.Chord, str]= {
         'I': 'ceg',
@@ -687,97 +768,129 @@ class MelodyHarm(ur.Constraint):#(ur.ScorerTwoSequence):
             raise RuntimeError(f"Voice must be one of {' ,'.join(VOICE_POSITIONS.keys())}!")
         self.POSITION = VOICE_POSITIONS[voice]
 
-    def valid(self, mel: List[m.Pitch], chords: List[m.Chord]) -> float:
+    def get_node_args(self, node: RefinementNode) -> List[int]:
+        return [node.start.relative_p(), node.end.relative_p()]
+
+    def score_first_last(self, p: m.Pitch, c: m.Chord) -> float:
+        if p in self.CHORDS[c]:
+            return 1.0
+        else:
+            return -20
+
+    def score_last(self, p: m.Pitch, c: m.Chord) -> float:
+        return self.score_first_last(p, c)
+
+    def score_first(self, p: m.Pitch, c: m.Chord) -> float:
+        return self.score_first_last(p, c)
+
+    def score(self, mel: List[m.Pitch], chords: List[m.Chord], window_start: ur.Index, node_start: int, node_end: int) -> float:
 
         # print (mel, harm, self.CHORDS[harm])
-        pc: m.Pitch = mel[0].pc()
+        pc: str = mel[0].pc()
         chord: m.Chord = chords[0]
-        return pc in self.CHORDS[chord]
 
-        # SCORER variant
-        # # print (mel, harm, self.CHORDS[harm])
-        # pc: m.Pitch = mel[0].pc()
-        # chord: m.Chord = chords[0]
-        # if pc in self.CHORDS[chord]:
-        #     ind = self.CHORDS[chord].index(pc)
-        #     if self.POSITION and chord in self.FIXED_POSITION:
-        #         if ind == self.POSITION:
-        #             return 20.0
-        #     if ind in self.SCORES:
-        #         return self.SCORES[ind]
-        #     else:
-        #         return self.SCORES[None]
-        # else:
-        #     return self.SCORES[None]
+        if window_start.relative_p() == node_start:
+            return self.score_first(pc, chord)
+        elif window_start.relative_p() == node_end - 1:
+            return self.score_last(pc, chord)
+
+        if pc in self.CHORDS[chord]:
+            ind = self.CHORDS[chord].index(pc)
+            if chord in self.FIXED_POSITION:
+                if ind == self.POSITION:
+                    return 20.0
+            if ind in self.SCORES:
+                return self.SCORES[ind]
+            else:
+                return self.SCORES[None]
+        else:
+            return self.SCORES[None]
 
 
-    # def score_first_last_element(self, mel, harm):
-    #     if mel[0].lower() in self.CHORDS[harm]:
-    #         return 1.0
-    #     else:
-    #         return -20
 
-# class ScorerMelodyMelodyBelow(ur.ScorerTwoSequence):
-#     def score_element(self, mel1, mel2):
-#         if music.interval(mel1, mel2) < 0:
-#             return 0.0
-#         return 0.2
+class ScorerMelodyMelodyBelow(ur.Scorer):
 
-# class ScorerMelodyMelodyAbove(ur.ScorerTwoSequence):
-#     def score_element(self, mel1, mel2):
-#         if music.interval(mel1, mel2) > 0:
-#             return 0.0
-#         return 0.2
+    ARGS = [(m.Pitch, ur.Interval(1,1)),
+            (m.Pitch, ur.Interval(1,1))]
 
-# class ScorerMelodyMelodyCross(ur.ScorerTwoSequenceAllPairs):
-#     '''Rewards melody crossings, particularly those of length >= 3
-#     '''
+    ALLOW_OUTSIDE = False
 
-#     CROSS = {
-#         0: 0.0,
-#         1: 0.5,
-#         2: 1.0,
-#         3: 1.0,
-#         4: 0.0,
-#         None: 0.0
-#     }
+    def score(self, mel1: List[m.Pitch], mel2: List[m.Pitch]) -> float:
+        p1: m.Pitch = mel1[0]
+        p2: m.Pitch = mel2[0]
+        if m.interval(p1, p2) < 0:
+            return 0.0
+        return 0.2
 
-#     LONGCROSS = {
-#         0: 0.0,
-#         1: 1.0,
-#         2: 1.0,
-#         3: 1.0,
-#         None: 0.0
-#     }
+class ScorerMelodyMelodyAbove(ur.Scorer):
 
-#     def score_all_pairs(self, mel1mel2):
-#         crossings = 0
-#         long_crossings = 0 # at least three notes
-#         ss = 0 # sign of last seen interval
-#         ii = 0 # index of last crossing
+    ARGS = [(m.Pitch, ur.Interval(1,1)),
+            (m.Pitch, ur.Interval(1,1))]
 
-#         # Count the number of crossings
-#         for (i, (n1, n2)) in enumerate(mel1mel2):
-#             s = math.copysign(1, music.interval(n1, n2))
-#             if s:
-#                 if ss and ss != s:
-#                     crossings += 1
-#                     if i >= ii + 3:           # ?? ignoring natural voice order
-#                         long_crossings += 1
-#                     ii = i
-#                 ss = s
+    ALLOW_OUTSIDE = False
 
-#         # Score
-#         score = self.CROSS[crossings] if crossings in self.CROSS else self.CROSS[None]
-#         score += self.LONGCROSS[long_crossings] if long_crossings in self.LONGCROSS else self.LONGCROSS[None]
+    def score(self, mel1: List[m.Pitch], mel2: List[m.Pitch]) -> float :
+        p1: m.Pitch = mel1[0]
+        p2: m.Pitch = mel2[0]
+        if m.interval(p1, p2) > 0:
+            return 0.0
+        return 0.2
 
-#         return score
+class ScorerMelodyMelodyCross(ur.Scorer):
+    '''Rewards melody crossings, particularly those of length >= 3
+    '''
+    ARGS = [(m.Pitch, ur.Interval(1)),
+            (m.Pitch, ur.Interval(1))]
+
+    ALLOW_OUTSIDE = False
+
+    CROSS = {
+        0: 0.0,
+        1: 0.5,
+        2: 1.0,
+        3: 1.0,
+        4: 0.0,
+        None: 0.0
+    }
+
+    LONGCROSS = {
+        0: 0.0,
+        1: 1.0,
+        2: 1.0,
+        3: 1.0,
+        None: 0.0
+    }
+
+    def score(self, mel1: List[m.Pitch], mel2: List[m.Pitch]) -> float:
+        crossings = 0
+        long_crossings = 0 # at least three notes
+        ss = 0 # sign of last seen interval
+        ii = 0 # index of last crossing
+
+        # Count the number of crossings
+        for (i, (p1, p2)) in enumerate(zip(mel1, mel2)):
+            s = int(math.copysign(1, m.interval(p1, p2)))
+            if s:
+                if ss and ss != s:
+                    crossings += 1
+                    if i >= ii + 3:           # ?? ignoring natural voice order
+                        long_crossings += 1
+                    ii = i
+                ss = s
+
+        # Score
+        score = self.CROSS[crossings] if crossings in self.CROSS else self.CROSS[None]
+        score += self.LONGCROSS[long_crossings] if long_crossings in self.LONGCROSS else self.LONGCROSS[None]
+
+        return score
 
 
 class ScorerMelodyMelody(ur.Scorer):
 
     ARGS = [(m.Pitch, ur.Interval(2,2)),
             (m.Pitch, ur.Interval(2,2))]
+
+    ALLOW_OUTSIDE = False
 
     def score(self, mel1: List[m.Pitch], mel2: List[m.Pitch]) -> float:
 
@@ -793,240 +906,195 @@ class ScorerMelodyMelody(ur.Scorer):
 
         return 1.0
 
-# class ScorerMelodyHarmRoot(ScorerMelodyHarm):
+class ScorerMelodyHarmRoot(ScorerMelodyHarm):
 
-#     '''Favors 5 and 6, but still allows 6 and 64'''
-#     SCORES = {
-#         None: -5.0,
-#         0: 5.0,
-#         1: 1.0,
-#         2: 0.5,
-#     }
-
-#     '''Last element has to be 5'''
-#     def score_last_element(self, mel, harm):
-#         if mel[0].lower() == self.CHORDS[harm][0]:
-#             return 0.0
-#         else:
-#             return -20.0
-
-# class ScorerFifthInBass(ScorerMelodyHarm):
-#     SCORES = {
-#         None: -5.0,
-#         0: 0.2,
-#         1: 0.2,
-#         2: 1.0,
-#     }
-
-#     def score_element(self, mel, harm):
-        
-#         if mel[0].lower() in self.CHORDS[harm]:
-#             i = self.CHORDS[harm].index(mel[0].lower())
-#             return self.SCORES[i]
-#         else:
-#             return self.SCORES[None]
-
-class CadencePitches(ur.Enumerator):
-
-    ARGS = [(m.Schema, ur.Interval(2,2))]
-
-    OUT_COUNT = ur.Interval(2,2)
-
-    SOURCE = '(Kelley 2009)'
-
-    MODE: str
-    POSITION: int
-    CADENCES: Dict[str, [Dict[int, List[List[m.Pitch]]]]] = {
-        'major': {
-            0: [[m.Pitch('G3'), m.Pitch('C3')],
-                [m.Pitch('G3'), m.Pitch('C4')]],
-            1: [[m.Pitch('D4'), m.Pitch('C4')]],
-            2: [[m.Pitch('G4'), m.Pitch('G4')]],
-            3: [[m.Pitch('D5'), m.Pitch('E5')],
-                [m.Pitch('D5'), m.Pitch('C5')]],
-        },
-        'minor': {
-            0: [[m.Pitch('E3'), m.Pitch('A3')],
-                [m.Pitch('E3'), m.Pitch('A2')],
-                [m.Pitch('G3'), m.Pitch('A3')]],
-            1: [[m.Pitch('B3'), m.Pitch('A3')],
-                [m.Pitch('D4'), m.Pitch('E4')]],
-            2: [[m.Pitch('E4'), m.Pitch('E4')],
-                [m.Pitch('G4'), m.Pitch('E4')]],
-            3: [[m.Pitch('G5'), m.Pitch('E5')],
-                [m.Pitch('D5'), m.Pitch('E5')]],
-        }
+    '''Favors 5 and 6, but still allows 6 and 64'''
+    SCORES = {
+        None: -5.0,
+        0: 5.0,
+        1: 1.0,
+        2: 0.5,
     }
 
-    def __init__(self, mode: str, voice: str):
-        self.MODE = mode
-        if voice not in VOICE_POSITIONS.keys():
-            raise RuntimeError(f"Voice must be one of {' ,'.join(VOICE_POSITIONS.keys())}!")
-        self.POSITION = VOICE_POSITIONS[voice]
+    def __init__(self):
+        super().__init__('B')
 
+    '''Last element has to be 5'''
+    def score_last(self, p: m.Pitch, c: m.Chord):
+        if p == self.CHORDS[c][0]:
+            return 0.0
+        else:
+            return -20.0
 
-    def applies_to(self, schemata: List[m.Schema], start: ur.Index) -> bool:
-        return all([s == m.Schema('c') for s in schemata])
-
-    def enumerate(self, schemata: List[m.Schema]) -> List[List[m.Pitch]]:
-        return self.CADENCES[self.MODE][self.POSITION]
-
-class CadenceChords(ur.Enumerator):
-
-    SOURCE = '(Kelley 2009)'
-
-    ARGS = [(m.Schema, ur.Interval(2,2))]
-    OUT_COUNT = ur.Interval(2,2)
-
-    CADENCES = {
-        'major': [[m.Chord('V'), m.Chord('I')]],
-        'minor': [[m.Chord('v'), m.Chord('i')],
-                  [m.Chord('VII'), m.Chord('i')]],
+class ScorerFifthInBass(ScorerMelodyHarm):
+    SCORES = {
+        None: -5.0,
+        0: 0.2,
+        1: 0.2,
+        2: 1.0,
     }
 
-    def __init__(self, mode: str):
-        self.MODE = mode
+    def score(self, mel: List[m.Pitch], chords: List[m.Chord], window_start: ur.Index, node_start: int, node_end: int) -> float:
+        pc: str = mel[0].pc()
+        chord: m.Chord = chords[0]
 
-    def applies_to(self, schemata: List[m.Schema], start: ur.Index) -> bool:
-        return all([s == m.Schema('c') for s in schemata])
+        if pc in self.CHORDS[chord]:
+            i = self.CHORDS[chord].index(pc)
+            return self.SCORES[i]
+        else:
+            return self.SCORES[None]
 
-    def enumerate(self, schemata: List[m.Schema]) -> List[List[m.Chord]]:
-        return self.CADENCES[self.MODE]
 
-class Cadences(ur.Enumerator):
-    OUT_COUNT = ur.Interval(2,2)
-
-    def applies_to(self, start: ur.Index) -> bool:
-        return start.maps_to(-2, STRUCTURE_LEVELS['section'])
-
-    def enumerate(self) -> List[List[m.Schema]]:
-        return [[m.Schema('c'), m.Schema('c')]]
-
-class Flourisher(ur.RandomizedProducer[m.Note]):
+class Flourisher(ur.Enumerator[m.Note]):
 
     ARGS = [(m.Duration, ur.Interval(1)),
-            (m.Pitch, ur.Interval(1)),
-            (m.Schema, ur.Interval(1))]
+            (m.Pitch, ur.Interval(1))]
     OUT_COUNT = ur.Interval(1)
+
     NEEDS_LEN = True
 
     FIGURES = {
         'third-passing': 0.4,
-        # 'third-16': 0.1,
-        # 'same-neighbor-16': 0.0,
-        # 'same-neighbor': 0.1,
-        # 'second-jump': 0.2,
-        # 'second-8-16-16': 0.1,
-        # 'fourth-8-16-16': 0.1,
-        # 'fifth-jump': 0.1,
-        # 'fifth-16': 0.1,
+        'third-16': 0.1,
+        'same-neighbor-16': 0.0,
+        'same-neighbor': 0.1,
+        'second-jump': 0.2,
+        'second-8-16-16': 0.1,
+        'fourth-8-16-16': 0.1,
+        'fifth-jump': 0.1,
+        'fifth-16': 0.1,
     }
 
-    def flourish(self, p1: m.Pitch, d1: m.Duration, s1: m.Schema, p2: m.Pitch, d2: m.Duration, s2: m.Schema) -> List[m.Note]:
+    DISPATCH_BY_NODE = True
 
-        rhy: List[float] = []
-        pitches: List[str] = []
+    def __init__(self, meter: str):
+        self.ternary: bool = m.ternary(meter)
 
-        if s1 == m.Schema('c') and s2.is_undefined():
-            # ultima, don't flourish
+    def applies_to(self, node: ur.RefinementNode) -> bool:
+        return node.is_leaf
+
+    def can_flourish(self, d: m.Duration) -> bool:
+        if self.ternary:
+            return d.notated == '4.'
+        else:
+            return d.notated == '4'
+
+    def flourish(self, p1: m.Pitch, d1: m.Duration, p2: m.Pitch, d2: m.Duration) -> List[m.Note]:
+
+        rhy: str = ""
+        pitches: List[str] = [p1]
+
+        ternary16 = False
+
+        
+        if not self.can_flourish(d1):
             return [m.Note(d1, p1)]
-        
-        # if rhy not in ['4', '4.'] or i >= len(items)-1:
-        #     return rhy, lyr, new_items 
-        
-        # n1 = items[i]
-        # n2 = items[i+1]
 
         # Some passing notes between fifths
-        # if nonchord.interval_fifth_up(p1, p2):
-        #     if random.random() < self.FIGURES['fifth-16']:
-        #         rhy = random.choice(['8. 16 16 16']) if ternary else '16 16 16 16'
-        #         lyr += ['-', '-', '-']
-        #         new_items += [
-        #             nonchord.note_direction(n1, n2, 1),
-        #             nonchord.note_direction(n1, n2, 2),
-        #             nonchord.note_direction(n1, n2, 3),
-        #         ]
-        #     elif random.random() < thresholds['fifth-jump']:
-        #         rhy =  '4 8' if ternary else '8 8'
-        #         lyr += ['-']
-        #         new_items += [
-        #             nonchord.note_direction(n1, n2, 2)
-        #         ]
+        if nonchord.interval_fifth_up(p1, p2):
+            if random.random() < self.FIGURES['fifth-16']:
+                rhy = '8. 16 16 16' if self.ternary else '16 16 16 16'
+                pitches += [
+                    nonchord.note_direction(p1, p2, 1),
+                    nonchord.note_direction(p1, p2, 2),
+                    nonchord.note_direction(p1, p2, 3),
+                ]
+            elif random.random() < self.FIGURES['fifth-jump']:
+                rhy =  '4 8' if self.ternary else '8 8'
+                pitches += [
+                    nonchord.note_direction(p1, p2, 2)
+                ]
                 
         # Some passing notes between fourths
-        # elif nonchord.interval_fourth(n1, n2):
-        #     if random.random() < thresholds['fourth-8-16-16']:
-        #         rhy = random.choice(['8 8 8', '8. 16 8']) if ternary else '8 16 16'
-        #         lyr += ['-', '-']
-        #         new_items += [
-        #             nonchord.note_direction(n1, n2, 1),
-        #             nonchord.note_direction(n1, n2, 2)
-        #         ]
+        elif nonchord.interval_fourth(p1, p2):
+            if random.random() < self.FIGURES['fourth-8-16-16']:
+                rhy = random.choice(['8 8 8', '8. 16 8']) if self.ternary else '8 16 16'
+                pitches += [
+                    nonchord.note_direction(p1, p2, 1),
+                    nonchord.note_direction(p1, p2, 2)
+                ]
 
         # Some passing notes between thirds
-        if nonchord.interval_third(p1, p2):
-            # if random.random() < thresholds['third-16'] and not ternary16:
-            #     rhy = '8. 16 16 16' if ternary else '16 16 16 16'
-            #     new_items += [
-            #         nonchord.note_direction(n1, n2, 1),
-            #         n2,
-            #         nonchord.note_direction(n1, n2, 3),
-            #         ]
-            if random.random() < self.FIGURES['third-passing']:
-                rhy = [d1.quarter_length() / 2] * 2# if self.model.ternary else '8 8'
-                pitches = [p1, nonchord.note_nonchord(p1, p2)]
+        elif nonchord.interval_third(p1, p2):
+            if random.random() < self.FIGURES['third-16'] and not ternary16:
+                rhy = '8. 16 16 16' if self.ternary else '16 16 16 16'
+                pitches += [
+                    nonchord.note_direction(p1, p2, 1),
+                    p2,
+                    nonchord.note_direction(p1, p2, 3),
+                    ]
+            elif random.random() < self.FIGURES['third-passing']:
+                rhy = '4 8' if self.ternary else '8 8'
+                pitches += [nonchord.note_nonchord(p1, p2)]
 
         # # Some neighbor notes between same notes
-        # elif n1 == n2:
-        #     if random.random() < thresholds['same-neighbor-16'] and not ternary16:
-        #         rhy = random.choice(['8 8 16 16', '8. 16 16 16']) if ternary else '16 16 16 16'
-        #         lyr += ['-', '-', '-']
-        #         dir = random.choice([-1, 1])
-        #         new_items += [
-        #             nonchord.note_projection(n1, dir, 1),
-        #             nonchord.note_projection(n1, dir, 2) if random.choice([True, False]) else n1,
-        #             nonchord.note_projection(n1, dir, 1),
-        #         ]
-        #     elif random.random() < thresholds['same-neighbor']:
-        #         rhy = '4 8' if ternary else random.choice(['8 8', '8. 16'])
-        #         lyr += ['-']
-        #         new_items += [nonchord.note_nonchord(n1, n2, True)]
+        elif p1 == p2:
+            if random.random() < self.FIGURES['same-neighbor-16'] and not ternary16:
+                rhy = random.choice(['8 8 16 16', '8. 16 16 16']) if self.ternary else '16 16 16 16'
+                dir = random.choice([-1, 1])
+                pitches += [
+                    nonchord.note_projection(p1, dir, 1),
+                    nonchord.note_projection(p1, dir, 2) if random.choice([True, False]) else p1,
+                    nonchord.note_projection(p1, dir, 1),
+                ]
+            elif random.random() < self.FIGURES['same-neighbor']:
+                rhy = '4 8' if self.ternary else random.choice(['8 8', '8. 16'])
+                pitches += [nonchord.note_nonchord(p1, p2, True)]
 
         # # Some jump-passing notes between seconds
-        # elif nonchord.interval_second(n1, n2):
-        #     if random.random() < thresholds['second-jump']:
-        #         rhy = '4 8' if ternary else random.choice(['8 8', '8. 16'])
-        #         lyr += ['-']
-        #         new_items += [nonchord.note_direction(n1, n2, 2)]
-        #     elif random.random() < thresholds['second-8-16-16']:
-        #         rhy = random.choice(['8 8 8', '8. 16 8']) if ternary else '8 16 16'
-        #         lyr += ['-', '-']
-        #         new_items += [
-        #             n2, 
-        #             nonchord.note_direction(n1, n2, 2)
-        #         ]
-                
-        # if new_items:
-        #     new =  '  '.join([f'{n} {r}' for n, r in zip([n1] + new_items, rhy.split(' '))])
-        #     print(f"Flourish: {n1} {rhy_i} {n2} => {new}  {n2}")
+        elif nonchord.interval_second(p1, p2):
+            if random.random() < self.FIGURES['second-jump']:
+                rhy = '4 8' if self.ternary else random.choice(['8 8', '8. 16'])
+                pitches += [nonchord.note_direction(p1, p2, 2)]
+            elif random.random() < self.FIGURES['second-8-16-16']:
+                rhy = random.choice(['8 8 8', '8. 16 8']) if self.ternary else '8 16 16'
+                pitches += [
+                    p2, 
+                    nonchord.note_direction(p1, p2, 2)
+                ]
 
-        if pitches == [] and rhy == []:
+        if rhy == "": # did not flourish anything
             return [m.Note(d1, p1)]
         
-        return [m.Note(m.Duration(d), m.Pitch(p)) for d, p in zip(rhy, pitches)]
+        return [m.Note(m.Duration(d), m.Pitch(p)) for d, p in zip(rhy.split(), pitches)]
 
-    def produce(self, rhy: List[m.Duration], mel: List[m.Pitch], schemata: List[m.Schema], len_to_gen: ur.Interval) -> List[m.Note]:
+    def enumerate(self, rhy: List[m.Duration], mel: List[m.Pitch], len_to_gen: ur.Interval) -> List[m.Note]:
         
         if len(rhy) != len(mel):
             raise RuntimeError("Rhythm and Pitch lists must be of same length for flourishing")
 
         out: List[m.Note] = []
         
-        for ((p1, d1, s1), (p2, d2, s2)) in zip(list(zip(mel, rhy, schemata))[:-1], list(zip(mel, rhy, schemata))[1:]):
-            out += self.flourish(p1, d1, s1, p2, d2, s2)
+        for ((p1, d1), (p2, d2)) in zip(list(zip(mel, rhy))[:-1], list(zip(mel, rhy))[1:]):
+            out += self.flourish(p1, d1, p2, d2)
 
         out.append(m.Note(rhy[-1], mel[-1]))
 
-        return out
+        return [out]
     
+
+class FlourisherTenor(Flourisher):
+    FIGURES = {
+        'third-passing': 0.7,
+        'third-16': 0.3,
+        'same-neighbor': 0.5,
+        'same-neighbor-16': 0.1,
+        'second-jump': 0.4,
+        'second-8-16-16': 0.2,
+        'fourth-8-16-16': 0.3,
+        'fifth-jump': 0.2,
+        'fifth-16': 0.4,
+        }
+
+class FlourisherBass(Flourisher):
+    FIGURES = {
+        'third-passing': 0.7,
+        'third-16': 0,
+        'same-neighbor': 0,
+        'same-neighbor-16': 0,
+        'second-jump': 0,
+        'second-8-16-16': 0,
+        'fourth-8-16-16': 0.3,
+        'fifth-jump': 0.7,
+        'fifth-16': 0.2,
+        }

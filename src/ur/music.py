@@ -4,6 +4,10 @@ import music21
 from typing import NewType, Protocol, Tuple, Optional, Self
 from abc import ABC, abstractmethod
 
+DURATIONS = {
+    '1': 4, '2': 2, '4': 1, '8': .5, '16': 0.25,
+    '1.': 6, '2.': 3, '4.': 1.5, '8.': .75
+}
 
 class Content(ABC):
 
@@ -57,10 +61,20 @@ class Temporal(Content):
     def quarter_length(self) -> float:
         pass
 
-class Duration(float, Temporal):
+class Duration(Temporal):
+
+    def __init__(self, val: int | float | str):
+        if isinstance(val, float | int):
+            self.ql: float = val
+        elif isinstance(val, str):
+            self.notated: str = val
+            self.ql = DURATIONS[val]
+
+    def __str__(self):
+        return str(self.ql)
 
     def quarter_length(self) -> float:
-        return self
+        return self.ql
 
     @classmethod
     def create_undefined(cls, duration: float = 0.0) -> Self:
@@ -78,7 +92,7 @@ class Note(Temporal):
         return u'(%s, %s)' % (self.duration, self.pitch)
 
     def quarter_length(self) -> float:
-        return self.duration
+        return self.duration.quarter_length()
 
     @classmethod
     def create_undefined(cls, duration: float = 0.0) -> Self:
@@ -106,6 +120,17 @@ def quantize_above(duration: float, meter: str) -> float:
 
     return multiple
 
+def ternary(meter: str) -> bool:
+    return meter == '6/8'
+
+def beat(meter: str) -> float:
+    if meter[-1] == '4':
+        return 1.0
+    elif meter == '6/8':
+        return 1.5
+    else: 
+        raise NotImplementedError()    
+    
 def in_range(pitch: str, ambitus: Tuple[Pitch, Pitch], key: Optional[str] = None) -> bool:
     '''return true iff note is in ambitus (with inclusive bounds)
     '''
@@ -121,7 +146,7 @@ def ambitus(mel):
     mnotes = [music21.pitch.Pitch(n) for n in mel]
     return(max(mnotes).midi - min(mnotes).midi)
 
-def mean(mel):
+def pitch_mean(mel):
     minotes = [music21.pitch.Pitch(n).midi for n in mel]
     return(sum(minotes) / len(minotes))
 

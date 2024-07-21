@@ -12,6 +12,8 @@ from music import Note
 
 DIR_OUT = 'data/gen/'
 
+VOICES = ['S', 'A', 'T', 'B']
+
 def export(filename: str, title: str, melodies: List[Tuple[str, List[Note], List[str]]], annots: List[Tuple[str, List[str]]], key: str, meter: str, svg: bool) -> None:
 
     score = m21.stream.Score()
@@ -23,7 +25,7 @@ def export(filename: str, title: str, melodies: List[Tuple[str, List[Note], List
     
     # dur_factor: int = 2 if not '/8' in meter else 1
     
-    for name, mel, lyr in melodies:
+    for name, (_, mel, lyr) in zip(VOICES, melodies):
 
         # data = ''.join([f'{note:3s}' for note in mel])
         # print(f'🎵 {name:5s}', data)
@@ -35,18 +37,18 @@ def export(filename: str, title: str, melodies: List[Tuple[str, List[Note], List
         part.insert(0, m21.key.KeySignature(0))
         part.insert(0, m21.instrument.Vocalist())
 
-        if name == 'fillInT':
+        if name == 'T':
             part.insert(0, m21.clef.Treble8vbClef())
-        elif name == 'fillInB':
+        elif name == 'B':
             part.insert(0, m21.clef.BassClef())
         else:
             part.insert(0, m21.clef.TrebleClef())
 
         for n, l in zip(mel, lyr):
-            note = m21.note.Note(n.pitch) if n.pitch != 'r' else m21.note.Rest()
-            note.duration = m21.duration.Duration(n.duration)
-            if l:
-                note.lyric = l
+            note = m21.note.Rest() if n.pitch.is_undefined() else m21.note.Note(n.pitch)
+            note.duration = m21.duration.Duration(n.quarter_length())
+            if l and not l == '~':
+                note.lyric = ''.join(c for c in l if c not in '!>/')
 
             part.append(note)
 
@@ -63,7 +65,9 @@ def export(filename: str, title: str, melodies: List[Tuple[str, List[Note], List
         # print(f'🏷️ {name:5s}', data)
 
         for note in bassPart.flatten().notesAndRests:
-            note.addLyric(annot.pop(0))
+            t = annot.pop(0)
+            if t != '~':
+                note.addLyric(t)
 
     # score.show('txt')
     dir = os.path.dirname(os.path.join(DIR_OUT, f'{filename}'))
