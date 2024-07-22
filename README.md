@@ -15,10 +15,10 @@ Python librairies
 
 ```
 
-# Generate some re-harmonizations
+# Generate some Sacred Harp re-harmonization
 python3 src/ur/harmonization.py
 
-# Generate some music from scratch (i.e., from lyrics and structure only)
+# Generate some music from scratch, in the style of the Holly Herndon project
 python3 src/ur/sacred.py
 ```
 
