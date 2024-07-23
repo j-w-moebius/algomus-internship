@@ -523,7 +523,7 @@ class ScorerMelody(ur.Scorer):
 #     def score_item(self, gen, _, struct):
 #         return music.mean(gen.one)
 
-class ScorerFunc(ur.Scorer):
+class ScorerChords(ur.Scorer):
     ARGS = [(m.Chord, ur.Interval(1))]
 
     def score(self, chords: List[m.Chord]):

@@ -110,7 +110,7 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
     sh.add_producer(Flourisher(), 'fillInA', 'rhy', 'pitchGridA', 'schemata', default=True)
 
     # equip viewpoints with evaluators
-    sh.add_evaluator(ScorerFunc(), 'chords')
+    sh.add_evaluator(ScorerChords(), 'chords')
 
     sh.add_evaluator(MelodyHarm('T'), 'pitchGridT', 'chords')
 

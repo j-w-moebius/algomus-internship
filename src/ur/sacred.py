@@ -52,7 +52,7 @@ def gen_sacred() -> ur.Model:
     print(f'Key: [blue]{key}')
     print(f'Mode: [blue]{mode}')
 
-    meter = random.choice(['3/4', '4/4', '6/8'])
+    meter = random.choice(['6/4', '4/4', '6/8'])
 
     print(f'Meter: [blue]{meter}')
 
@@ -85,7 +85,7 @@ def gen_sacred() -> ur.Model:
         min_lyrics = 5
 
     # ------------------------------------------------------
-    # block scheduling
+    # viewpoints
 
     sh.add_vp('rhy', Duration)
     sh.add_vp('lyr', Syllable, before=['rhy'], lead_name='rhy')
@@ -111,13 +111,13 @@ def gen_sacred() -> ur.Model:
     sh.add_producer(melody_b_prod(key), 'pitchGridB', default=True)
     sh.add_producer(melody_s_prod(key), 'pitchGridS', default=True)
     sh.add_producer(melody_a_prod(key), 'pitchGridA', default=True)
-    sh.add_producer(FlourisherTenor(meter), 'fillInT', 'rhy', 'pitchGridT', default=True)
-    sh.add_producer(FlourisherBass(meter), 'fillInB', 'rhy', 'pitchGridB', default=True)
+    sh.add_producer(FlourisherT(meter), 'fillInT', 'rhy', 'pitchGridT', default=True)
+    sh.add_producer(FlourisherB(meter), 'fillInB', 'rhy', 'pitchGridB', default=True)
     sh.add_producer(Flourisher(meter), 'fillInS', 'rhy', 'pitchGridS', default=True)
     sh.add_producer(Flourisher(meter), 'fillInA', 'rhy', 'pitchGridA', default=True)
 
     # equip viewpoints with evaluators
-    sh.add_evaluator(ScorerFunc(), 'chords')
+    sh.add_evaluator(ScorerChords(), 'chords')
 
     sh.add_evaluator(ScorerMelodyHarm('T'), 'pitchGridT', 'chords', weight=2)
     sh.add_evaluator(ScorerMelody(), 'pitchGridT')

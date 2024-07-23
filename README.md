@@ -20,6 +20,8 @@ python3 src/ur/harmonization.py
 
 # Generate some music from scratch, in the style of the Holly Herndon project
 python3 src/ur/sacred.py
+
+(output is written to `data/gen/` in both cases)
 ```
 
 ## Credits

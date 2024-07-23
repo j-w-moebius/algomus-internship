@@ -590,7 +590,7 @@ class ScorerSectionsMelodyT(ur.Scorer):
 #     def score_item(self, gen, _, struct):
 #         return music.mean(gen.one)
 
-class ScorerFunc(ur.Scorer):
+class ScorerChords(ur.Scorer):
     ARGS = [(m.Chord, ur.Interval(1))]
     ALLOW_OUTSIDE = False
 
@@ -822,20 +822,6 @@ class ScorerMelodyMelodyBelow(ur.Scorer):
             return 0.0
         return 0.2
 
-class ScorerMelodyMelodyAbove(ur.Scorer):
-
-    ARGS = [(m.Pitch, ur.Interval(1,1)),
-            (m.Pitch, ur.Interval(1,1))]
-
-    ALLOW_OUTSIDE = False
-
-    def score(self, mel1: List[m.Pitch], mel2: List[m.Pitch]) -> float :
-        p1: m.Pitch = mel1[0]
-        p2: m.Pitch = mel2[0]
-        if m.interval(p1, p2) > 0:
-            return 0.0
-        return 0.2
-
 class ScorerMelodyMelodyCross(ur.Scorer):
     '''Rewards melody crossings, particularly those of length >= 3
     '''
@@ -951,8 +937,6 @@ class Flourisher(ur.Enumerator[m.Note]):
             (m.Pitch, ur.Interval(1))]
     OUT_COUNT = ur.Interval(1)
 
-    NEEDS_LEN = True
-
     FIGURES = {
         'third-passing': 0.4,
         'third-16': 0.1,
@@ -1058,7 +1042,7 @@ class Flourisher(ur.Enumerator[m.Note]):
         
         return [m.Note(m.Duration(d), m.Pitch(p)) for d, p in zip(rhy.split(), pitches)]
 
-    def enumerate(self, rhy: List[m.Duration], mel: List[m.Pitch], len_to_gen: ur.Interval) -> List[m.Note]:
+    def enumerate(self, rhy: List[m.Duration], mel: List[m.Pitch]) -> List[m.Note]:
         
         if len(rhy) != len(mel):
             raise RuntimeError("Rhythm and Pitch lists must be of same length for flourishing")
@@ -1073,7 +1057,7 @@ class Flourisher(ur.Enumerator[m.Note]):
         return [out]
     
 
-class FlourisherTenor(Flourisher):
+class FlourisherT(Flourisher):
     FIGURES = {
         'third-passing': 0.7,
         'third-16': 0.3,
@@ -1086,7 +1070,7 @@ class FlourisherTenor(Flourisher):
         'fifth-16': 0.4,
         }
 
-class FlourisherBass(Flourisher):
+class FlourisherB(Flourisher):
     FIGURES = {
         'third-passing': 0.7,
         'third-16': 0,
