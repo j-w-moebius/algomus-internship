@@ -519,8 +519,6 @@ class MelodyMinorB(ur.PitchMarkov):
 
 class ScorerMelody(ur.Scorer):
 
-    ALLOW_OUTSIDE = False
-
     ARGS = [(m.Pitch, ur.Interval(1))]
 
     AMBITUS_LOW = 5
@@ -575,7 +573,6 @@ class ScorerSectionsMelodyT(ur.Scorer):
 
 class ScorerChords(ur.Scorer):
     ARGS = [(m.Chord, ur.Interval(1))]
-    ALLOW_OUTSIDE = False
 
     def score(self, chords: List[m.Chord]):
 
@@ -614,8 +611,6 @@ class ScorerRhythmLyrics(ur.Scorer):
     ARGS = [(m.Duration, ur.Interval(1,1)),
             (m.Syllable, ur.Interval(1,1))]
 
-    ALLOW_OUTSIDE = False
-
     STRESSES = [
         ('!', S2),
         ('>>', S1),
@@ -645,8 +640,6 @@ class ScorerRhythmMetricsFour(ur.Scorer):
     
     ARGS = [(m.Duration, ur.Interval(1))]
 
-    ALLOW_OUTSIDE = False
-
     def score(self, rhy: List[m.Duration]) -> float:
         score: float = 0.0
 
@@ -669,8 +662,6 @@ class ScorerRhythmMetricsFour(ur.Scorer):
 class ScorerRhythmMetricsTernary(ur.Scorer):
 
     ARGS = [(m.Duration, ur.Interval(1))]
-
-    ALLOW_OUTSIDE = False
 
     def score(self, rhy: List[m.Duration]) -> float:
         score: float = 0.0
@@ -700,8 +691,6 @@ class ScorerMelodyHarm(ur.Scorer):#(ur.ScorerTwoSequence):
 
     ARGS = [(m.Pitch, ur.Interval(1,1)),
             (m.Chord, ur.Interval(1,1))]
-
-    ALLOW_OUTSIDE = False
 
     # bottom-up index of voice in four-part setting
     POSITION: int
@@ -796,8 +785,6 @@ class ScorerMelodyMelodyBelow(ur.Scorer):
     ARGS = [(m.Pitch, ur.Interval(1,1)),
             (m.Pitch, ur.Interval(1,1))]
 
-    ALLOW_OUTSIDE = False
-
     def score(self, mel1: List[m.Pitch], mel2: List[m.Pitch]) -> float:
         p1: m.Pitch = mel1[0]
         p2: m.Pitch = mel2[0]
@@ -810,8 +797,6 @@ class ScorerMelodyMelodyCross(ur.Scorer):
     '''
     ARGS = [(m.Pitch, ur.Interval(1)),
             (m.Pitch, ur.Interval(1))]
-
-    ALLOW_OUTSIDE = False
 
     CROSS = {
         0: 0.0,
@@ -838,6 +823,8 @@ class ScorerMelodyMelodyCross(ur.Scorer):
 
         # Count the number of crossings
         for (i, (p1, p2)) in enumerate(zip(mel1, mel2)):
+            if p1.is_undefined() or p2.is_undefined():
+                continue
             s = int(math.copysign(1, m.interval(p1, p2)))
             if s:
                 if ss and ss != s:
@@ -858,8 +845,6 @@ class ScorerMelodyMelody(ur.Scorer):
 
     ARGS = [(m.Pitch, ur.Interval(2,2)),
             (m.Pitch, ur.Interval(2,2))]
-
-    ALLOW_OUTSIDE = False
 
     def score(self, mel1: List[m.Pitch], mel2: List[m.Pitch]) -> float:
 

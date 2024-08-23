@@ -274,8 +274,6 @@ class Evaluator(Rule[R]):
     :param start: The window start, if `NEEDS_START`.
     :param *node_args: The node arguments, if `NEEDS_NODE_ARGS`.
     """
-    
-    ALLOW_OUTSIDE: bool = True
         
     def fetch_args(self, node: RefinementNode, generated: List[C], window_start: Index, window_end: Index) -> list:
         args = []
@@ -429,7 +427,7 @@ class Generator(Generic[C]):
                 r = s.get_range(self.node.vp)
                 assert r
                 subscore: float = 0.0
-                windows = WindowIterator(r.max, self.node, s.ALLOW_OUTSIDE)
+                windows = WindowIterator(r.max, self.node, True)
                 for window_start, window_end in windows:
                     subscore += s(self.node, g, window_start, window_end)
                 score += subscore / len(windows)   * s.weight
