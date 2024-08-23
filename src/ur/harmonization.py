@@ -30,7 +30,7 @@ import glob
 import gabuzomeu
 import random
 import music
-from music import Note, Pitch, Duration, Chord, Syllable, Schema
+from music import Note, Pitch, Duration, Chord, Syllable
 import music21 as m21
 from music21.stream import Part, Score
 from rich import print
@@ -75,7 +75,6 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
     sh.add_vp('lyr', Syllable, lead_name='rhy', use_copy=False)
     sh.add_vp('pitchGridT', Pitch, lead_name='rhy')
     sh.add_vp('fillInT', Pitch, use_copy=False)
-    sh.add_vp('schemata', Schema, lead_name='rhy', gapless=False)
     sh.add_vp('chords', Chord, lead_name='rhy')
     sh.add_vp('pitchGridB', Pitch, lead_name='rhy')
     sh.add_vp('pitchGridS', Pitch, lead_name='rhy')
@@ -100,14 +99,13 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
     sh.add_producer(melody_b_prod(key), 'pitchGridB', default=True)
     sh.add_producer(melody_s_prod(key), 'pitchGridS', default=True)
     sh.add_producer(melody_a_prod(key), 'pitchGridA', default=True)
-    sh.add_producer(Cadences(), 'schemata', fixedness=1.0)
-    sh.add_producer(CadenceChords(mode), 'chords', 'schemata', fixedness=0.9)
-    sh.add_producer(CadencePitches(mode, 'B'), 'pitchGridB', 'schemata', fixedness=0.9)
-    sh.add_producer(CadencePitches(mode, 'S'), 'pitchGridS', 'schemata', fixedness=0.9) 
-    sh.add_producer(CadencePitches(mode, 'A'), 'pitchGridA', 'schemata', fixedness=0.9)
-    sh.add_producer(Flourisher(), 'fillInB', 'rhy', 'pitchGridB', 'schemata', default=True)
-    sh.add_producer(Flourisher(), 'fillInS', 'rhy', 'pitchGridS', 'schemata', default=True)
-    sh.add_producer(Flourisher(), 'fillInA', 'rhy', 'pitchGridA', 'schemata', default=True)
+    sh.add_producer(CadenceChords(mode), 'chords', fixedness=0.9)
+    sh.add_producer(CadencePitches(mode, 'B'), 'pitchGridB', fixedness=0.9)
+    sh.add_producer(CadencePitches(mode, 'S'), 'pitchGridS', fixedness=0.9) 
+    sh.add_producer(CadencePitches(mode, 'A'), 'pitchGridA', fixedness=0.9)
+    sh.add_producer(Flourisher(), 'fillInB', 'rhy', 'pitchGridB', default=True)
+    sh.add_producer(Flourisher(), 'fillInS', 'rhy', 'pitchGridS', default=True)
+    sh.add_producer(Flourisher(), 'fillInA', 'rhy', 'pitchGridA', default=True)
 
     # equip viewpoints with evaluators
     sh.add_evaluator(ScorerChords(), 'chords')
@@ -138,7 +136,6 @@ if __name__ == '__main__':
     lyr_path: str = os.path.join(os.getcwd(), "data/lyrics/56b_Villulia.txt")
     mel: Part = load_melody(mel_path)
     lyr: List[str] = [s for v in load_lyrics(lyr_path, STRESS_WORDS) for s in v] # flatten
-
 
     sh: ur.Model = harm_sacred(mel, lyr, struc)
 

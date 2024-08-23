@@ -76,7 +76,7 @@ class Lyrics(ur.RandomChoice[m.Syllable]):
 
     DISPATCH_BY_NODE = True
 
-    def applies_to(self, node: ur.RefinementNode) -> bool:
+    def guard(self, node: ur.RefinementNode) -> bool:
         return node.is_leaf
 
     def __init__(self, min_length: int):
@@ -114,7 +114,7 @@ class ChordMarkov(ur.HiddenMarkov[m.Chord]):
     DISPATCH_BY_NODE = True
     NEEDS_NODE_ARGS = True
 
-    def applies_to(self, node: ur.RefinementNode) -> bool:
+    def guard(self, node: ur.RefinementNode) -> bool:
         return node.is_leaf
 
     def get_node_args(self, node: RefinementNode) -> list:
@@ -135,7 +135,7 @@ class ChordsMajor(ChordMarkov):
 
     DISPATCH_BY_NODE = True
 
-    def applies_to(self, node: ur.RefinementNode) -> bool:
+    def guard(self, node: ur.RefinementNode) -> bool:
         return node.is_leaf
 
     SOURCE = '(Kelley 2016)'
@@ -219,7 +219,7 @@ class Rhythm(ur.RandomizedProducer):
     ITEMS: List[Tuple[str, float]]
     ITEMS_LAST: List[Tuple[str, float]]
 
-    def applies_to(self, node: ur.RefinementNode) -> bool:
+    def guard(self, node: ur.RefinementNode) -> bool:
         return node.is_leaf
 
     def items(self, i, n):
@@ -939,7 +939,7 @@ class Flourisher(ur.Enumerator[m.Note]):
     def __init__(self, meter: str):
         self.ternary: bool = m.ternary(meter)
 
-    def applies_to(self, node: ur.RefinementNode) -> bool:
+    def guard(self, node: ur.RefinementNode) -> bool:
         return node.is_leaf
 
     def can_flourish(self, d: m.Duration) -> bool:

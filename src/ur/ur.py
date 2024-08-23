@@ -112,7 +112,7 @@ class Rule(Generic[R]):
         raise NotImplementedError()
 
 
-    def applies_to(self, *args: T, start: Optional[Index] = None) -> bool:
+    def guard(self, *args: T, start: Optional[Index] = None) -> bool:
         ''' whether the rule can be applied, given args and a start position
         overwrite to implement specific behavior'''
         return True 
@@ -152,19 +152,19 @@ class Producer(Rule[List[List[C]]]):
     def flexible_length(self) -> bool:
         return self.OUT_COUNT.max is None
 
-    def call_applies_to(self, node:RefinementNode, window_start: Index, window_end: Index) -> bool:
+    def call_guard(self, node:RefinementNode, window_start: Index, window_end: Index) -> bool:
         args = self.fetch_args(node, window_start, window_end, True)
-        return self.applies_to(*args)
+        return self.guard(*args)
 
-    def fetch_args(self, node: RefinementNode, window_start: Index, window_end: Index, for_applies_to: bool) -> list:
+    def fetch_args(self, node: RefinementNode, window_start: Index, window_end: Index, for_guard: bool) -> list:
 
         args = [vp[window_start:window_end] for vp in self.vps]
         self.check_args(*args)
 
-        if self.NEEDS_START or for_applies_to:
+        if self.NEEDS_START or for_guard:
             args.append(window_start)
 
-        if for_applies_to:
+        if for_guard:
             return args
 
         if self.NEEDS_CONTEXT:
@@ -459,7 +459,7 @@ class PitchMarkov(Markov[m.Pitch]):
         super().__init__()
         self.set_key(key)
 
-    def applies_to(self, node: ur.RefinementNode) -> bool:
+    def guard(self, node: ur.RefinementNode) -> bool:
         return node.is_leaf
 
     def state_legal(self, pitch: str) -> bool:

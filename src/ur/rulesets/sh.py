@@ -165,7 +165,7 @@ class Rhythm(ur.RandomizedProducer):
         self.cadence_dur: List[float] = self.CADENCE_DUR[meter]
         self.items: List[Tuple[List[float], float]] = self.ITEMS[meter]
 
-    def applies_to(self, node: ur.RefinementNode) -> bool:
+    def guard(self, node: ur.RefinementNode) -> bool:
         return node.is_leaf
 
     def get_node_args(self, node: ur.RefinementNode) -> list:
@@ -645,8 +645,6 @@ class ScorerMelodyMelody(ur.Scorer):
 
 class CadencePitches(ur.Enumerator):
 
-    ARGS = [(m.Schema, ur.Interval(2,2))]
-
     OUT_COUNT = ur.Interval(2,2)
 
     SOURCE = '(Kelley 2009)'
@@ -682,17 +680,16 @@ class CadencePitches(ur.Enumerator):
         self.POSITION = VOICE_POSITIONS[voice]
 
 
-    def applies_to(self, schemata: List[m.Schema], start: ur.Index) -> bool:
-        return all([s == m.Schema('c') for s in schemata])
+    def guard(self, start: ur.Index) -> bool:
+        return start.maps_to(-2, STRUCTURE_LEVELS['section'])
 
-    def enumerate(self, schemata: List[m.Schema]) -> List[List[m.Pitch]]:
+    def enumerate(self) -> List[List[m.Pitch]]:
         return self.CADENCES[self.MODE][self.POSITION]
 
 class CadenceChords(ur.Enumerator):
 
     SOURCE = '(Kelley 2009)'
 
-    ARGS = [(m.Schema, ur.Interval(2,2))]
     OUT_COUNT = ur.Interval(2,2)
 
     CADENCES = {
@@ -704,41 +701,30 @@ class CadenceChords(ur.Enumerator):
     def __init__(self, mode: str):
         self.MODE = mode
 
-    def applies_to(self, schemata: List[m.Schema], start: ur.Index) -> bool:
-        return all([s == m.Schema('c') for s in schemata])
-
-    def enumerate(self, schemata: List[m.Schema]) -> List[List[m.Chord]]:
-        return self.CADENCES[self.MODE]
-
-class Cadences(ur.Enumerator):
-    OUT_COUNT = ur.Interval(2,2)
-
-    def applies_to(self, start: ur.Index) -> bool:
+    def guard(self, start: ur.Index) -> bool:
         return start.maps_to(-2, STRUCTURE_LEVELS['section'])
 
-    def enumerate(self) -> List[List[m.Schema]]:
-        return [[m.Schema('c'), m.Schema('c')]]
+    def enumerate(self) -> List[List[m.Chord]]:
+        return self.CADENCES[self.MODE]
 
 class Flourisher(ur.RandomizedProducer[m.Note]):
 
+    DISPATCH_BY_NODE = True
     ARGS = [(m.Duration, ur.Interval(1)),
-            (m.Pitch, ur.Interval(1)),
-            (m.Schema, ur.Interval(1))]
+            (m.Pitch, ur.Interval(1))]
     OUT_COUNT = ur.Interval(1)
-    NEEDS_LEN = True
 
     FIGURES = {
         'third-passing': 0.4
     }
 
-    def flourish(self, p1: m.Pitch, d1: m.Duration, s1: m.Schema, p2: m.Pitch, d2: m.Duration, s2: m.Schema) -> List[m.Note]:
+    def guard(self, node: ur.RefinementNode) -> bool:
+        return node.depth == STRUCTURE_LEVELS['section']
+
+    def flourish(self, p1: m.Pitch, d1: m.Duration, p2: m.Pitch, d2: m.Duration) -> List[m.Note]:
 
         rhy: List[float] = []
         pitches: List[str] = []
-
-        if s1 == m.Schema('c') and s2.is_undefined():
-            # ultima, don't flourish
-            return [m.Note(d1, p1)]
 
         # Some passing notes between thirds
         if nonchord.interval_third(p1, p2):
@@ -751,17 +737,17 @@ class Flourisher(ur.RandomizedProducer[m.Note]):
         
         return [m.Note(m.Duration(d), m.Pitch(p)) for d, p in zip(rhy, pitches)]
 
-    def produce(self, rhy: List[m.Duration], mel: List[m.Pitch], schemata: List[m.Schema], len_to_gen: ur.Interval) -> List[m.Note]:
+    def produce(self, rhy: List[m.Duration], mel: List[m.Pitch]) -> List[m.Note]:
         
         if len(rhy) != len(mel):
             raise RuntimeError("Rhythm and Pitch lists must be of same length for flourishing")
 
         out: List[m.Note] = []
         
-        for ((p1, d1, s1), (p2, d2, s2)) in zip(list(zip(mel, rhy, schemata))[:-1], list(zip(mel, rhy, schemata))[1:]):
-            out += self.flourish(p1, d1, s1, p2, d2, s2)
+        for ((p1, d1), (p2, d2)) in zip(list(zip(mel, rhy))[:-2], list(zip(mel, rhy))[1:-1]):
+            out += self.flourish(p1, d1, p2, d2)
 
-        out.append(m.Note(rhy[-1], mel[-1]))
+        out += [m.Note(rhy[-2], mel[-2]), m.Note(rhy[-1], mel[-1])]
 
         return out
     

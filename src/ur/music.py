@@ -34,13 +34,6 @@ class Pitch(str, Content):
         new.undefined = True
         return new
 
-class Schema(str, Content):
-    @classmethod
-    def create_undefined(cls, duration: float = 0.0) -> Self:
-        new = cls('~')
-        new.undefined = True
-        return new
-
 class Syllable(str, Content):
     @classmethod
     def create_undefined(cls, duration: float = 0.0) -> Self:

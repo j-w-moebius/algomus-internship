@@ -30,7 +30,7 @@ import glob
 import gabuzomeu
 import random
 import music
-from music import Note, Pitch, Duration, Chord, Syllable, Schema
+from music import Note, Pitch, Duration, Chord, Syllable
 import music21 as m21
 from music21.stream import Part, Score
 from rich import print

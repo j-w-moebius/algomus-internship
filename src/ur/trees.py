@@ -263,7 +263,7 @@ class RefinementNode(Node[Index]):
             # Dispatch by node: just call p on all descendants
             if p.DISPATCH_BY_NODE:
                 for n in [self] + list(self.descendants):
-                    if p.applies_to(n):
+                    if p.guard(n):
                         generators.append(n.set_generator(p))
                 return generators
             if p.flexible_length():
@@ -271,7 +271,7 @@ class RefinementNode(Node[Index]):
 
             sup: Optional[int] = p.OUT_COUNT.max
             for window_start, window_end in ur.WindowIterator(sup, self):
-                if p.call_applies_to(self, window_start, window_end):
+                if p.call_guard(self, window_start, window_end):
                     generators += [n.set_generator(p) for n in self.get_subrange(window_start, window_end)]
 
         if self.vp.gapless:
