@@ -121,7 +121,6 @@ def gen_sacred() -> ur.Model:
 
     sh.add_evaluator(ScorerMelodyHarm('T'), 'pitchGridT', 'chords', weight=2)
     sh.add_evaluator(ScorerMelody(), 'pitchGridT')
-    #sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridT', weight=10)
 
     sh.add_evaluator(ScorerMelodyHarmRoot(), 'pitchGridB', 'chords', weight=4)
     sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridT', 'pitchGridB')
@@ -131,7 +130,6 @@ def gen_sacred() -> ur.Model:
     sh.add_evaluator(ScorerMelodySA(), 'pitchGridS', weight=2)
     sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridS', 'pitchGridT')
     sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridS', 'pitchGridB')
-    #sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridS', weight=10)
 
     sh.add_evaluator(ScorerMelodyHarm('A'), 'pitchGridA', 'chords', weight=8)
     sh.add_evaluator(ScorerMelodySA(), 'pitchGridA', weight=4)
@@ -140,7 +138,6 @@ def gen_sacred() -> ur.Model:
     sh.add_evaluator(ScorerMelodyMelody(), 'pitchGridS', 'pitchGridA')
     sh.add_evaluator(ScorerMelodyMelodyCross(), 'pitchGridA', 'pitchGridS', weight=10)
     sh.add_evaluator(ScorerMelodyMelodyCross(), 'pitchGridA', 'pitchGridT', weight=10)
-    #sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridA', weight=10)
 
     sh.add_evaluator(ScorerRhythmLyrics(), 'rhy', 'lyr')
     sh.add_evaluator(scorer_rhythm_met(), 'rhy')
@@ -159,8 +156,5 @@ def gen_sacred() -> ur.Model:
 
 if __name__ == '__main__':
 
-    lyr_path: str = os.path.join(os.getcwd(), "data/lyrics/56b_Villulia.txt")
-
     sh: ur.Model = gen_sacred()
-
     sh.export('gen', 'SH meets HH', 'lyr', ['fillInS', 'fillInA', 'fillInT', 'fillInB'], ['chords'], False)

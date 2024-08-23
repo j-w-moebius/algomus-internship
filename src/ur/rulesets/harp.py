@@ -575,21 +575,6 @@ class ScorerSectionsMelodyT(ur.Scorer):
         tdown, tup = self.TARGET[struct] if struct in self.TARGET else self.TARGET[None]
         return -tools.distance_to_interval(mean, tdown, tup)
 
-# class RelativeScorerSectionMelody(ur.Scorer, ur.RelativeScorerSection):
-#     ''' Relative Scorer for mean pitch in melody
-#     '''
-
-#     # specify the intervals in which melodic means should be located
-#     TARGET = {
-#         'A': (0.0, 0.4), 'a': (0.6, 1.0),
-#         'B': (0.6, 1.0), 'b': (0.0, 0.4),
-#         'Z': (0.0, 0.6), 'z': (0.65, 1.0),
-#         None: (0.0, 1.0),
-#     }
-
-#     def score_item(self, gen, _, struct):
-#         return music.mean(gen.one)
-
 class ScorerChords(ur.Scorer):
     ARGS = [(m.Chord, ur.Interval(1))]
     ALLOW_OUTSIDE = False

@@ -115,26 +115,10 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
     sh.add_evaluator(MelodyHarm('T'), 'pitchGridT', 'chords')
 
     sh.add_evaluator(MelodyHarm('B'), 'pitchGridB', 'chords')
-    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridB', 'pitchGridT')
-    # sh.add_evaluator(ScorerMelodyMelodyBelow, 'pitchGridB', 'pitchGridT')
 
     sh.add_evaluator(MelodyHarm('S'), 'pitchGridS', 'chords')
-    # sh.add_evaluator(ScorerMelodySA, 'pitchGridS', weight=2)
-    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridS', 'pitchGrid')
-    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridS', 'pitchGridB')
-    # sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridS', weight=10)
 
     sh.add_evaluator(MelodyHarm('A'), 'pitchGridA', 'chords')
-    # sh.add_evaluator(ScorerMelodySA, 'pitchGridA', weight=4)
-    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridA', 'pitchGrid')
-    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridA', 'pitchGridB')
-    # sh.add_evaluator(ScorerMelodyMelody, 'pitchGridA', 'pitchGridS')
-    # sh.add_evaluator(ScorerMelodyMelodyCross, 'pitchGridA', 'pitchGridS', 10)
-    # sh.add_evaluator(ScorerMelodyMelodyCross, 'pitchGridA', 'pitchGrid', 10)
-    # sh.add_evaluator(RelativeScorerSectionMelody, 'pitchGridA', weight=10)
-
-    # sh.add_evaluator(ScorerRhythmLyrics, 'rhy', 'lyr')
-    # sh.add_evaluator(scorer_rhythm_met, 'rhy')
     
     print()
 
@@ -155,29 +139,6 @@ if __name__ == '__main__':
     mel: Part = load_melody(mel_path)
     lyr: List[str] = [s for v in load_lyrics(lyr_path, STRESS_WORDS) for s in v] # flatten
 
-    struc: StructureNode = \
-        StructureNode(0.0, 48.0, "ALL", [
-            StructureNode(0.0, 24.0, "A", [
-                StructureNode(0.0, 12.0, "A.1", [
-                    StructureNode(0.0, 6.0, "a"),
-                    StructureNode(6.0, 12.0, "b")
-                ]),
-                StructureNode(12.0, 24.0, "A.2", [
-                    StructureNode(0.0, 6.0, "c"),
-                    StructureNode(6.0, 12.0, "d")
-                ])
-            ]),
-            StructureNode(24.0, 48.0, "B", [
-                StructureNode(0.0, 12.0, "B.1", [
-                    StructureNode(0.0, 6.0, "e"),
-                    StructureNode(6.0, 12.0, "b\'")
-                ]),
-                StructureNode(12.0, 24.0, "B.2", [
-                    StructureNode(0.0, 6.0, "a\'"),
-                    StructureNode(6.0, 12.0, "f")
-                ])
-            ])
-        ])
 
     sh: ur.Model = harm_sacred(mel, lyr, struc)
 

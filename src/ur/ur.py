@@ -483,43 +483,6 @@ class PitchMarkov(Markov[m.Pitch]):
             if not m.in_range(n, self.AMBITUS_INITIAL, self.key):
                 self.INITIAL.remove(n)
 
-# class RelativeScorer(Scorer):
-#     '''Scores an item based on the comparison of its prescore to that of all
-#     other items 
-#     '''
-
-#     def init(self):
-#         # collection of all scores seen during generation
-#         self.scores = []
-
-#     def prescore_item(self, gen1, gen2, struct):
-#         score = self.score_item(gen1, gen2, struct)
-#         self.scores += [score]
-
-#     def postscore_item(self, gen1, gen2, struct):
-#         '''Evaluate gen1 and gen2 wrt how they score relatively to all scores
-#         '''
-#         bot = min(self.scores)
-#         top = max(self.scores)
-#         score = self.score_item(gen1, gen2, struct)
-#         ratio = (score-bot) / (top-bot)
-#         return self.score_ratio(ratio, struct)
-
-#     def score_ratio(self, ratio, struct):
-#         raise NotImplemented
-
-# class RelativeScorerSection(RelativeScorer):
-
-#     TARGET = { None: (0.0, 1.0) }
-
-#     def score_ratio(self, ratio, struct):
-#         '''Return a value expressing how far ratio is from the interval under struct in TARGET
-#         '''
-#         bot, top = self.TARGET[struct] if struct in self.TARGET else self.TARGET[None]
-#         dist = tools.distance_to_interval(ratio, bot, top)
-#         norm = max(bot, 1.0-top)
-#         return -dist/norm if norm else 0
-
 
 ### Model
 
@@ -614,20 +577,6 @@ class Model:
         for vp in self.vps:
             print(f'[yellow]### generate VP \'{vp.name}\'')
             vp.generate()
-    
-    # def scorer(self, scorer: Scorer, mod1, mod2=None, weight=1):
-    #     '''Bind scorer to mod1 (and mod2 if it scores two models)
-    #     '''
-    #     if mod2:
-    #         sco = scorer(self[mod1], self[mod2])
-    #     else:
-    #         sco = scorer(self[mod1])
-    #     self.scorers += [sco]
-    #     self[mod1].add_filter(sco, weight)
-    #     return sco
-
-    # def structurer(self, struct, mod):
-    #     self.structurers += [(self[struct], self[mod])]
 
     def export(self, filename: str, title: str, lyr_vp: str, melody_vp_names: List[str], annot_vp_names: List[str], svg: bool) -> None:
         print('[yellow]## Exporting')
