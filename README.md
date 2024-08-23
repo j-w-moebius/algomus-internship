@@ -7,8 +7,8 @@ Prototype code for modular procedural generation with flexible constraints (Ur),
 ## Requirements
 
 Python librairies
-- music21
-- rich
+- [music21](https://www.music21.org/music21docs/)
+- [rich](https://rich.readthedocs.io/en/stable/introduction.html)
 - [anytree](https://anytree.readthedocs.io/en/latest/)
 
 ## Usage
