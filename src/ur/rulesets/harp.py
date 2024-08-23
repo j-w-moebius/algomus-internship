@@ -95,13 +95,6 @@ class Lyrics(ur.RandomChoice[m.Syllable]):
                     self.CHOICES += [words]
 
 
-# class HHLyrics(ur.ItemLyricsChoiceFiles):
-#     FILES = ['data/lyrics-hh/6-4.txt']
-
-# class HHLyricsTernary(ur.ItemLyricsChoiceFiles):
-#     FILES = ['data/lyrics-hh/3-2.txt', 'data/lyrics-hh/6-8.txt']
-
-
 class Key:
      CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4']
 
@@ -996,7 +989,7 @@ class Flourisher(ur.Enumerator[m.Note]):
                 rhy = '4 8' if self.ternary else '8 8'
                 pitches += [nonchord.note_nonchord(p1, p2)]
 
-        # # Some neighbor notes between same notes
+        # Some neighbor notes between same notes
         elif p1 == p2:
             if random.random() < self.FIGURES['same-neighbor-16'] and not ternary16:
                 rhy = random.choice(['8 8 16 16', '8. 16 16 16']) if self.ternary else '16 16 16 16'
@@ -1010,7 +1003,7 @@ class Flourisher(ur.Enumerator[m.Note]):
                 rhy = '4 8' if self.ternary else random.choice(['8 8', '8. 16'])
                 pitches += [nonchord.note_nonchord(p1, p2, True)]
 
-        # # Some jump-passing notes between seconds
+        # Some jump-passing notes between seconds
         elif nonchord.interval_second(p1, p2):
             if random.random() < self.FIGURES['second-jump']:
                 rhy = '4 8' if self.ternary else random.choice(['8 8', '8. 16'])

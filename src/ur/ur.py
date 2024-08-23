@@ -39,6 +39,7 @@ from trees import *
 
 # Result type
 R = TypeVar('R')
+
 T = TypeVar('T')
 
 class WindowIterator:
