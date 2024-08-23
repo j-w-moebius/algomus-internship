@@ -1,5 +1,4 @@
 import glob
-import gabuzomeu
 import random
 import music
 from music import Note, Pitch, Duration, Syllable
@@ -25,9 +24,11 @@ def key_from_part(p: Part) -> Tuple[str, str]:
     return (key, ks.mode)
 
 def grid_from_part(mel: Part) -> Tuple[List[Duration], List[Pitch]]:
-    '''Extract a rhythm and a pitch grid from a part
-    Returns lists of 1. durations and 2. pitches
-    '''
+    """
+    Extract a rhythm and a pitch grid from a part
+
+    :returns: lists of 1. durations and 2. pitches
+    """
     meter: str = mel.timeSignature.ratioString
     rhythm: List[Duration] = []
     pitches: List[Pitch] = []
@@ -40,8 +41,9 @@ def grid_from_part(mel: Part) -> Tuple[List[Duration], List[Pitch]]:
     return (rhythm, pitches)
 
 def fill_in_from_part(mel: Part) -> List[Note]:
-    '''Extract a sequence of Notes from a Part, grouped by bars
-    ''' 
+    """
+    Extract a sequence of Notes from a Part, grouped by bars
+    """ 
     notes: List[Note] = []
 
     for n in mel.notes:
@@ -60,8 +62,9 @@ def load_melody(filename: str) -> Part:
     return mel
 
 def load_lyrics(file: str, stress_words: List[str]) -> List[List[Syllable]]:
-    '''Load first stanza  from file as list of syllables, grouped by verse
-    '''
+    """
+    Load first stanza  from file as list of syllables, grouped by verse
+    """
     stanza: List[List[Syllable]] = []
     for l in open(file, encoding='utf-8').readlines(): 
         verse: List[Syllable] = []

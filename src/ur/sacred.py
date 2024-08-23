@@ -27,7 +27,6 @@
 
 
 import glob
-import gabuzomeu
 import random
 import music
 from music import Note, Pitch, Duration, Chord, Syllable

@@ -96,7 +96,10 @@ class Lyrics(ur.RandomChoice[m.Syllable]):
 
 
 class Key:
-     CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4']
+    """
+    Possible key choices, expressed as transposition interval w.r.t. C
+    """
+    CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4']
 
 class ChordMarkov(ur.HiddenMarkov[m.Chord]):
 
@@ -226,13 +229,15 @@ class Rhythm(ur.RandomizedProducer):
     def produce(self, len_to_gen: ur.Interval) -> List[m.Duration]:
 
         assert len_to_gen.max == len_to_gen.min
+        n = len_to_gen.min
         rhy: List[str] = [] 
         i = 0
-        while i < len_to_gen.min:
+        while i < n:
             nn = 0
-            while i + nn > len_to_gen.min or (not nn):
+            while i + nn > n or (not nn) or \
+                  (i + nn == n and its[-1] not in [p[0] for p in self.ITEMS_LAST]):
                 # Do not generate a last thing that goes beyond n
-                its = tools.pwchoice(self.items(i, len_to_gen.min)).split()
+                its = tools.pwchoice(self.items(i, n)).split()
                 nn = len(its)
             rhy += its
             i += nn

@@ -139,6 +139,9 @@ class Node(NodeMixin, Generic[I]):
             file.writelines(DotExporter(self))
 
 class StructureNode(Node[float]):
+    """
+    A node of a Structure Tree.
+    """
     def __init__(self, start: float, end: float, name: str, children: List[Self] = []):
         super().__init__(start, end, name, children)
 
@@ -150,6 +153,9 @@ class StructureNode(Node[float]):
         return out
 
 class RefinementNode(Node[Index]):
+    """
+    A node of a (non-structure) Refinement Tree.
+    """
 
     def __init__(self, start: Tuple[float, int] | Index, end: Tuple[float, int] | Index, name: str, vp: ViewPoint, children: List[Self] = [], structure: bool = False):
         if isinstance(start, tuple):
@@ -252,7 +258,7 @@ class RefinementNode(Node[Index]):
 
 
     def set_generator(self, prod: ur.Producer) -> ur.Generator:
-        new_gen: ur.Generator = ur.Generator(self, prod)
+        new_gen: ur.Generator = ur.Generator(self, prod, self.vp.model.batch_size)
         self.generator = new_gen
         return new_gen
 
@@ -271,7 +277,8 @@ class RefinementNode(Node[Index]):
 
             sup: Optional[int] = p.OUT_COUNT.max
             for window_start, window_end in ur.WindowIterator(sup, self):
-                if p.call_guard(self, window_start, window_end):
+                # check if rule guard allows application at window_start
+                if p.guard(window_start):
                     generators += [n.set_generator(p) for n in self.get_subrange(window_start, window_end)]
 
         if self.vp.gapless:
@@ -373,6 +380,15 @@ class ViewPoint(Generic[C]):
 
     def init(self) -> None:
         self.producers.sort(key = lambda p: p.fixedness, reverse = True)
+
+    def initialize_to(self, l: List[T], fixedness: float = 1.0) -> None:
+        """
+        Set the VP to a fixed content.
+
+        :param l: the list of elements to be set as fixed content.
+        :param fixendess: the associated fixedness value.
+        """
+        pass
     
     def get_pos(self, i: Index) -> int:
         if i.node.vp.get_leader() == self.get_leader():
@@ -495,7 +511,7 @@ class ViewPointLead(ViewPoint[T]):
         self.followers: List[ViewPointFollow] = []
 
     def initialize_to(self, l: List[T], fixedness: float = 1.0) -> None:
-        ''' For now, lead needs to be set first'''
+        # lead VP needs to be set first
         self.generated = True
         new_content: List[T] = []
         for n in PreOrderIter(self.root):
@@ -538,7 +554,7 @@ class ViewPointFollow(ViewPoint[C]):
         lead.followers.append(self)
 
     def initialize_to(self, l: List[C], fixedness: float = 1.0) -> None:
-        ''' assume that fixed_count_in VP is set first''' 
+        # assume that fixed_count_in VP is set first
         assert self.fixed_count_in is not None and self.fixed_count_in.generated
         self.generated = True
         for n in PreOrderIter(self.root):

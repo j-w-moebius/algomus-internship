@@ -27,7 +27,6 @@
 
 
 import glob
-import gabuzomeu
 import random
 import music
 from music import Note, Pitch, Duration, Chord, Syllable
@@ -59,18 +58,6 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
 
     sh: ur.Model = ur.Model(key, mode, meter)
 
-    if mode == 'major':
-        chords_prod: type = ChordsMajor
-        melody_s_prod: type = MelodyMajorS
-        melody_a_prod: type = MelodyMajorA
-        melody_b_prod: type = MelodyMajorB
-    else:
-        chords_prod = ChordsMinor
-        melody_s_prod = MelodyMinorS
-        melody_a_prod = MelodyMinorA
-        melody_b_prod = MelodyMinorB
-
-
     sh.add_vp('rhy', Duration)
     sh.add_vp('lyr', Syllable, lead_name='rhy', use_copy=False)
     sh.add_vp('pitchGridT', Pitch, lead_name='rhy')
@@ -95,10 +82,10 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
     sh['pitchGridT'].initialize_to(pitches)
     sh['fillInT'].initialize_to(fill_in, fixedness=0.8)
 
-    sh.add_producer(chords_prod(), 'chords', default=True)
-    sh.add_producer(melody_b_prod(key), 'pitchGridB', default=True)
-    sh.add_producer(melody_s_prod(key), 'pitchGridS', default=True)
-    sh.add_producer(melody_a_prod(key), 'pitchGridA', default=True)
+    sh.add_producer(ChordsMinor(), 'chords', default=True)
+    sh.add_producer(MelodyMinorB(key), 'pitchGridB', default=True)
+    sh.add_producer(MelodyMinorS(key), 'pitchGridS', default=True)
+    sh.add_producer(MelodyMinorA(key), 'pitchGridA', default=True)
     sh.add_producer(CadenceChords(mode), 'chords', fixedness=0.9)
     sh.add_producer(CadencePitches(mode, 'B'), 'pitchGridB', fixedness=0.9)
     sh.add_producer(CadencePitches(mode, 'S'), 'pitchGridS', fixedness=0.9) 
@@ -109,14 +96,10 @@ def harm_sacred(mel: Part, lyr: List[str], struct: StructureNode) -> ur.Model:
 
     # equip viewpoints with evaluators
     sh.add_evaluator(ScorerChords(), 'chords')
-
-    sh.add_evaluator(MelodyHarm('T'), 'pitchGridT', 'chords')
-
-    sh.add_evaluator(MelodyHarm('B'), 'pitchGridB', 'chords')
-
-    sh.add_evaluator(MelodyHarm('S'), 'pitchGridS', 'chords')
-
-    sh.add_evaluator(MelodyHarm('A'), 'pitchGridA', 'chords')
+    sh.add_evaluator(MelodyHarm(), 'pitchGridT', 'chords')
+    sh.add_evaluator(MelodyHarm(), 'pitchGridB', 'chords')
+    sh.add_evaluator(MelodyHarm(), 'pitchGridS', 'chords')
+    sh.add_evaluator(MelodyHarm(), 'pitchGridA', 'chords')
     
     print()
 

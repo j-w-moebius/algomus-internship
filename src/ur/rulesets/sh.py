@@ -15,13 +15,6 @@ from trees import StructureNode
 
 import nonchord
 
-STRUCTURE_LEVELS: Dict[str, int] = {
-    'piece': 0,
-    'section': 1,
-    'phrase': 2,
-    'motif': 3
-}
-
 VOICE_POSITIONS: Dict[str, int] = {
     'B': 0,
     'T': 1,
@@ -56,31 +49,18 @@ struc: StructureNode = \
             ])
         ])
 
+STRUCTURE_LEVELS: Dict[str, int] = {
+    'piece': 0,
+    'section': 1,
+    'phrase': 2,
+    'motif': 3
+}
 
 class Key:
-     CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4']
-
-class ChordsMajor(ur.HiddenMarkov[m.Chord]):
-
-
-    SOURCE = '(Kelley 2016)'
-
-    STATES = ['i', 'T', 'S', 'D']
-    INITIAL = ['i']
-
-    TRANSITIONS = {
-        'i': { 'i': 0.62, 'T': 0.10, 'S': 0.09, 'D': 0.18 },
-        'T': { 'i': 0.62, 'T': 0.10, 'S': 0.09, 'D': 0.18 },
-        'S': { 'i': 0.43, 'T': 0.10, 'S': 0.18, 'D': 0.28 },
-        'D': { 'i': 0.57, 'T': 0.10, 'S': 0.09, 'D': 0.25 },
-    }
-
-    EMISSIONS = {
-        'i': defaultdict(float, {'I': 1.00}),
-        'T': defaultdict(float, {'vi': 0.22, 'I': 0.78}),
-        'S': defaultdict(float, {'ii': 0.54, 'IV': 0.46}),
-        'D': defaultdict(float, {'iii': 0.21, 'V': 0.72, 'vii': 0.07}),
-    }
+    """
+    Possible key choices, expressed as transposition interval w.r.t. C
+    """
+    CHOICES = ['P-4', 'm-3', 'M-2', 'P1', 'M2', 'm3', 'P4']
 
 class ChordsMinor(ur.HiddenMarkov[m.Chord]):
 
@@ -100,226 +80,6 @@ class ChordsMinor(ur.HiddenMarkov[m.Chord]):
         'S': defaultdict(float, {'iim': 0.19, 'iv': 0.53, 'VI': 0.28}),
         'D': defaultdict(float, {'III': 0.35, 'v': 0.32, 'VII': 0.33}),
     }
-
-
-class ChordsExtended(ChordsMinor):
-
-    STATES = ['i', 'j', 'T', 'S', 'D']
-    INITIAL = ['i']
-
-
-    TRANSITIONS = {
-        'j': defaultdict(float,{ 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 }),
-        'i': defaultdict(float,{ 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 }),
-        'T': defaultdict(float,{ 'i': 0.30, 'T': 0.23, 'S': 0.08, 'D': 0.39 }),
-        'S': defaultdict(float,{ 'i': 0.10, 'T': 0.21, 'S': 0.14, 'D': 0.55 }),
-        'D': defaultdict(float,{ 'i': 0.20, 'T': 0.29, 'S': 0.08, 'D': 0.43 }),
-    }
-
-    # stars mark enrichened chords
-    EMISSIONS: Dict[str, defaultdict[m.Chord, float]] = {
-        'j': defaultdict(float,{'i': 0.50, 'i3': 0.20,  'i8': 0.15 }),
-        'i': defaultdict(float,{'i': 1.00 }),
-        'T': defaultdict(float,{'i': 0.30, 'i3': 0.20, '*i9': 0.25 }),
-        'S': defaultdict(float,{'iim': 0.19, 'iv': 0.33, '*iv9': 0.10, 'VI': 0.28}),
-        'D': defaultdict(float,{'III': 0.20, '*III7': 0.08, 'v': 0.15, 'v3': 0.7, 'v8': 0.05, 'VII': 0.33})
-    }
-
-class Rhythm(ur.RandomizedProducer):
-
-    DISPATCH_BY_NODE = True
-
-    OUT_COUNT = ur.Interval(1)
-    NEEDS_LEN = True
-    NEEDS_DURATION = True
-
-    CADENCE_DUR = {
-        '3/4': [1.0, 3.0],
-        '4/4': [1.0, 4.0],
-        '6/8': [0.5, 3.0]
-    }
-
-    ITEMS: Dict[str, List[Tuple[List[float], float]]] = {
-        '3/4': [([2.0], 0.2),
-                ([1.0], 0.4),
-                ([0.5, 0.5], 0.2),
-                ([1.5, 0.5], 0.2)],
-        '4/4': [([2.0], 0.03),
-                ([1.0], 0.7),
-                ([0.5, 0.5], 0.20),
-                ([0.75, 0.25], 0.05),
-                ([1.5, 0.5], 0.05)],
-        '6/8': [([3.0], 0.30),
-                ([1.5], 0.40),
-                ([2.0, 0.5, 0.5], 0.10),
-                ([1.0, 0.5], 0.45),
-                ([0.5, 0.5, 0.5], 0.30)]               
-               # ('8. 16 16 16', 0.02),
-               # ('8. 16 8', 0.15)]
-    }
-
-    METER: str
-
-    def __init__(self, meter: str):
-        self.METER = meter
-        self.cadence_dur: List[float] = self.CADENCE_DUR[meter]
-        self.items: List[Tuple[List[float], float]] = self.ITEMS[meter]
-
-    def guard(self, node: ur.RefinementNode) -> bool:
-        return node.is_leaf
-
-    def get_node_args(self, node: ur.RefinementNode) -> list:
-        # return whether the node is the end of a section
-        ptr: ur.RefinementNode = node
-        while ptr.depth != STRUCTURE_LEVELS['section']:
-            ind: int = ptr.parent.children.index(ptr)
-            if len(ptr.parent.children[ind + 1:]) > 0:
-                return [False]
-            ptr = ptr.parent
-        return [True]
-
-    def produce(self, len_to_gen: ur.Interval, dur_to_gen: float, end_of_section: bool) -> List[m.Duration]:
-        # we're only dealing with fix-sized output
-        assert len_to_gen.min == len_to_gen.max
-        target_len: int = len_to_gen.min - len(self.cadence_dur) if end_of_section else len_to_gen.min
-        target_dur: float = dur_to_gen - sum(self.cadence_dur) if end_of_section else dur_to_gen
-        result: List[m.Duration] = []
-
-        # extremely inefficient, but the whole point is the model, not the algos for the rules
-        while sum(result) != target_dur or len(result) != target_len:
-            result = []
-            while len(result) < target_len:
-                result += [m.Duration(d) for d in tools.pwchoice(self.items)]
-
-        if end_of_section:
-            result += [m.Duration(d) for d in self.cadence_dur]
-
-        assert sum(result) == dur_to_gen
-        assert len(result) >= len_to_gen.min and len(result) >= len_to_gen.max
-
-        return result
-
-class MelodyMajorS(ur.PitchMarkov):
-    AMBITUS = ('C4', 'A5')
-    AMBITUS_INITIAL = ('E4', 'E5')
-    STATES = ['C4', 'D4', 'E4', 'F4', 'B3', 'G4', 'A4', 'A3', 'C5', 'B4', 'G3', 'D5', 'E5', 'F5', 'A5', 'G5', 'A-5', 'F#5', 'D3', 'F3']
-    INITIAL = ['C4', 'E4', 'G4', 'C5', 'E5']
-    FINAL = STATES
-
-    TRANSITIONS = defaultdict(lambda: defaultdict(float), {
-        'C4': defaultdict(float, {'A3': 0.025, 'B3': 0.025, 'C4': 0.269, 'C5': 0.017, 'D3': 0.025, 'D4': 0.294, 'E4': 0.168, 'F4': 0.067, 'G3': 0.050, 'G4': 0.059}),
-        'D4': defaultdict(float, {'B3': 0.018, 'B4': 0.009, 'C4': 0.316, 'D3': 0.026, 'D4': 0.237, 'E4': 0.307, 'F4': 0.026, 'G3': 0.026, 'G4': 0.035}),
-        'E4': defaultdict(float, {'C4': 0.199, 'D3': 0.007, 'D4': 0.267, 'E4': 0.130, 'F4': 0.260, 'G4': 0.137}),
-        'F4': defaultdict(float, {'A4': 0.051, 'D3': 0.013, 'D4': 0.090, 'E4': 0.449, 'F4': 0.038, 'G4': 0.359}),
-        'B3': defaultdict(float, {'A3': 0.143, 'C4': 0.714, 'E5': 0.143}),
-        'G4': defaultdict(float, {'A4': 0.224, 'B4': 0.032, 'C4': 0.014, 'C5': 0.123, 'D4': 0.014, 'D5': 0.009, 'E4': 0.146, 'F4': 0.110, 'G3': 0.009, 'G4': 0.315, 'G5': 0.005}),
-        'A4': defaultdict(float, {'A4': 0.305, 'B4': 0.282, 'C5': 0.051, 'D5': 0.034, 'E5': 0.006, 'F4': 0.006, 'G4': 0.316}),
-        'A3': defaultdict(float, {'A3': 0.167, 'B3': 0.167, 'D3': 0.167, 'E4': 0.167, 'F3': 0.167, 'G3': 0.167}),
-        'C5': defaultdict(float, {'A4': 0.075, 'A5': 0.006, 'B4': 0.314, 'C4': 0.006, 'C5': 0.094, 'D5': 0.283, 'E4': 0.006, 'E5': 0.101, 'F5': 0.044, 'G3': 0.006, 'G4': 0.050, 'G5': 0.013}),
-        'B4': defaultdict(float, {'A4': 0.299, 'B4': 0.339, 'C5': 0.236, 'D5': 0.011, 'E5': 0.006, 'G4': 0.109}),
-        'G3': defaultdict(float, {'C4': 0.560, 'D5': 0.040, 'E4': 0.080, 'G3': 0.320}),
-        'D5': defaultdict(float, {'A3': 0.007, 'A4': 0.029, 'B4': 0.057, 'C4': 0.007, 'C5': 0.264, 'D5': 0.186, 'E4': 0.007, 'E5': 0.343, 'F5': 0.021, 'G3': 0.021, 'G4': 0.014, 'G5': 0.043}),
-        'E5': defaultdict(float, {'A5': 0.058, 'C4': 0.007, 'C5': 0.173, 'D3': 0.007, 'D5': 0.403, 'E5': 0.158, 'F#5': 0.007, 'F5': 0.122, 'G5': 0.065}),
-        'F5': defaultdict(float, {'C5': 0.021, 'D3': 0.021, 'D5': 0.021, 'E5': 0.646, 'F5': 0.062, 'G5': 0.229}),
-        'A5': defaultdict(float, {'A-5': 0.050, 'A5': 0.200, 'G5': 0.750}),
-        'G5': defaultdict(float, {'A5': 0.090, 'C5': 0.015, 'E4': 0.015, 'E5': 0.299, 'F5': 0.254, 'G5': 0.328}),
-        'A-5': defaultdict(float, {'E5': 1.000}),
-        'F#5': defaultdict(float, {'A5': 1.000}),
-        'D3': defaultdict(float, {'G3': 1.000}),
-        'F3': defaultdict(float, {'G3': 1.000}),
-    })
-
-class MelodyMajorA(ur.PitchMarkov):
-    AMBITUS = ('G3', 'D5')
-    AMBITUS_INITIAL = ('A3', 'C5')
-    STATES = ['G3', 'B3', 'C4', 'D4', 'A3', 'E3', 'F3', 'G4', 'F4', 'A4', 'F#4', 'B4', 'C5', 'D5', 'E4', 'E5', 'F5', 'A-4', 'D3']
-    INITIAL = ['G3', 'C4', 'E4', 'G4', 'C4']
-    FINAL = STATES
-
-    TRANSITIONS = defaultdict(lambda: defaultdict(float), {
-        'G3': defaultdict(float, {'A3': 0.267, 'B3': 0.027, 'C4': 0.120, 'D4': 0.013, 'E3': 0.027, 'F3': 0.027, 'G3': 0.520}),
-        'B3': defaultdict(float, {'A3': 0.125, 'B3': 0.163, 'C4': 0.500, 'D4': 0.037, 'G3': 0.175}),
-        'C4': defaultdict(float, {'A3': 0.049, 'B3': 0.186, 'C4': 0.668, 'D4': 0.040, 'E4': 0.018, 'F4': 0.009, 'G3': 0.031}),
-        'D4': defaultdict(float, {'A3': 0.023, 'B3': 0.023, 'C4': 0.233, 'D4': 0.349, 'E4': 0.186, 'F4': 0.093, 'G4': 0.093}),
-        'A3': defaultdict(float, {'A3': 0.295, 'B3': 0.361, 'C4': 0.148, 'D4': 0.049, 'F3': 0.016, 'G3': 0.131}),
-        'E3': defaultdict(float, {'A3': 0.250, 'F3': 0.750}),
-        'F3': defaultdict(float, {'D3': 0.125, 'E3': 0.375, 'F3': 0.250, 'G3': 0.250}),
-        'G4': defaultdict(float, {'A4': 0.105, 'B4': 0.026, 'C5': 0.048, 'D4': 0.013, 'E4': 0.071, 'F#4': 0.082, 'F4': 0.107, 'G4': 0.548}),
-        'F4': defaultdict(float, {'A4': 0.062, 'C4': 0.010, 'E4': 0.196, 'F4': 0.320, 'G4': 0.412}),
-        'A4': defaultdict(float, {'A-4': 0.051, 'A4': 0.253, 'B4': 0.051, 'C5': 0.040, 'F#4': 0.020, 'F4': 0.040, 'G4': 0.545}),
-        'F#4': defaultdict(float, {'A4': 0.091, 'D4': 0.015, 'E4': 0.091, 'F#4': 0.439, 'G4': 0.364}),
-        'B4': defaultdict(float, {'A-4': 0.017, 'A4': 0.133, 'B4': 0.183, 'C5': 0.450, 'D5': 0.050, 'G4': 0.167}),
-        'C5': defaultdict(float, {'A4': 0.050, 'B4': 0.275, 'C5': 0.525, 'D5': 0.025, 'E5': 0.017, 'G4': 0.108}),
-        'D5': defaultdict(float, {'B4': 0.125, 'C5': 0.875}),
-        'E4': defaultdict(float, {'A4': 0.017, 'C4': 0.083, 'D4': 0.058, 'E4': 0.492, 'F#4': 0.025, 'F4': 0.117, 'G4': 0.208}),
-        'E5': defaultdict(float, {'D5': 0.500, 'F5': 0.500}),
-        'F5': defaultdict(float, {'E5': 1.000}),
-        'A-4': defaultdict(float, {'A4': 0.833, 'E4': 0.167}),
-        'D3': defaultdict(float, {'G3': 1.000}),
-    })
-
-class MelodyMajorT(ur.PitchMarkov):
-    AMBITUS = ('B2', 'A4')
-    AMBITUS_INITIAL = ('E3', 'E4')
-    STATES = ['E3', 'G3', 'A3', 'F3', 'D3', 'B3', 'C3', 'B2', 'A2', 'E4', 'C4', 'D4', 'C#4', 'G4', 'F4', 'A4', 'B-4', 'F#4', 'E-4', 'G#3', 'F#3']
-    INITIAL = ['C3', 'E3', 'G3', 'C4', 'E4']
-    FINAL = STATES
-
-    TRANSITIONS = defaultdict(lambda: defaultdict(float), {
-        'E3': defaultdict(float, {'A3': 0.029, 'C3': 0.048, 'D3': 0.096, 'E3': 0.288, 'F3': 0.288, 'G3': 0.250}),
-        'G3': defaultdict(float, {'A3': 0.121, 'B3': 0.005, 'C3': 0.030, 'C4': 0.081, 'D3': 0.005, 'D4': 0.005, 'E3': 0.076, 'F3': 0.253, 'G#3': 0.010, 'G3': 0.414}),
-        'A3': defaultdict(float, {'A3': 0.192, 'B3': 0.096, 'C4': 0.096, 'D4': 0.058, 'F#3': 0.019, 'F3': 0.038, 'G#3': 0.019, 'G3': 0.481}),
-        'F3': defaultdict(float, {'A3': 0.018, 'D3': 0.009, 'E3': 0.423, 'F3': 0.198, 'G3': 0.351}),
-        'D3': defaultdict(float, {'B2': 0.062, 'C3': 0.406, 'D3': 0.125, 'E3': 0.375, 'F3': 0.031}),
-        'B3': defaultdict(float, {'A3': 0.033, 'B3': 0.262, 'C4': 0.623, 'D4': 0.016, 'G3': 0.049, 'G4': 0.016}),
-        'C3': defaultdict(float, {'A2': 0.053, 'B2': 0.132, 'C3': 0.211, 'D3': 0.316, 'E3': 0.079, 'F3': 0.158, 'G3': 0.053}),
-        'B2': defaultdict(float, {'C3': 0.778, 'D3': 0.222}),
-        'A2': defaultdict(float, {'B2': 1.000}),
-        'E4': defaultdict(float, {'B3': 0.016, 'C4': 0.121, 'D4': 0.371, 'E-4': 0.008, 'E4': 0.194, 'F4': 0.105, 'G4': 0.185}),
-        'C4': defaultdict(float, {'A3': 0.030, 'B3': 0.108, 'C4': 0.584, 'D4': 0.164, 'E4': 0.052, 'F4': 0.030, 'G3': 0.033}),
-        'D4': defaultdict(float, {'B3': 0.019, 'C#4': 0.026, 'C4': 0.193, 'D4': 0.580, 'E4': 0.145, 'F#4': 0.011, 'G3': 0.004, 'G4': 0.022}),
-        'C#4': defaultdict(float, {'D4': 1.000}),
-        'G4': defaultdict(float, {'A4': 0.032, 'B-4': 0.008, 'C4': 0.016, 'D4': 0.024, 'E4': 0.088, 'F#4': 0.040, 'F4': 0.224, 'G3': 0.016, 'G4': 0.552}),
-        'F4': defaultdict(float, {'C4': 0.066, 'D4': 0.016, 'E4': 0.475, 'F4': 0.180, 'G4': 0.262}),
-        'A4': defaultdict(float, {'G4': 1.000}),
-        'B-4': defaultdict(float, {'A4': 0.500, 'B-4': 0.500}),
-        'F#4': defaultdict(float, {'E4': 0.400, 'F#4': 0.200, 'G4': 0.400}),
-        'E-4': defaultdict(float, {'E4': 1.000}),
-        'G#3': defaultdict(float, {'A3': 0.600, 'G#3': 0.400}),
-        'F#3': defaultdict(float, {'F#3': 0.500, 'G3': 0.500}),
-    })
-
-class MelodyMajorB(ur.PitchMarkov):
-    AMBITUS = ('E2', 'D4')
-    AMBITUS_INITIAL = ('A2', 'C4')
-    STATES = ['C3', 'G2', 'F3', 'B2', 'D3', 'E3', 'A2', 'G3', 'F2', 'E2', 'D2', 'C2', 'F#3', 'C4', 'E4', 'D4', 'F4', 'B3', 'A3', 'E-4', 'B-2', 'C#3']
-    INITIAL = ['C3', 'C4']
-    FINAL = STATES
-
-    TRANSITIONS = defaultdict(lambda: defaultdict(float), {
-        'C3': defaultdict(float, {'A2': 0.049, 'A3': 0.003, 'B-2': 0.007, 'B2': 0.026, 'C3': 0.497, 'C4': 0.010, 'D3': 0.098, 'E2': 0.007, 'E3': 0.065, 'F2': 0.042, 'F3': 0.039, 'G2': 0.049, 'G3': 0.108}),
-        'G2': defaultdict(float, {'A2': 0.153, 'B2': 0.020, 'C2': 0.020, 'C3': 0.439, 'F2': 0.071, 'G2': 0.286, 'G3': 0.010}),
-        'F3': defaultdict(float, {'A2': 0.006, 'A3': 0.006, 'C3': 0.114, 'C4': 0.019, 'D3': 0.057, 'E3': 0.196, 'F#3': 0.044, 'F3': 0.380, 'G3': 0.177}),
-        'B2': defaultdict(float, {'A2': 0.125, 'B2': 0.125, 'C3': 0.750}),
-        'D3': defaultdict(float, {'A2': 0.020, 'C#3': 0.007, 'C3': 0.150, 'D3': 0.405, 'E3': 0.222, 'F#3': 0.020, 'F3': 0.033, 'G2': 0.007, 'G3': 0.137}),
-        'E3': defaultdict(float, {'A2': 0.016, 'A3': 0.033, 'C3': 0.090, 'D3': 0.189, 'E3': 0.180, 'F3': 0.426, 'G3': 0.066}),
-        'A2': defaultdict(float, {'A2': 0.132, 'B2': 0.151, 'C3': 0.057, 'D2': 0.113, 'D3': 0.075, 'E2': 0.038, 'F2': 0.019, 'G2': 0.415}),
-        'G3': defaultdict(float, {'A3': 0.026, 'B3': 0.011, 'C3': 0.168, 'C4': 0.073, 'D3': 0.062, 'E3': 0.040, 'F3': 0.059, 'G2': 0.018, 'G3': 0.542}),
-        'F2': defaultdict(float, {'A2': 0.068, 'C3': 0.250, 'E2': 0.068, 'F2': 0.295, 'G2': 0.318}),
-        'E2': defaultdict(float, {'A2': 0.125, 'C2': 0.188, 'D2': 0.062, 'E2': 0.125, 'F2': 0.438, 'G2': 0.062}),
-        'D2': defaultdict(float, {'E2': 1.000}),
-        'C2': defaultdict(float, {'C2': 0.250, 'F2': 0.750}),
-        'F#3': defaultdict(float, {'D3': 0.167, 'G3': 0.833}),
-        'C4': defaultdict(float, {'A3': 0.036, 'B3': 0.095, 'C4': 0.321, 'D4': 0.202, 'E3': 0.012, 'E4': 0.048, 'F3': 0.131, 'F4': 0.012, 'G3': 0.143}),
-        'E4': defaultdict(float, {'B3': 0.038, 'C4': 0.038, 'D4': 0.462, 'E3': 0.038, 'E4': 0.231, 'F4': 0.192}),
-        'D4': defaultdict(float, {'A3': 0.125, 'C4': 0.406, 'D3': 0.062, 'D4': 0.062, 'E-4': 0.031, 'E4': 0.281, 'G3': 0.031}),
-        'F4': defaultdict(float, {'E4': 0.750, 'F4': 0.250}),
-        'B3': defaultdict(float, {'A3': 0.320, 'C4': 0.680}),
-        'A3': defaultdict(float, {'A3': 0.176, 'B3': 0.382, 'C4': 0.029, 'D3': 0.088, 'D4': 0.029, 'E3': 0.029, 'F#3': 0.059, 'G3': 0.206}),
-        'E-4': defaultdict(float, {'E-4': 0.500, 'E4': 0.500}),
-        'B-2': defaultdict(float, {'A2': 1.000}),
-        'C#3': defaultdict(float, {'D3': 1.000}),
-    })
 
 class MelodyMinorS(ur.PitchMarkov):
     AMBITUS = ('C4', 'A5')
@@ -377,36 +137,6 @@ class MelodyMinorA(ur.PitchMarkov):
         'C#4': defaultdict(float, {'D4': 1.000}),
     })
 
-class MelodyMinorT(ur.PitchMarkov):
-    AMBITUS = ('B2', 'A4')
-    AMBITUS_INITIAL = ('C3', 'E4')
-    STATES = ['E4', 'C4', 'D4', 'B3', 'A3', 'A-3', 'G4', 'A-4', 'A4', 'G3', 'F3', 'E3', 'F#4', 'B-3', 'E-4', 'F4', 'B-4', 'F#3', 'G#3', 'D3']
-    INITIAL = ['E3', 'A3', 'E4']
-    FINAL = STATES
-
-    TRANSITIONS = defaultdict(lambda: defaultdict(float), {
-        'E4': defaultdict(float, {'A3': 0.011, 'A4': 0.022, 'B3': 0.022, 'C4': 0.140, 'D4': 0.301, 'E4': 0.409, 'F4': 0.022, 'G4': 0.075}),
-        'C4': defaultdict(float, {'A3': 0.057, 'B-3': 0.078, 'B3': 0.248, 'C4': 0.234, 'D4': 0.234, 'E-4': 0.014, 'E4': 0.113, 'F4': 0.014, 'G3': 0.007}),
-        'D4': defaultdict(float, {'A3': 0.015, 'B-3': 0.083, 'B3': 0.015, 'C4': 0.316, 'D4': 0.331, 'E-4': 0.068, 'E4': 0.113, 'F4': 0.045, 'G4': 0.015}),
-        'B3': defaultdict(float, {'A3': 0.351, 'B3': 0.247, 'C4': 0.234, 'E3': 0.026, 'E4': 0.091, 'G#3': 0.013, 'G3': 0.039}),
-        'A3': defaultdict(float, {'A-3': 0.045, 'A3': 0.259, 'B-3': 0.071, 'B3': 0.143, 'C4': 0.062, 'D3': 0.018, 'D4': 0.018, 'E3': 0.018, 'E4': 0.036, 'F#3': 0.018, 'F3': 0.009, 'G#3': 0.062, 'G3': 0.241}),
-        'A-3': defaultdict(float, {'A3': 0.375, 'B3': 0.375, 'E3': 0.250}),
-        'G4': defaultdict(float, {'A-4': 0.043, 'A4': 0.087, 'B-4': 0.022, 'C4': 0.043, 'D4': 0.087, 'E4': 0.130, 'F4': 0.087, 'G4': 0.500}),
-        'A-4': defaultdict(float, {'A-4': 0.600, 'A4': 0.400}),
-        'A4': defaultdict(float, {'A4': 0.167, 'E4': 0.250, 'F#4': 0.167, 'G4': 0.417}),
-        'G3': defaultdict(float, {'A-3': 0.048, 'A3': 0.254, 'B-3': 0.095, 'C4': 0.095, 'D4': 0.032, 'E3': 0.048, 'E4': 0.016, 'F#3': 0.048, 'F3': 0.143, 'G3': 0.222}),
-        'F3': defaultdict(float, {'G3': 1.000}),
-        'E3': defaultdict(float, {'A3': 0.476, 'C4': 0.190, 'E3': 0.333}),
-        'F#4': defaultdict(float, {'F#4': 0.250, 'G4': 0.750}),
-        'B-3': defaultdict(float, {'A3': 0.269, 'B-3': 0.308, 'C4': 0.231, 'D4': 0.115, 'E-4': 0.019, 'F4': 0.019, 'G3': 0.038}),
-        'E-4': defaultdict(float, {'D4': 0.471, 'E-4': 0.118, 'F4': 0.294, 'G4': 0.118}),
-        'F4': defaultdict(float, {'A4': 0.038, 'C4': 0.115, 'D4': 0.192, 'E-4': 0.115, 'E4': 0.115, 'F#4': 0.038, 'F4': 0.231, 'G4': 0.154}),
-        'B-4': defaultdict(float, {'A4': 1.000}),
-        'F#3': defaultdict(float, {'G3': 1.000}),
-        'G#3': defaultdict(float, {'A3': 0.444, 'E3': 0.444, 'G#3': 0.111}),
-        'D3': defaultdict(float, {'G3': 1.000}),
-    })
-
 class MelodyMinorB(ur.PitchMarkov):
     AMBITUS = ('E2', 'D4')
     AMBITUS_INITIAL = ('A2', 'C4')
@@ -439,45 +169,6 @@ class MelodyMinorB(ur.PitchMarkov):
     })
 
 
-class ScorerMelody(ur.Scorer):
-
-    ARGS = [(m.Pitch, ur.Interval(1))]
-
-    AMBITUS_LOW = 5
-    AMBITUS_HIGH = 14
-    AMBITUS_GOOD = 7
-
-    def score(self, mel: List[m.Pitch]):
-        score: float = 0.0
-
-        # Ambitus
-        ambitus = m.ambitus([m for m in mel if not m.is_undefined()])
-        if ambitus < self.AMBITUS_LOW or ambitus > self.AMBITUS_HIGH:
-            score -= 1.0
-        elif ambitus > self.AMBITUS_GOOD:
-            score += 0.5
-
-        for i in range(len(mel)-2):
-            a, b, c = mel[i:i+3]
-            if a.is_undefined() or b.is_undefined() or c.is_undefined():
-                continue
-            i1 = m.interval(a,b)
-            i2 = m.interval(b,c)
-            if abs(i1) > 9 and abs(i1) != 12:
-                score -=5.0 # TODO: arbitrary hack
-            # Large intervals, then short contrary motion
-            if i1 > 7 and i2 in [-1, -2]:
-                score += 0.2
-            if i1 < -7 and i2 in [1, 2]:
-                score += 0.2
-
-            # Too many repeated notes
-            if a == b and b == c:
-                score -= 0.2
-
-        return score
-
-
 class ScorerChords(ur.Scorer):
     ARGS = [(m.Chord, ur.Interval(1))]
 
@@ -494,85 +185,10 @@ class ScorerChords(ur.Scorer):
         return score
 
 
-class ScorerMelodySA(ScorerMelody):
-    AMBITUS_LOW = 5
-    AMBITUS_HIGH = 12
-    AMBITUS_GOOD = 5
-
-
-S1 = {
-        1.0: 0, 2.0: 1, 3.0: 2
-     }
-
-S0 = {
-        1.0: 2, 2.0: 1, 3.0: 0
-     }
-
-class ScorerRhythmLyrics(ur.Scorer):
-
-    ARGS = [(m.Duration, ur.Interval(1,1)),
-            (m.Syllable, ur.Interval(1,1))]
-
-    STRESSES = [
-        ('!', S1),
-        ('>>', S1),
-        ('>',  S1),
-        ('/', S1),
-
-        #('-', S0),
-        ('',  S0),
-    ]
-
-    def score(self, rhy: List[m.Duration], lyr: List[m.Syllable]):
-        d: m.Duration = rhy[0]
-        s: m.Syllable = lyr[0]
-        for (symbol, scores) in self.STRESSES:
-            if symbol in s:
-                if d in scores:
-                    return scores[d]
-        return 0
-
-
-class ScorerRhythmMetrics(ur.Scorer):
-    
-    ARGS = [(m.Duration, ur.Interval(1))]
-    NEEDS_START = True
-
-    METER: str
-
-    def __init__(self, meter: str):
-        self.METER = meter
-        self.qpb: float = m.quarters_per_bar(meter)
-
-    def score(self, rhy: List[m.Duration], start: ur.Index) -> float:
-        score: float = 0.0
-
-        pos: float = start.relative_q() % self.qpb
-        for r in rhy:
-            d = r.quarter_length()
-            # penalize bar-crossing ties
-            if pos + d > self.qpb:
-                score -= .2
-            # if d > 1 and pos == 1:
-            #     score -= .2
-            # if d == 1 and r != '4' and pos == 3:
-            #     score += .2
-            pos = (pos + d) % self.qpb
-
-        # if pos in [0, 2]:
-        #     score -= .5
-
-        return score
-
-
-class MelodyHarm(ur.Constraint):#(ur.ScorerTwoSequence):
+class MelodyHarm(ur.Constraint):
 
     ARGS = [(m.Pitch, ur.Interval(1,1)),
             (m.Chord, ur.Interval(1,1))]
-
-    # bottom-up index of voice in four-part setting
-    POSITION: int
-    FIXED_POSITION: List[m.Chord] = [ '*i9', '*III7', '*iv9']
 
     CHORDS: Dict[m.Chord, str]= {
         'I': 'ceg',
@@ -602,45 +218,12 @@ class MelodyHarm(ur.Constraint):#(ur.ScorerTwoSequence):
         'v8': 'e',
     }
 
-    SCORES = {
-        None: 0.0,
-        0: 1.0,
-        1: 1.0,
-        2: 1.0,
-        3: 1.0,
-    }
-
-    def __init__(self, voice: str):
-        if voice not in VOICE_POSITIONS.keys():
-            raise RuntimeError(f"Voice must be one of {' ,'.join(VOICE_POSITIONS.keys())}!")
-        self.POSITION = VOICE_POSITIONS[voice]
-
     def valid(self, mel: List[m.Pitch], chords: List[m.Chord]) -> float:
 
         # print (mel, harm, self.CHORDS[harm])
         pc: m.Pitch = mel[0].pc()
         chord: m.Chord = chords[0]
         return pc in self.CHORDS[chord]
-
-
-class ScorerMelodyMelody(ur.Scorer):
-
-    ARGS = [(m.Pitch, ur.Interval(2,2)),
-            (m.Pitch, ur.Interval(2,2))]
-
-    def score(self, mel1: List[m.Pitch], mel2: List[m.Pitch]) -> float:
-
-        if any([m.is_undefined() for m in mel1 + mel2]):
-            return 0.0
-
-        # Detect doubling of voices
-        if (mel1[0].pc() == mel2[0].pc()):
-            int1 = m.interval(mel1[0], mel1[1]) % 12
-            int2 = m.interval(mel2[0], mel2[1]) % 12
-            if int1 == int2:
-                return -1.0
-
-        return 1.0
 
 
 class CadencePitches(ur.Enumerator):

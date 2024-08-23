@@ -75,6 +75,9 @@ class WindowIterator:
 
 
 class Interval:
+    """
+    A class for intervals on natural numbers.
+    """
     def __init__(self, min: int = 0, max: Optional[int] = None):
         self.min: int = min
         self.max: Optional[int] = max
@@ -101,11 +104,20 @@ class Interval:
 
 
 class Rule(Generic[R]):
+    """
+    A base class for all rules.
+    """
+    # The list of its argument types and sizes.
+    # E.g. [(Chord, Interval(1)), (Pitch, Interval(2,4)] means:
+    # - the first argument must at least 1 chord
+    # - the second argument must be 2 or 3 pitches
     ARGS: List[Tuple[type, Interval]] = []
 
+    # Whether the window start is needed as contextual argument.
     NEEDS_START: bool = False
+    # Whether other contextual node arguments are needed. If so, overwrite get_node_args.
     NEEDS_NODE_ARGS: bool = False
-    
+
 
     T = TypeVar('T')
 
@@ -113,9 +125,13 @@ class Rule(Generic[R]):
         raise NotImplementedError()
 
 
-    def guard(self, *args: T, start: Optional[Index] = None) -> bool:
-        ''' whether the rule can be applied, given args and a start position
-        overwrite to implement specific behavior'''
+    def guard(self, start: Index) -> bool:
+        """ 
+        Determines if the rule can be applied. 
+        Trivial guard is default, overwrite to implement specific guards.
+
+        :param start: The application window's starting position.
+        """
         return True 
 
     def check_args(self, *args: T) -> None:
@@ -137,36 +153,51 @@ class Rule(Generic[R]):
         raise None
 
     def get_node_args(self, node: RefinementNode) -> list:
+        """
+        Determines which contextual arguments are fetched from the application node.
+
+        :param node: The refinement tree node on which the rule is applied and from which the contextual information is to be fetched.
+        """
         raise NotImplementedError()
 
 ### Producers
 
 class Producer(Rule[List[List[C]]]):
+    """
+    A base class for producers.
+    The arguments its production function (`enumerate`/`produce`) takes are ordered as follows:
 
+    :param *VP_args: The arguments specified by ARGS.
+    :param start: The window start, if `NEEDS_START`.
+    :param pre_context: The content of the generated VP *before* the generated interval, if `NEEDS_CONTEXT`.
+    :param post_context: The content of the generated VP *before* the generated interval, if `NEEDS_CONTEXT`.
+    :param len_to_gen: The targeted element count, if `NEEDS_LEN`.
+    :param dur_to_gen: The targeted duration, if `NEEDS_DURATION`.
+    :param *node_args: The node arguments, if `NEEDS_NODE_ARGS`.
+    """
+
+    # The possible lengths of sequences output by the rule.
     OUT_COUNT: Interval
+    # Whether to dispatch the producer only by node properties. If True, overwrite guard with a function with argument of type RefinementNode.
     DISPATCH_BY_NODE: bool = False
 
+    # Whether the context of the generated VP (before and after) is needed as argument.
     NEEDS_CONTEXT: bool = False
+    # Whether the target duration is needed as argument.
     NEEDS_DURATION: bool = False
+    # Whether the targeted number of elements is needed as argument.
     NEEDS_LEN: bool = False
 
     def flexible_length(self) -> bool:
         return self.OUT_COUNT.max is None
 
-    def call_guard(self, node:RefinementNode, window_start: Index, window_end: Index) -> bool:
-        args = self.fetch_args(node, window_start, window_end, True)
-        return self.guard(*args)
-
-    def fetch_args(self, node: RefinementNode, window_start: Index, window_end: Index, for_guard: bool) -> list:
+    def fetch_args(self, node: RefinementNode, window_start: Index, window_end: Index) -> list:
 
         args = [vp[window_start:window_end] for vp in self.vps]
         self.check_args(*args)
 
-        if self.NEEDS_START or for_guard:
+        if self.NEEDS_START:
             args.append(window_start)
-
-        if for_guard:
-            return args
 
         if self.NEEDS_CONTEXT:
             pre_context: List[C] = node.vp[:window_start]
@@ -194,22 +225,39 @@ class Producer(Rule[List[List[C]]]):
 
 
 class Enumerator(Producer[C]):
+    """
+    A base class for deterministic producers.
+    """
 
     def __call__(self, node: RefinementNode) -> List[List[C]]:
-        args = self.fetch_args(node, node.start, node.end, False)
+        args = self.fetch_args(node, node.start, node.end)
         return self.enumerate(*args)
 
     def enumerate(self, *args: T) -> List[List[C]]:
+        """
+        The actual deterministic production function.
+
+        :param args: The arguments, in the order specified in the documentation of class `Producer`.
+        :returns: A list of generations.
+        """
         raise NotImplementedError()
 
 class RandomizedProducer(Producer[C]):
+    """
+    A base class for randomized producers.
+    """
 
     def __call__(self, node: RefinementNode, batch_size: int) -> List[List[C]]:
-        args = self.fetch_args(node, node.start, node.end, False)
+        args = self.fetch_args(node, node.start, node.end)
         return [self.produce(*args) for i in range(batch_size)]
-        
 
     def produce(self, *args: T) -> List[C]:
+        """
+        The actual randomized production function.
+
+        :param args: The arguments, in the order specified in the documentation of class `Producer`.
+        :returns: A single generation.
+        """
         raise NotImplementedError()
 
 
@@ -217,7 +265,16 @@ class RandomizedProducer(Producer[C]):
 ### Constraints
 
 class Evaluator(Rule[R]):
+    """
+    A base class for constraints and scorers.
 
+    The arguments its evaluation function (`valid`/`score`) takes are ordered as follows:
+
+    :param *VP_args: The arguments specified by ARGS.
+    :param start: The window start, if `NEEDS_START`.
+    :param *node_args: The node arguments, if `NEEDS_NODE_ARGS`.
+    """
+    
     ALLOW_OUTSIDE: bool = True
         
     def fetch_args(self, node: RefinementNode, generated: List[C], window_start: Index, window_end: Index) -> list:
@@ -251,11 +308,20 @@ class Evaluator(Rule[R]):
 
 
 class Constraint(Evaluator[bool]):
+    """
+    A base class for constraints.
+    """
     def __call__(self, node: RefinementNode, generated: List[C], window_start: Index, window_end: Index) -> bool:
         args = self.fetch_args(node, generated, window_start, window_end)
         return self.valid(*args)
 
     def valid(self, *args: T) -> bool:
+        """
+        The actual pruning function.
+
+        :param args: The arguments, in the order specified in the documentation of class `Evaluator`.
+        :returns: True iff the input is valid.
+        """
         raise NotImplementedError()
 
     
@@ -263,28 +329,40 @@ class Constraint(Evaluator[bool]):
 ### Scores
 
 class Scorer(Evaluator[float]):
+    """
+    A base class for scorers.
+    """
 
     def __call__(self, node: RefinementNode, generated: List[C], window_start: Index, window_end: Index) -> float:
         args = self.fetch_args(node, generated, window_start, window_end)
         return self.score(*args)
 
     def score(self, *args: T) -> float:
+        """
+        The actual scoring function.
+
+        :param args: The arguments, in the order specified in the documentation of class `Evaluator`.
+        :returns: The score assigned to the input.
+        """
         raise NotImplementedError()
 
 
 class Generator(Generic[C]):
+    """
+    A class modelling the attachement of a producer to a refinement tree node.
+    """
 
-    BATCH_SIZE = 100
-   # S = TypeVar('S', bound=m.Content)
+    # The number of generations to sample for randomized producers.
+    BATCH_SIZE: int
 
-    def __init__(self, node: RefinementNode, prod: Producer) -> None:
+    def __init__(self, node: RefinementNode, prod: Producer, batch_size: int) -> None:
         # the generated data
         self.gens: List[Tuple[List[C], float]] = []
         self.node: RefinementNode = node
         self.producer: Producer = prod
         self.constraints: List[Constraint] = []
         self.scorers: List[Scorer] = []
-        # self.setup()
+        self.BATCH_SIZE = batch_size
 
     def generate(self) -> None:
 
@@ -377,6 +455,9 @@ class RandomChoice(RandomizedProducer[C]):
 S = TypeVar("S")
 
 class HiddenMarkov(RandomizedProducer[C]):
+    """
+    A base class for HMM producers.
+    """
     
 
     OUT_COUNT = Interval(1)
@@ -442,6 +523,9 @@ class HiddenMarkov(RandomizedProducer[C]):
         return emits
 
 class Markov(HiddenMarkov[C]):
+    """
+    A base class for (order 1) Markov producers.
+    """
     
     def __init__(self):
         self.EMISSIONS = {
@@ -450,6 +534,9 @@ class Markov(HiddenMarkov[C]):
 
  
 class PitchMarkov(Markov[m.Pitch]):
+    """
+    A base class for Markov producers of pitches, taking into account key transposition and ambitus.
+    """
 
     DISPATCH_BY_NODE = True
 
@@ -488,16 +575,24 @@ class PitchMarkov(Markov[m.Pitch]):
 ### Model
 
 class Model:
+    """
+        A class for refinement models.
+        
+        :param key: the key to generate in, expressed as transposition interval w.r.t. C
+        :param mode: the mode to generate in (`major/minor`)
+        :param meter: the time signature to generate in
+        :param batch_size: the number of generations to sample for randomized producers
+        """
 
-    def __init__(self, key: str, mode: str, meter: str):
+    def __init__(self, key: str, mode: str, meter: str, batch_size: int = 100):
         self.key: str = key
         self.mode: str = mode
         self.meter: str = meter
+        self.batch_size: int = batch_size
         self.quarters_per_bar: float = music.quarters_per_bar(meter)
         self.vps: List[ViewPoint] = []
         
-
-    # iterate through models      
+      
     def __iter__(self):
         for vp in self.vps:
             yield vp
@@ -509,7 +604,16 @@ class Model:
         raise KeyError(name)
 
     def add_vp(self, name: str, content_cls: Type[C], before: List[str] = [], use_copy: bool = True, lead_name: Optional[str] = None, gapless: bool = True) -> None:
+        """
+        Add a new VP to the model.
 
+        :param name: the VP's name
+        :param content_cls: the class of its content elements (must inherit from music.Content), e.g., music.Pitch
+        :param before: list of names some of the model's VPs; the new VP will be placed *before* all of them in the generation order
+        :param use_copy: whether the new VP copies between nodes
+        :param lead_name: the name of one of the model's lead VPs that the new VP will follow
+        :param gapless: whether the new VP is need to end up with generations in *all* of its intervals 
+        """ 
         error_msg: str = "Need to specify existing Lead ViewPoint when creating a Follow ViewPoint."
         new_vp: ViewPoint
         if lead_name:
@@ -530,8 +634,10 @@ class Model:
             self.vps.append(new_vp)
 
     def setup(self) -> None:
-        ''' Set up fixed count dependency
-        '''
+        """
+        Set up the model's fixed count dependencies:
+        In each groups of VPs with the same leader, the earliest one in the generation order determines the element counts of all others.
+        """
         for (i, vp1) in enumerate(self.vps):
             for vp2 in self.vps[i + 1:]:
                 if vp1.get_leader() == vp2.get_leader() and vp2.fixed_count_in is None:
@@ -542,11 +648,25 @@ class Model:
             vp.init()
 
     def set_structure(self, struc: StructureNode) -> None:
+        """
+        Set the model's structure.
+
+        :param struc: The structure tree to be used.
+        """
         self.structure: StructureNode = struc
         for vp in self.vps:
             vp.initialize_structure()
 
     def add_producer(self, producer: Producer, vp: str, *vp_in_names: str, fixedness: float = 0.5, default: bool = False) -> None:
+        """
+        Add a producer rule to the model.
+
+        :param producer: The producer to be added.
+        :param vp: The name of the model's VP `producer` is to be assigned to.
+        :param *vp_in_names: The names of the model's VPs `producer` takes as input, in correct order.
+        :param fixedness: The fixedness value which will be assigned to `producer`'s output.
+        :param default: Whether `producer` is `vp`'s default producer.
+        """
         producer.model: Model = self
         producer.fixedness: float = fixedness
         try:
@@ -562,6 +682,13 @@ class Model:
             self[vp].default_prod = producer
     
     def add_evaluator(self, evaluator: Evaluator, *vp_names: str, weight: float = 1.0) -> None:
+        """
+        Add an evaluator rule to the model.
+
+        :param evaluator: The constraint or scorer object to be added.
+        :param *vp_names: The names of the model's VPs `evaluator` takes as input, in correct order.
+        :param weight: If `evaluator` is a scorer, the weight it is to be assigned.
+        """
         try:
             evaluator.vps: List[ViewPoint] = [self[n] for n in vp_names]
         except KeyError:
@@ -575,11 +702,24 @@ class Model:
                 v.scorers.append(evaluator)
 
     def generate(self) -> None:
+        """
+        Execute the model.
+        """
         for vp in self.vps:
             print(f'[yellow]### generate VP \'{vp.name}\'')
             vp.generate()
 
-    def export(self, filename: str, title: str, lyr_vp: str, melody_vp_names: List[str], annot_vp_names: List[str], svg: bool) -> None:
+    def export(self, filename: str, title: str, lyr_vp: str, melody_vp_names: List[str], annot_vp_names: List[str], svg: bool = False) -> None:
+        """
+        Export the current model state as a piece in `musicxml` format.
+
+        :param filename: The name of the output file.
+        :param title: The title of the piece.
+        :param lyr_vp: The name of the VP containing lyrics (common to all parts).
+        :param melody_vp_names: The names of the VPs containing the individual parts, ordered as they shall appear in the score.
+        :param annot_vp_names: The names of the VPs containing additional annotations to be displayed below the lowest part.
+        :param svg: Additionally save piece as svg via Verovio?
+        """
         print('[yellow]## Exporting')
         melodies = [(vp,
                      self[vp][:],

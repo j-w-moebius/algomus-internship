@@ -55,6 +55,9 @@ class Temporal(Content):
         pass
 
 class Duration(Temporal):
+    """
+    A class for rhythmic durations.
+    """
 
     def __init__(self, val: int | float | str):
         if isinstance(val, float | int):
